@@ -12,15 +12,31 @@
 // test/test_trivial.cpp
 //
 // Step 1 smoke test: verifies the package builds and links against
-// wire_cell_phlex without error.  No logic beyond return 0.
+// wire_cell_phlex without error.  No WCT graph or executor construction;
+// just confirms that key headers are accessible and types are instantiable.
 
+#include "wire_cell_phlex/Data.h"
+#include "wire_cell_phlex/BoundarySource.h"
+#include "wire_cell_phlex/BoundarySink.h"
 #include "wire_cell_phlex/Executor.h"
+
+#include <WireCellIface/IFrameSource.h>
+#include <WireCellIface/IFrameSink.h>
 
 int main()
 {
-  // Instantiating the base class confirms the header and shared library
-  // are reachable and that the vtable links correctly.
-  wcphlex::Executor e;
-  (void)e;
-  return 0;
+    // Instantiate boundary types to confirm headers, vtable, and shared
+    // library are reachable and link correctly.  No WCT initialization.
+    wcphlex::BoundarySource<WireCell::IFrameSource> src;
+    wcphlex::BoundarySink<WireCell::IFrameSink>     snk;
+    (void)src;
+    (void)snk;
+
+    // Confirm wcphlex data wrapper types are constructible.
+    wcphlex::Frame     f{nullptr};
+    wcphlex::DepoSet   ds{nullptr};
+    wcphlex::TensorSet ts{nullptr};
+    (void)f; (void)ds; (void)ts;
+
+    return 0;
 }

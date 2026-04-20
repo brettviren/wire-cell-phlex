@@ -13,21 +13,32 @@
 //
 // Template for a WCT source node that acts as the PHLEX→WCT boundary buffer.
 //
-// Usage pattern (per PHLEX event):
-//   1.  source->fill(wct_ptr)      // PHLEX side: load one event's data
-//   2.  wcmain()                   // run WCT graph
-//   3.  result = sink->drain()     // PHLEX side: retrieve output
+// Usage pattern (persistent graph, repeated per PHLEX event):
+//   1. source->fill(wct_ptr)      // PHLEX side: enqueue one event's data
+//   2. wcmain()                   // run WCT graph (may be called once per event)
+//   3. result = sink->drain()     // PHLEX side: dequeue output
 //
-// WCT calls operator() during step 2:
-//   - First call:  out = m_data (non-null), returns true
-//   - Second call: out = nullptr (EOS), returns true
+// Queue-based design (mirrors larwirecell SimDepoSource):
+//   - fill() pushes items onto an internal queue and resets EOS state.
+//   - WCT's graph calls operator() repeatedly until no node does any work:
+//       · Queue non-empty → dequeue item, return (item, true)
+//       · Queue empty, EOS not yet sent → return (nullptr, true)  [EOS signal]
+//       · Queue empty, EOS sent → return (nullptr, false)         [graph stops]
+//   - After operator() returns false, the Pgraph::Source wrapper still calls
+//     the underlying node on every subsequent execute() pass (there is no
+//     persistent "skip if m_ok=false" guard in Pgraph::Source).  A new fill()
+//     before the next wcmain() call refills the queue and resets m_eos_sent,
+//     so the next graph execution processes fresh data correctly.
 //
-// The node is re-usable: a subsequent fill() resets the served flag.
+// Multiple items per event are supported: call fill() several times before
+// wcmain(); the source will dequeue them in order, then send EOS.
+//
 // WIRECELL_FACTORY registrations for concrete types live in BoundaryNodes.cpp.
 
 #pragma once
 
 #include <WireCellIface/IConfigurable.h>
+#include <queue>
 #include <utility>
 
 namespace wcphlex {
@@ -46,30 +57,35 @@ namespace wcphlex {
 
         // ---- PHLEX-side interface ----------------------------------------
 
-        // Pre-load one event's data before calling wcmain().
-        // Resets the served flag so the next WCT call gets fresh data.
+        // Enqueue one item for the next WCT graph execution.
+        // Also resets the EOS-sent flag so this source will run again.
+        // May be called multiple times before wcmain() to push a batch.
         void fill(output_pointer data)
         {
-            m_data = std::move(data);
-            m_served = false;
+            m_queue.push(std::move(data));
+            m_eos_sent = false;
         }
 
         // ---- WCT source interface ----------------------------------------
 
-        // Called by the WCT graph during wcmain().
-        //   First call:  delivers m_data and marks it served.
-        //   Second call: sends EOS (out = nullptr).
-        //   Returns true in both cases (false = error/stop).
+        // Called repeatedly by the WCT graph during wcmain():
+        //   · Queue non-empty:              out = next item,  returns true
+        //   · Queue empty, EOS not sent:    out = nullptr,    returns true (EOS)
+        //   · Queue empty, EOS already sent: out = nullptr,   returns false (done)
         bool operator()(output_pointer& out) override
         {
-            if (!m_served) {
-                out = m_data;
-                m_served = true;
+            if (!m_queue.empty()) {
+                out = std::move(m_queue.front());
+                m_queue.pop();
+                return true;
             }
-            else {
-                out = nullptr;  // EOS signal
+            if (!m_eos_sent) {
+                out = nullptr;       // EOS signal
+                m_eos_sent = true;
+                return true;
             }
-            return true;
+            out = nullptr;
+            return false;            // graph may stop calling this source
         }
 
         // ---- IConfigurable (no-op: boundary nodes need no config) -------
@@ -80,8 +96,8 @@ namespace wcphlex {
         void configure(WireCell::Configuration const&) override {}
 
     private:
-        output_pointer m_data{};
-        bool m_served{true};  // true → nothing to serve yet
+        std::queue<output_pointer> m_queue;
+        bool m_eos_sent{false};
     };
 
 } // namespace wcphlex

@@ -14,12 +14,20 @@
 // Step 3: unit test for BoundarySource and BoundarySink.
 //
 // Tests the PHLEX/WCT boundary buffer classes directly, without running a
-// WCT graph.  Checks:
-//   1. BoundarySource serves one data item then EOS.
-//   2. BoundarySink accumulates a single item; drain() returns it.
-//   3. Round-trip: pointer identity is preserved through fill → op() → drain.
-//   4. Re-use: fill() resets state; a second round-trip works correctly.
-//   5. DepoSet variants behave identically to Frame variants.
+// WCT graph.  Queue-based BoundarySource behaviour:
+//
+//   fill(data)        → enqueues data, resets EOS state
+//   src(out) call 1   → out = data,    true   (dequeued from queue)
+//   src(out) call 2   → out = nullptr, true   (EOS signal)
+//   src(out) call 3   → out = nullptr, false  (graph terminates)
+//
+// Tests:
+//   1. Single fill + three operator() calls on Frame source/sink.
+//   2. Re-use: after the third call returns false, a new fill() resets state
+//      and the cycle repeats correctly (5 rounds).
+//   3. Initial state: unfilled source returns EOS on first call (empty queue).
+//   4. DepoSet variants behave identically.
+//   5. Multi-fill: two fill() calls before execution serve both items then EOS.
 
 #include "wire_cell_phlex/BoundarySource.h"
 #include "wire_cell_phlex/BoundarySink.h"
@@ -39,20 +47,18 @@
 // Helpers
 // ---------------------------------------------------------------------------
 
-// Make a minimal IFrame with a given ident.
 static WireCell::IFrame::pointer make_frame(int ident)
 {
     return std::make_shared<WireCell::Aux::SimpleFrame>(ident);
 }
 
-// Make a minimal IDepoSet with a given ident.
 static WireCell::IDepoSet::pointer make_deposet(int ident)
 {
     return std::make_shared<WireCell::Aux::SimpleDepoSet>(ident, WireCell::IDepo::vector{});
 }
 
 // ---------------------------------------------------------------------------
-// Test helpers
+// run_one_round: fill once, simulate three WCT source calls, sink round-trip.
 // ---------------------------------------------------------------------------
 
 template <typename SourceIface, typename SinkIface, typename Ptr>
@@ -63,34 +69,40 @@ void run_one_round(wcphlex::BoundarySource<SourceIface>& src,
     using output_pointer = typename SourceIface::output_pointer;
     using input_pointer  = typename SinkIface::input_pointer;
 
-    // ---- PHLEX side: fill source ------------------------------------------
+    // ---- PHLEX side: fill source with one item ---------------------------
     src.fill(data);
 
-    // ---- Simulate WCT graph calling source twice --------------------------
+    // ---- Simulate WCT graph calling source three times ------------------
     output_pointer out1;
     bool ok1 = src(out1);
-    assert(ok1                && "source must return true on first call");
-    assert(out1               && "source must return data on first call");
-    assert(out1 == data       && "source must return exactly the filled pointer");
+    assert(ok1          && "source must return true on first call (data)");
+    assert(out1         && "source must return data on first call");
+    assert(out1 == data && "source must return exactly the filled pointer");
 
     output_pointer out2;
     bool ok2 = src(out2);
-    assert(ok2                && "source must return true on EOS call");
-    assert(!out2              && "source must return nullptr as EOS signal");
+    assert(ok2          && "source must return true on EOS call");
+    assert(!out2        && "source must return nullptr as EOS signal");
 
-    // ---- Simulate WCT graph calling sink with data then EOS ---------------
-    bool s1 = snk(input_pointer(out1));   // deliver data (same ptr)
+    // Third call: source must return false to let Pgraph terminate the graph.
+    output_pointer out3;
+    bool ok3 = src(out3);
+    assert(!ok3         && "source must return false after EOS to stop graph");
+    assert(!out3        && "source must return nullptr on termination call");
+
+    // ---- Simulate WCT graph calling sink with data then EOS -------------
+    bool s1 = snk(input_pointer(out1));    // deliver data (same ptr)
     assert(s1 && "sink must return true on data");
 
     bool s2 = snk(input_pointer(nullptr)); // EOS
     assert(s2 && "sink must return true on EOS");
 
-    // ---- PHLEX side: drain result -----------------------------------------
+    // ---- PHLEX side: drain result ----------------------------------------
     auto result = snk.drain();
-    assert(result       && "drain must return a non-null result");
+    assert(result        && "drain must return a non-null result");
     assert(result == data && "drain must return exactly the original pointer");
 
-    // After drain, the sink is clear.
+    // After draining the one item, queue is empty.
     auto empty = snk.drain();
     assert(!empty && "second drain must return nullptr");
 }
@@ -101,7 +113,7 @@ void run_one_round(wcphlex::BoundarySource<SourceIface>& src,
 
 int main()
 {
-    // --- Test 1 & 2: Frame source/sink round-trip --------------------------
+    // --- Test 1 & 2: Frame source/sink single round-trip ------------------
     {
         wcphlex::BoundarySource<WireCell::IFrameSource> src;
         wcphlex::BoundarySink<WireCell::IFrameSink>     snk;
@@ -111,7 +123,7 @@ int main()
         std::cout << "Frame round-trip (ident=42): PASS\n";
     }
 
-    // --- Test 3: BoundarySource is re-usable across events -----------------
+    // --- Test 3: re-use across 5 events -----------------------------------
     {
         wcphlex::BoundarySource<WireCell::IFrameSource> src;
         wcphlex::BoundarySink<WireCell::IFrameSink>     snk;
@@ -123,12 +135,12 @@ int main()
         std::cout << "Frame re-use (5 rounds): PASS\n";
     }
 
-    // --- Test 4: Initial state — source returns EOS immediately if not filled
+    // --- Test 4: initial state — unfilled source returns EOS immediately --
     {
         wcphlex::BoundarySource<WireCell::IFrameSource> src;
         WireCell::IFrame::pointer out;
         bool ok = src(out);
-        assert(ok  && "unfilled source must still return true");
+        assert(ok  && "unfilled source must return true for first (EOS) call");
         assert(!out && "unfilled source must return nullptr");
         std::cout << "Unfilled source returns EOS immediately: PASS\n";
     }
@@ -141,6 +153,33 @@ int main()
         auto ds = make_deposet(7);
         run_one_round(src, snk, ds);
         std::cout << "DepoSet round-trip (ident=7): PASS\n";
+    }
+
+    // --- Test 6: multi-fill (two items per event) -------------------------
+    {
+        wcphlex::BoundarySource<WireCell::IFrameSource> src;
+
+        auto f0 = make_frame(10);
+        auto f1 = make_frame(11);
+
+        src.fill(f0);
+        src.fill(f1);
+
+        WireCell::IFrame::pointer out;
+
+        bool ok0 = src(out);
+        assert(ok0 && out == f0 && "multi-fill: first item");
+
+        bool ok1 = src(out);
+        assert(ok1 && out == f1 && "multi-fill: second item");
+
+        bool ok2 = src(out);
+        assert(ok2 && !out && "multi-fill: EOS after both items");
+
+        bool ok3 = src(out);
+        assert(!ok3 && !out && "multi-fill: false after EOS");
+
+        std::cout << "Multi-fill (2 items): PASS\n";
     }
 
     std::cout << "All boundary assertions passed.\n";

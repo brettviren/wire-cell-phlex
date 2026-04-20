@@ -13,17 +13,20 @@
 //
 // Template for a WCT sink node that acts as the WCT→PHLEX boundary buffer.
 //
-// WCT calls operator() during wcmain() for each output item and once
-// for EOS (in = nullptr).  After wcmain() returns, the PHLEX side calls
-// drain() to retrieve the accumulated output.
+// WCT calls operator() during wcmain() for each output item and once for EOS
+// (in = nullptr).  After wcmain() returns, the PHLEX side calls drain() once
+// per expected output item to retrieve results.
 //
-// For single-item sinks (one frame per event) drain() returns the last
-// non-null item received; any subsequent EOS call is silently ignored.
+// Queue-based design: operator() enqueues all non-null inputs; drain() dequeues
+// one item per call.  This handles graphs that produce multiple outputs per
+// input as well as the typical single-item case.
+//
 // WIRECELL_FACTORY registrations for concrete types live in BoundaryNodes.cpp.
 
 #pragma once
 
 #include <WireCellIface/IConfigurable.h>
+#include <queue>
 #include <utility>
 
 namespace wcphlex {
@@ -42,23 +45,28 @@ namespace wcphlex {
 
         // ---- PHLEX-side interface ----------------------------------------
 
-        // Retrieve and clear the accumulated output after wcmain().
-        // Returns nullptr if no data was produced (should not happen in normal use).
+        // Dequeue and return the next output item produced during wcmain().
+        // Returns nullptr when the queue is empty (all results consumed).
         input_pointer drain()
         {
-            return std::exchange(m_data, nullptr);
+            if (m_queue.empty()) {
+                return nullptr;
+            }
+            auto item = std::move(m_queue.front());
+            m_queue.pop();
+            return item;
         }
 
         // ---- WCT sink interface ------------------------------------------
 
-        // Called by the WCT graph during wcmain().
-        //   non-null in: store the output item.
+        // Called by the WCT graph during wcmain():
+        //   non-null in: enqueue the output item.
         //   null in (EOS): silently ignored.
         //   Returns true (false = error/stop).
         bool operator()(input_pointer const& in) override
         {
             if (in) {
-                m_data = in;
+                m_queue.push(in);
             }
             return true;
         }
@@ -71,7 +79,7 @@ namespace wcphlex {
         void configure(WireCell::Configuration const&) override {}
 
     private:
-        input_pointer m_data{};
+        std::queue<input_pointer> m_queue;
     };
 
 } // namespace wcphlex

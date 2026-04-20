@@ -44,6 +44,7 @@ endforeach()
 find_package(TBB REQUIRED)
 find_package(phlex REQUIRED)
 find_package(WireCell REQUIRED)
+find_package(Boost REQUIRED COMPONENTS json)
 
 add_compile_options(-Wall -Wpedantic -Werror)
 
@@ -72,6 +73,7 @@ target_link_libraries(wire_cell_phlex
     WireCell::Aux
     WireCell::Util
     phlex::core
+    Boost::json
 )
 
 # ---------------------------------------------------------------------------
