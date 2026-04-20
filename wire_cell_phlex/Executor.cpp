@@ -16,3 +16,5 @@
 
 #include "wire_cell_phlex/Executor.h"
 #include "wire_cell_phlex/Data.h"
+#include "wire_cell_phlex/BoundarySource.h"
+#include "wire_cell_phlex/BoundarySink.h"

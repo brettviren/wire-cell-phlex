@@ -19,6 +19,28 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+# When using a Spack view, the installed shared libraries may have been built
+# with a newer GCC runtime (e.g. GCC 15) than the system compiler provides.
+# This causes versioned-symbol link errors (GLIBCXX_3.4.32, CXXABI_1.3.15)
+# when any target directly links a Spack WireCell or Boost library.
+#
+# Fix: explicitly link the Spack libstdc++.so.6 (resolved from the symlink in
+# the view's lib/ dir) for any target that needs it, and propagate it via the
+# WIRECELL_RUNTIME_LIBS variable used in test/CMakeLists.txt.
+set(WIRECELL_RUNTIME_LIBS "")
+foreach(_prefix IN LISTS CMAKE_PREFIX_PATH)
+  if(EXISTS "${_prefix}/lib/libstdc++.so.6")
+    link_directories(BEFORE "${_prefix}/lib")
+    file(REAL_PATH "${_prefix}/lib/libstdc++.so.6" _stdc_real)
+    get_filename_component(_stdc_dir "${_stdc_real}" DIRECTORY)
+    # Use the full .so.6 path (no bare -lstdc++ symlink in Spack runtime dirs).
+    set(WIRECELL_RUNTIME_LIBS "${_stdc_real}")
+    string(APPEND CMAKE_EXE_LINKER_FLAGS
+      " -Wl,-rpath,${_stdc_dir}")
+    break()
+  endif()
+endforeach()
+
 find_package(TBB REQUIRED)
 find_package(phlex REQUIRED)
 find_package(WireCell REQUIRED)
@@ -34,6 +56,7 @@ add_compile_options(-Wall -Wpedantic -Werror)
 # ---------------------------------------------------------------------------
 add_library(wire_cell_phlex SHARED
   wire_cell_phlex/Executor.cpp
+  wire_cell_phlex/BoundaryNodes.cpp
 )
 
 target_include_directories(wire_cell_phlex
