@@ -39,6 +39,8 @@
 #include <WireCellIface/IDepoSetSource.h>
 #include <WireCellIface/IDepoSetSink.h>
 
+// Ensure assert() is active even in RelWithDebInfo builds (which define NDEBUG).
+#undef NDEBUG
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -74,28 +76,22 @@ void run_one_round(wcphlex::BoundarySource<SourceIface>& src,
 
     // ---- Simulate WCT graph calling source three times ------------------
     output_pointer out1;
-    bool ok1 = src(out1);
-    assert(ok1          && "source must return true on first call (data)");
-    assert(out1         && "source must return data on first call");
-    assert(out1 == data && "source must return exactly the filled pointer");
+    assert(src(out1)     && "source must return true on first call (data)");
+    assert(out1          && "source must return data on first call");
+    assert(out1 == data  && "source must return exactly the filled pointer");
 
     output_pointer out2;
-    bool ok2 = src(out2);
-    assert(ok2          && "source must return true on EOS call");
-    assert(!out2        && "source must return nullptr as EOS signal");
+    assert(src(out2)     && "source must return true on EOS call");
+    assert(!out2         && "source must return nullptr as EOS signal");
 
     // Third call: source must return false to let Pgraph terminate the graph.
     output_pointer out3;
-    bool ok3 = src(out3);
-    assert(!ok3         && "source must return false after EOS to stop graph");
-    assert(!out3        && "source must return nullptr on termination call");
+    assert(!src(out3)    && "source must return false after EOS to stop graph");
+    assert(!out3         && "source must return nullptr on termination call");
 
     // ---- Simulate WCT graph calling sink with data then EOS -------------
-    bool s1 = snk(input_pointer(out1));    // deliver data (same ptr)
-    assert(s1 && "sink must return true on data");
-
-    bool s2 = snk(input_pointer(nullptr)); // EOS
-    assert(s2 && "sink must return true on EOS");
+    assert(snk(input_pointer(out1))    && "sink must return true on data");
+    assert(snk(input_pointer(nullptr)) && "sink must return true on EOS");
 
     // ---- PHLEX side: drain result ----------------------------------------
     auto result = snk.drain();
@@ -139,8 +135,7 @@ int main()
     {
         wcphlex::BoundarySource<WireCell::IFrameSource> src;
         WireCell::IFrame::pointer out;
-        bool ok = src(out);
-        assert(ok  && "unfilled source must return true for first (EOS) call");
+        assert(src(out)  && "unfilled source must return true for first (EOS) call");
         assert(!out && "unfilled source must return nullptr");
         std::cout << "Unfilled source returns EOS immediately: PASS\n";
     }
@@ -167,17 +162,10 @@ int main()
 
         WireCell::IFrame::pointer out;
 
-        bool ok0 = src(out);
-        assert(ok0 && out == f0 && "multi-fill: first item");
-
-        bool ok1 = src(out);
-        assert(ok1 && out == f1 && "multi-fill: second item");
-
-        bool ok2 = src(out);
-        assert(ok2 && !out && "multi-fill: EOS after both items");
-
-        bool ok3 = src(out);
-        assert(!ok3 && !out && "multi-fill: false after EOS");
+        assert(src(out) && out == f0  && "multi-fill: first item");
+        assert(src(out) && out == f1  && "multi-fill: second item");
+        assert(src(out) && !out       && "multi-fill: EOS after both items");
+        assert(!src(out) && !out      && "multi-fill: false after EOS");
 
         std::cout << "Multi-fill (2 items): PASS\n";
     }

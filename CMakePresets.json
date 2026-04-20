@@ -3,8 +3,9 @@
   "configurePresets": [
     {
       "name": "default",
-      "displayName": "Default",
-      "description": "RelWithDebInfo, no compiler extensions",
+      "displayName": "Default (Spack GCC 15)",
+      "description": "RelWithDebInfo, Spack GCC 15, no compiler extensions. GCC 15 is required because PHLEX headers use std::forward_like (C++23, absent in GCC 12).",
+      "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": {
           "type": "STRING",
@@ -17,13 +18,17 @@
         "CMAKE_CXX_STANDARD_REQUIRED": {
           "type": "BOOL",
           "value": "ON"
+        },
+        "CMAKE_CXX_COMPILER": {
+          "type": "FILEPATH",
+          "value": "/home/bviren/dune/try-phlex/spack/opt/spack/linux-x86_64/gcc-15.2.0-o77gppl4ocxtcqeijehuma5lndnrn3tv/bin/g++"
         }
       }
     },
     {
       "name": "debug",
-      "displayName": "Debug",
-      "description": "Debug build with sanitizers",
+      "displayName": "Debug (Spack GCC 15)",
+      "description": "Debug build",
       "inherits": "default",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": {

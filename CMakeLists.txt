@@ -77,7 +77,55 @@ target_link_libraries(wire_cell_phlex
 )
 
 # ---------------------------------------------------------------------------
+# PHLEX MODULE targets (Step 5+)
+#
+# Each MODULE is a dlopen-only shared library loaded by the phlex binary.
+# PHLEX prepends 'lib' and appends '.so' to the 'cpp' field in the workflow
+# JSON, so add_library(wcp_frame_source MODULE ...) → libwcp_frame_source.so,
+# matching  cpp: 'wcp_frame_source'  in the workflow.
+#
+# These modules must be compiled with GCC 15 (required by phlex headers).
+# ---------------------------------------------------------------------------
+add_library(wcp_frame_source MODULE modules/frame_source.cpp)
+target_link_libraries(wcp_frame_source PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_frame_source PRIVATE -UNDEBUG)
+
+add_library(wcp_frame_filter MODULE modules/frame_filter.cpp)
+target_link_libraries(wcp_frame_filter PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_frame_filter PRIVATE -UNDEBUG)
+
+# ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
 enable_testing()
 add_subdirectory(test)
+
+# Step 5: PHLEX integration test — frame source → WCT passthrough → done.
+find_program(PHLEX_EXECUTABLE phlex
+  HINTS "${CMAKE_PREFIX_PATH}" ENV PATH
+  PATH_SUFFIXES bin
+  REQUIRED
+)
+
+# Derive the directory where phlex framework plugins live (generate_layers etc.).
+get_filename_component(_phlex_bin_dir "${PHLEX_EXECUTABLE}" DIRECTORY)
+get_filename_component(_phlex_lib_dir "${_phlex_bin_dir}/../lib" ABSOLUTE)
+
+add_test(NAME phlex_frame_filter
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/frame-filter-workflow.jsonnet"
+)
+set_tests_properties(phlex_frame_filter PROPERTIES
+  ENVIRONMENT
+    # Build dir holds wcp_frame_source/filter; phlex lib dir holds generate_layers etc.
+    "PHLEX_PLUGIN_PATH=${CMAKE_CURRENT_BINARY_DIR}:${_phlex_lib_dir};\
+WIRECELL_PATH=${CMAKE_CURRENT_SOURCE_DIR}/cfg"
+)
