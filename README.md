@@ -62,3 +62,11 @@ wire-cell-phlex/
 ├── test/                        # unit and integration tests
 └── docs/                        # design documents and summaries
 ```
+
+# License, etc
+
+This project is Copyright (c) 2026, Brookhaven Science Associates, LLC.  All
+rights reserved.  Licensed under the Apache License, Version 2.0.  See the
+LICENSE file for details.
+
+See also the files NOTICE, AUTHORS and CONTRIBUTING.
