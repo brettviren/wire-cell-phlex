@@ -15,3 +15,4 @@
 // This stub ensures the shared library target compiles and links.
 
 #include "wire_cell_phlex/Executor.h"
+#include "wire_cell_phlex/Data.h"
