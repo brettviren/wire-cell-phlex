@@ -222,3 +222,75 @@ add_test(NAME phlex_frame_filter_facade
     "${CMAKE_CURRENT_SOURCE_DIR}/test/frame-filter-facade-workflow.jsonnet"
 )
 set_tests_properties(phlex_frame_filter_facade PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
+
+# ---------------------------------------------------------------------------
+# Install rules
+#
+# The wire_cell_phlex SHARED library and its public headers are installed so
+# downstream CMake projects can find them via find_package(wire_cell_phlex).
+# The PHLEX MODULE targets (dlopen only) are installed into lib/ alongside the
+# shared library so PHLEX_PLUGIN_PATH can point to a single directory.
+# WCT Jsonnet sub-graph configs are installed into share/wire-cell-phlex/cfg/
+# so they remain accessible via WIRECELL_PATH after installation.
+# ---------------------------------------------------------------------------
+
+include(GNUInstallDirs)
+
+# Shared library
+install(TARGETS wire_cell_phlex
+  EXPORT wire_cell_phlexTargets
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+)
+
+# Public headers
+install(DIRECTORY wire_cell_phlex/
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/wire_cell_phlex"
+  FILES_MATCHING PATTERN "*.h"
+)
+
+# PHLEX MODULE libraries (dlopen only — no EXPORT needed)
+foreach(_mod IN ITEMS
+    wcp_frame_source
+    wcp_frame_filter
+    wcp_frame_observer
+    wcp_two_frame_observer
+    wcp_deposet_source
+    wcp_deposet_to_frame
+    wcp_wire_schema_source
+    wcp_wire_schema_observer
+)
+  install(TARGETS ${_mod}
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  )
+endforeach()
+
+# WCT Jsonnet configs (searched via WIRECELL_PATH)
+install(DIRECTORY cfg/
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/wire-cell-phlex/cfg"
+  FILES_MATCHING PATTERN "*.jsonnet"
+)
+
+# CMake package config (so find_package(wire_cell_phlex) works downstream)
+install(EXPORT wire_cell_phlexTargets
+  FILE wire_cell_phlexTargets.cmake
+  NAMESPACE wire_cell_phlex::
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/wire_cell_phlex"
+)
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/wire_cell_phlexConfigVersion.cmake"
+  VERSION "${PROJECT_VERSION}"
+  COMPATIBILITY SameMajorVersion
+)
+configure_package_config_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/wire_cell_phlexConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/wire_cell_phlexConfig.cmake"
+  INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/wire_cell_phlex"
+)
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/wire_cell_phlexConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/wire_cell_phlexConfigVersion.cmake"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/wire_cell_phlex"
+)

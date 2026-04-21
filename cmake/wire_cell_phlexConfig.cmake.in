@@ -1,0 +1,20 @@
+@PACKAGE_INIT@
+
+# wire_cell_phlexConfig.cmake
+#
+# Allows downstream CMake projects to locate the wire_cell_phlex shared library
+# and headers via:
+#   find_package(wire_cell_phlex REQUIRED)
+#   target_link_libraries(my_target PRIVATE wire_cell_phlex::wire_cell_phlex)
+#
+# Exported targets:
+#   wire_cell_phlex::wire_cell_phlex  — the integration shared library
+
+include(CMakeFindDependencyMacro)
+find_dependency(phlex REQUIRED)
+find_dependency(WireCell REQUIRED)
+find_dependency(Boost REQUIRED COMPONENTS json)
+
+include("${CMAKE_CURRENT_LIST_DIR}/wire_cell_phlexTargets.cmake")
+
+check_required_components(wire_cell_phlex)
