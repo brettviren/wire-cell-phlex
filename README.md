@@ -1,5 +1,7 @@
 # wire-cell-phlex (WCPh)
 
+**Caveat: very much WIP and not ready for others!**
+
 The `wire-cell-phlex` (WCPh) provides a general integration layer between the
 [Wire-Cell Toolkit](https://wirecell.github.io/) (WCT) and the [PHLEX
 framework](https://github.com/framework-r-d/phlex).  Through PHLEX plugin
@@ -8,11 +10,9 @@ in the PHLEX DFP graph.
 
 ## Dependencies
 
-| Dependency | Role |
-|------------|------|
-| [PHLEX](https://github.com/framework-r-d/phlex) ≥ GCC 15 | framework |
-| [Wire-Cell Toolkit](https://github.com/WireCell/wire-cell-toolkit) | signal processing / simulation |
-| C++23 (GCC 15) | compiler |
+- [PHLEX](https://github.com/framework-r-d/phlex) 
+- [Wire-Cell Toolkit](https://github.com/WireCell/wire-cell-toolkit) 
+- C++23 compiler (GCC 15)
 
 ## Building
 
