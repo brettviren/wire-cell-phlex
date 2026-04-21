@@ -83,15 +83,24 @@ public:
 protected:
     WireCell::Main m_wcmain;
     std::string    m_app_type{"Pgrapher"}; // from wct_app; subclass builds "type:name"
+
+    // Scope prefix for all WCT component instance names created by this executor.
+    // Populated from the "module_label" key PHLEX injects into every module's
+    // config; defaults to "wcphlex" when used outside PHLEX (unit tests).
+    // Using the module label guarantees that two executor instances loaded under
+    // different PHLEX module keys (e.g. "sigproc_a", "sigproc_b") create WCT
+    // components with distinct names in the global WCT factory, preventing
+    // cross-instance aliasing.
+    std::string    m_scope{"wcphlex"};
 };
 
 // ---------------------------------------------------------------------------
 // Concrete executor: IFrame → IFrame (signal processing or pass-through).
 //
-// Boundary node names injected as Jsonnet TLAs:
-//   source_name = "wcp_frame_source"   (FrameBoundarySource instance)
-//   sink_name   = "wcp_frame_sink"     (FrameBoundarySink instance)
-//   app_name    = "wcp_pgrapher"       (Pgrapher instance)
+// WCT boundary node instance names are derived from m_scope at construction:
+//   source_name = m_scope + "_frame_source"   (FrameBoundarySource)
+//   sink_name   = m_scope + "_frame_sink"     (FrameBoundarySink)
+//   app_name    = m_scope + "_pgrapher"       (Pgrapher)
 // ---------------------------------------------------------------------------
 class FrameFilter : public Executor {
 public:
@@ -105,19 +114,15 @@ private:
     // m_wcmain (i.e. for the lifetime of this FrameFilter instance).
     BoundarySource<WireCell::IFrameSource>* m_source{nullptr};
     BoundarySink<WireCell::IFrameSink>*     m_sink{nullptr};
-
-    static constexpr const char* k_source_name = "wcp_frame_source";
-    static constexpr const char* k_sink_name   = "wcp_frame_sink";
-    static constexpr const char* k_app_name    = "wcp_pgrapher";
 };
 
 // ---------------------------------------------------------------------------
 // Concrete executor: IDepoSet → IFrame (drift + electronics simulation).
 //
-// Boundary node names injected as Jsonnet TLAs:
-//   source_name = "wcp_deposet_source" (DepoSetBoundarySource instance)
-//   sink_name   = "wcp_frame_sink"     (FrameBoundarySink instance)
-//   app_name    = "wcp_pgrapher"       (Pgrapher instance)
+// WCT boundary node instance names are derived from m_scope at construction:
+//   source_name = m_scope + "_deposet_source" (DepoSetBoundarySource)
+//   sink_name   = m_scope + "_frame_sink"     (FrameBoundarySink)
+//   app_name    = m_scope + "_pgrapher"       (Pgrapher)
 // ---------------------------------------------------------------------------
 class DepoSetToFrame : public Executor {
 public:
@@ -129,10 +134,6 @@ public:
 private:
     BoundarySource<WireCell::IDepoSetSource>* m_source{nullptr};
     BoundarySink<WireCell::IFrameSink>*       m_sink{nullptr};
-
-    static constexpr const char* k_source_name = "wcp_deposet_source";
-    static constexpr const char* k_sink_name   = "wcp_frame_sink";
-    static constexpr const char* k_app_name    = "wcp_pgrapher";
 };
 
 } // namespace wcphlex

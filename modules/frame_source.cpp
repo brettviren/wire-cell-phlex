@@ -18,7 +18,10 @@
 // feeds frames into a downstream wcp_frame_filter module.
 //
 // Expected config keys:
-//   output_layer  (string, required): PHLEX layer name for the output Frame product.
+//   output_layer   (string, required): PHLEX layer name for the output Frame product.
+//   output_suffix  (string, optional, default "frame"): product suffix.
+//                  Set to a distinct value (e.g. "frame_a") when two instances of
+//                  this module run in the same layer so their products don't collide.
 
 #include "wire_cell_phlex/Data.h"
 
@@ -32,7 +35,8 @@ using namespace phlex;
 
 PHLEX_REGISTER_PROVIDERS(m, config)
 {
-    auto const layer = config.get<std::string>("output_layer");
+    auto const layer  = config.get<std::string>("output_layer");
+    auto const suffix = config.get<std::string>("output_suffix", std::string{"frame"});
 
     m.provide("wcp_provide_frame",
               [](data_cell_index const& id) -> wcphlex::Frame {
@@ -40,5 +44,6 @@ PHLEX_REGISTER_PROVIDERS(m, config)
                       static_cast<int>(id.number()));
                   return wcphlex::Frame{std::move(frame)};
               })
-      .output_product({.creator = "input", .layer = layer, .suffix = "frame"});
+      .output_product({.creator = "input", .layer = layer,
+                       .suffix = experimental::identifier{suffix}});
 }

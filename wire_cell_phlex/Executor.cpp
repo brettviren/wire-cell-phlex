@@ -95,6 +95,13 @@ Executor::Executor(boost::json::object const& config)
             m_wcmain.tla_var(std::string{k}, std::string{v.as_string()});
         }
     }
+    // Scope prefix for WCT component instance names.  PHLEX injects
+    // "module_label" into every module config; use it when present so
+    // that two executor instances loaded under different PHLEX module keys
+    // create uniquely-named WCT components in the global factory.
+    if (config.contains("module_label")) {
+        m_scope = std::string{config.at("module_label").as_string()};
+    }
     // Note: add_app() and initialize() are called by subclass constructors
     // after they inject their boundary-node TLAs.
 }
@@ -106,26 +113,27 @@ Executor::Executor(boost::json::object const& config)
 FrameFilter::FrameFilter(boost::json::object const& config)
     : Executor(config)
 {
-    // Inject boundary-node instance names as Jsonnet TLAs.
-    m_wcmain.tla_var("source_name", k_source_name);
-    m_wcmain.tla_var("sink_name",   k_sink_name);
-    m_wcmain.tla_var("app_name",    k_app_name);
+    // Derive unique WCT component instance names from m_scope so that two
+    // FrameFilter instances loaded under different PHLEX module labels do not
+    // collide in the global WCT factory.
+    std::string const src_name = m_scope + "_frame_source";
+    std::string const snk_name = m_scope + "_frame_sink";
+    std::string const app_name = m_scope + "_pgrapher";
 
-    // Register the Pgrapher application by "type:name".
-    m_wcmain.add_app(m_app_type + ":" + k_app_name);
+    m_wcmain.tla_var("source_name", src_name);
+    m_wcmain.tla_var("sink_name",   snk_name);
+    m_wcmain.tla_var("app_name",    app_name);
 
-    // Initialize the WCT graph (evaluates Jsonnet, creates/configures all
-    // components, builds the Pgrapher edge list).
+    m_wcmain.add_app(m_app_type + ":" + app_name);
     m_wcmain.initialize();
 
-    // Find the boundary nodes that initialize() just created in the factory.
     m_source = find_boundary<WireCell::IFrameSource,
                              BoundarySource<WireCell::IFrameSource>>(
-                   "FrameBoundarySource", k_source_name);
+                   "FrameBoundarySource", src_name);
 
     m_sink = find_boundary<WireCell::IFrameSink,
                            BoundarySink<WireCell::IFrameSink>>(
-                 "FrameBoundarySink", k_sink_name);
+                 "FrameBoundarySink", snk_name);
 }
 
 Frame FrameFilter::operator()(Frame const& input)
@@ -142,20 +150,24 @@ Frame FrameFilter::operator()(Frame const& input)
 DepoSetToFrame::DepoSetToFrame(boost::json::object const& config)
     : Executor(config)
 {
-    m_wcmain.tla_var("source_name", k_source_name);
-    m_wcmain.tla_var("sink_name",   k_sink_name);
-    m_wcmain.tla_var("app_name",    k_app_name);
+    std::string const src_name = m_scope + "_deposet_source";
+    std::string const snk_name = m_scope + "_frame_sink";
+    std::string const app_name = m_scope + "_pgrapher";
 
-    m_wcmain.add_app(m_app_type + ":" + k_app_name);
+    m_wcmain.tla_var("source_name", src_name);
+    m_wcmain.tla_var("sink_name",   snk_name);
+    m_wcmain.tla_var("app_name",    app_name);
+
+    m_wcmain.add_app(m_app_type + ":" + app_name);
     m_wcmain.initialize();
 
     m_source = find_boundary<WireCell::IDepoSetSource,
                              BoundarySource<WireCell::IDepoSetSource>>(
-                   "DepoSetBoundarySource", k_source_name);
+                   "DepoSetBoundarySource", src_name);
 
     m_sink = find_boundary<WireCell::IFrameSink,
                            BoundarySink<WireCell::IFrameSink>>(
-                 "FrameBoundarySink", k_sink_name);
+                 "FrameBoundarySink", snk_name);
 }
 
 Frame DepoSetToFrame::operator()(DepoSet const& input)

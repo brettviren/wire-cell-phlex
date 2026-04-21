@@ -41,6 +41,12 @@ inline boost::json::object to_executor_config(phlex::configuration const& cfg)
         obj["wct_plugins"] = std::move(arr);
     }
 
+    // Pass module_label through so the Executor can derive unique WCT
+    // component instance names for each PHLEX module instance.
+    if (auto v = cfg.get_if_present<std::string>("module_label")) {
+        obj["module_label"] = *v;
+    }
+
     if (auto tla = cfg.get_if_present<phlex::configuration>("wct_tla")) {
         boost::json::object tla_obj;
         for (auto const& k : tla->keys()) {

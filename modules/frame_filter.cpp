@@ -24,11 +24,14 @@
 // are injected as Jsonnet TLAs by the Executor base class.
 //
 // Expected config keys:
-//   wct_config   (string, required):    Path to the WCT Jsonnet config file.
-//   input_layer  (string, required):    PHLEX layer for the input Frame product.
-//   wct_plugins  (array of strings, optional): Extra WCT plugin libraries to load.
-//   wct_app      (string, optional):    WCT IApplication type (default "Pgrapher").
-//   wct_tla      (object, optional):    String→string map of extra Jsonnet TLAs.
+//   wct_config    (string, required):    Path to the WCT Jsonnet config file.
+//   input_layer   (string, required):    PHLEX layer for the input Frame product.
+//   input_suffix  (string, optional, default "frame"): suffix of input product.
+//                 Set to a distinct value when consuming one of several frame
+//                 streams in the same layer (multi-instance scenario).
+//   wct_plugins   (array of strings, optional): Extra WCT plugin libraries.
+//   wct_app       (string, optional):    WCT IApplication type (default "Pgrapher").
+//   wct_tla       (object, optional):    String→string map of extra Jsonnet TLAs.
 
 #include "wire_cell_phlex/Data.h"
 #include "wire_cell_phlex/Executor.h"
@@ -42,20 +45,17 @@ using namespace phlex;
 
 PHLEX_REGISTER_ALGORITHMS(m, config)
 {
-    auto const layer = config.get<std::string>("input_layer");
+    auto const layer  = config.get<std::string>("input_layer");
+    auto const suffix = config.get<std::string>("input_suffix", std::string{"frame"});
 
-    // Construct FrameFilter once; shared_ptr captures it for the transform lambda.
-    // WireCell::Main initialization (Jsonnet parse, component creation, graph build)
-    // happens here — once per module registration, not per event.
     auto ff = std::make_shared<wcphlex::FrameFilter>(to_executor_config(config));
 
-    // Register a serial transform: WCT graphs are not thread-safe, so concurrent
-    // calls to FrameFilter::operator() are disallowed.
     m.transform("wct_frame_filter",
                 [ff](wcphlex::Frame const& input) -> wcphlex::Frame {
                     return (*ff)(input);
                 },
                 concurrency::serial)
-      .input_family(product_query{.creator = "input", .layer = layer, .suffix = "frame"})
+      .input_family(product_query{.creator = "input", .layer = layer,
+                                  .suffix = experimental::identifier{suffix}})
       .output_product_suffixes("frame");
 }

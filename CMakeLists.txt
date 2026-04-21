@@ -103,6 +103,24 @@ target_link_libraries(wcp_frame_filter PRIVATE
 )
 target_compile_options(wcp_frame_filter PRIVATE -UNDEBUG)
 
+# Step 5 (continued): single-frame observer for end-cap validation.
+add_library(wcp_frame_observer MODULE modules/frame_observer.cpp)
+target_link_libraries(wcp_frame_observer PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_frame_observer PRIVATE -UNDEBUG)
+
+# Step 7: two-frame observer for multi-instance validation.
+add_library(wcp_two_frame_observer MODULE modules/two_frame_observer.cpp)
+target_link_libraries(wcp_two_frame_observer PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_two_frame_observer PRIVATE -UNDEBUG)
+
 # Step 6: IDepoSet → IFrame executor module.
 add_library(wcp_deposet_source MODULE modules/deposet_source.cpp)
 target_link_libraries(wcp_deposet_source PRIVATE
@@ -153,3 +171,9 @@ add_test(NAME phlex_deposet_to_frame
     "${CMAKE_CURRENT_SOURCE_DIR}/test/deposet-to-frame-workflow.jsonnet"
 )
 set_tests_properties(phlex_deposet_to_frame PROPERTIES ENVIRONMENT "${_phlex_env}")
+
+add_test(NAME phlex_multi_instance
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/multi-instance-workflow.jsonnet"
+)
+set_tests_properties(phlex_multi_instance PROPERTIES ENVIRONMENT "${_phlex_env}")
