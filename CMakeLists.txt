@@ -58,6 +58,7 @@ add_compile_options(-Wall -Wpedantic -Werror)
 add_library(wire_cell_phlex SHARED
   wire_cell_phlex/Executor.cpp
   wire_cell_phlex/BoundaryNodes.cpp
+  wire_cell_phlex/TrivialDepoFramer.cpp
 )
 
 target_include_directories(wire_cell_phlex
@@ -102,6 +103,23 @@ target_link_libraries(wcp_frame_filter PRIVATE
 )
 target_compile_options(wcp_frame_filter PRIVATE -UNDEBUG)
 
+# Step 6: IDepoSet → IFrame executor module.
+add_library(wcp_deposet_source MODULE modules/deposet_source.cpp)
+target_link_libraries(wcp_deposet_source PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_deposet_source PRIVATE -UNDEBUG)
+
+add_library(wcp_deposet_to_frame MODULE modules/deposet_to_frame.cpp)
+target_link_libraries(wcp_deposet_to_frame PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_deposet_to_frame PRIVATE -UNDEBUG)
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -119,13 +137,19 @@ find_program(PHLEX_EXECUTABLE phlex
 get_filename_component(_phlex_bin_dir "${PHLEX_EXECUTABLE}" DIRECTORY)
 get_filename_component(_phlex_lib_dir "${_phlex_bin_dir}/../lib" ABSOLUTE)
 
+set(_phlex_env
+  "PHLEX_PLUGIN_PATH=${CMAKE_CURRENT_BINARY_DIR}:${_phlex_lib_dir}"
+  "WIRECELL_PATH=${CMAKE_CURRENT_SOURCE_DIR}/cfg"
+)
+
 add_test(NAME phlex_frame_filter
   COMMAND "${PHLEX_EXECUTABLE}" -c
     "${CMAKE_CURRENT_SOURCE_DIR}/test/frame-filter-workflow.jsonnet"
 )
-set_tests_properties(phlex_frame_filter PROPERTIES
-  ENVIRONMENT
-    # Build dir holds wcp_frame_source/filter; phlex lib dir holds generate_layers etc.
-    "PHLEX_PLUGIN_PATH=${CMAKE_CURRENT_BINARY_DIR}:${_phlex_lib_dir};\
-WIRECELL_PATH=${CMAKE_CURRENT_SOURCE_DIR}/cfg"
+set_tests_properties(phlex_frame_filter PROPERTIES ENVIRONMENT "${_phlex_env}")
+
+add_test(NAME phlex_deposet_to_frame
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/deposet-to-frame-workflow.jsonnet"
 )
+set_tests_properties(phlex_deposet_to_frame PROPERTIES ENVIRONMENT "${_phlex_env}")

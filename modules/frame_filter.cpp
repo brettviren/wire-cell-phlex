@@ -33,51 +33,12 @@
 #include "wire_cell_phlex/Data.h"
 #include "wire_cell_phlex/Executor.h"
 
-#include "phlex/configuration.hpp"
+#include "modules/executor_config.h"
 #include "phlex/module.hpp"
-
-#include <boost/json.hpp>
 
 #include <memory>
 
 using namespace phlex;
-
-namespace {
-
-// Convert phlex::configuration to boost::json::object for the Executor constructor.
-// Only the keys known to Executor are extracted; all others are ignored.
-boost::json::object to_executor_config(phlex::configuration const& cfg)
-{
-    boost::json::object obj;
-
-    // Required: WCT Jsonnet config file.
-    obj["wct_config"] = cfg.get<std::string>("wct_config");
-
-    // Optional: WCT IApplication type.
-    if (auto v = cfg.get_if_present<std::string>("wct_app")) {
-        obj["wct_app"] = *v;
-    }
-
-    // Optional: additional WCT plugin libraries.
-    if (auto v = cfg.get_if_present<std::vector<std::string>>("wct_plugins")) {
-        boost::json::array arr;
-        for (auto const& s : *v) { arr.push_back(boost::json::value{boost::json::string{s}}); }
-        obj["wct_plugins"] = std::move(arr);
-    }
-
-    // Optional: extra Jsonnet TLAs (nested string→string object).
-    if (auto tla_cfg = cfg.get_if_present<phlex::configuration>("wct_tla")) {
-        boost::json::object tla_obj;
-        for (auto const& k : tla_cfg->keys()) {
-            tla_obj[k] = tla_cfg->get<std::string>(k);
-        }
-        obj["wct_tla"] = std::move(tla_obj);
-    }
-
-    return obj;
-}
-
-} // anonymous namespace
 
 PHLEX_REGISTER_ALGORITHMS(m, config)
 {
