@@ -378,4 +378,50 @@ DepoSet DepoSetFilter::operator()(DepoSet const& input)
     return DepoSet{m_sink->drain()};
 }
 
+// ---------------------------------------------------------------------------
+// FrameSinkFile
+// ---------------------------------------------------------------------------
+
+FrameSinkFile::FrameSinkFile(boost::json::object const& config)
+    : Executor(config)
+{
+    m_src_name = m_scope + "_frame_source";
+    m_app_name = m_scope + "_pgrapher";
+
+    m_wcmain.tla_var("source_name", m_src_name);
+    m_wcmain.tla_var("app_name",    m_app_name);
+
+    m_wcmain.add_app(m_app_type + ":" + m_app_name);
+}
+
+FrameSinkFile::~FrameSinkFile()
+{
+    // NOTE: WireCell::Main::~Main() calls finalize() automatically, which
+    // invokes ITerminal::finalize() on all terminal components (e.g. FrameFileSink).
+    // Do NOT call m_wcmain.finalize() here — that would cause a double-finalize
+    // and an empty-chain assertion in boost::iostreams::chain::pop().
+}
+
+void FrameSinkFile::ensure_initialized()
+{
+    if (m_initialized.load(std::memory_order_acquire)) return;
+
+    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
+    if (m_initialized.load(std::memory_order_relaxed)) return;
+
+    m_wcmain.initialize();
+    m_initialized.store(true, std::memory_order_release);
+
+    m_source = find_boundary<WireCell::IFrameSource,
+                             BoundarySource<WireCell::IFrameSource>>(
+                   "FrameBoundarySource", m_src_name);
+}
+
+void FrameSinkFile::operator()(Frame const& input)
+{
+    ensure_initialized();
+    m_source->fill(input.ptr);
+    m_wcmain();
+}
+
 } // namespace wcphlex

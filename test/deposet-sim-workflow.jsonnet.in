@@ -1,0 +1,49 @@
+{
+  // PHLEX integration test workflow: DepoSet → drift + sim → Frame file.
+  //
+  // Reads muon-depos.npz (1 depo set) via wcp_deposet_source_file, runs the
+  // WCT drift + electronics simulation (DepoSetDrifter + DepoTransform) via
+  // wcp_deposet_to_frame, and writes the resulting frames to sim-frames.npz
+  // via wcp_frame_sink_file.
+  //
+  // total: 1 matches the single depo set in muon-depos.npz.
+  //
+  // File paths are substituted by CMake configure_file().
+  // Requires WIRECELL_PATH to include:
+  //   wire-cell-phlex/cfg/         (for deposet-drift-sim.jsonnet, etc.)
+  //   <wct-data-dir>/share/wirecell/ (for protodune-wires-larsoft-v4.json.bz2,
+  //                                    dune-garfield-1d565.json.bz2, wirecell.jsonnet)
+  // Required WCT plugins: WireCellPgraph, WireCellGen, WireCellSigProc, WireCellAux, WireCellSio
+
+  driver: {
+    cpp: 'generate_layers',
+    layers: {
+      event: { parent: 'job', total: 1, starting_number: 1 },
+    },
+  },
+  sources: {
+    deposet_source: {
+      cpp: 'wcp_deposet_source_file',
+      wct_config: 'deposet-file-source.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellSio'],
+      output_layer: 'event',
+      wct_tla: { inname: '@WCP_TEST_DATA_DIR@/muon-depos.npz' },
+    },
+  },
+  modules: {
+    frame_sim: {
+      cpp: 'wcp_deposet_to_frame',
+      wct_config: 'deposet-drift-sim.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
+      input_layer: 'event',
+    },
+    frame_sink: {
+      cpp: 'wcp_frame_sink_file',
+      wct_config: 'frame-file-sink.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellSio'],
+      input_layer: 'event',
+      input_from: 'frame_sim',
+      wct_tla: { outname: '@WCP_OUTPUT_DIR@/sim-frames.npz' },
+    },
+  },
+}

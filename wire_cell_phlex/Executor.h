@@ -268,4 +268,39 @@ private:
     BoundarySink<WireCell::IDepoSetSink>*     m_sink{nullptr};
 };
 
+// ---------------------------------------------------------------------------
+// Concrete executor: IFrame → file (writes each received Frame to a WCT
+// frame file via FrameFileSink).
+//
+// Mirrors DepoSetSinkFile but for IFrame instead of IDepoSet.  The WCT
+// sub-graph (e.g. frame-file-sink.jsonnet) includes a FrameBoundarySource
+// and a real WCT sink component (e.g. FrameFileSink).  Each
+// operator()(Frame) call fills the boundary source and runs the graph once.
+// WireCell::Main::~Main() calls finalize() automatically, which flushes the
+// FrameFileSink output file.
+//
+// WCT boundary node instance names derived from m_scope:
+//   source_name = m_scope + "_frame_source"  (FrameBoundarySource)
+//   app_name    = m_scope + "_pgrapher"      (Pgrapher)
+//
+// The output file path is passed via wct_tla: { outname: "..." } in the
+// module config.
+// ---------------------------------------------------------------------------
+class FrameSinkFile : public Executor {
+public:
+    explicit FrameSinkFile(boost::json::object const& config);
+    ~FrameSinkFile() override;  // empty body — Main::~Main() calls finalize()
+
+    // Deliver one Frame to the WCT sub-graph.  Graph is initialized on first call.
+    void operator()(Frame const& input);
+
+private:
+    void ensure_initialized();
+
+    std::string m_src_name;
+    std::string m_app_name;
+
+    BoundarySource<WireCell::IFrameSource>* m_source{nullptr};
+};
+
 } // namespace wcphlex

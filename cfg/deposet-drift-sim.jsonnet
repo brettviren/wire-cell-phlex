@@ -1,0 +1,217 @@
+// cfg/deposet-drift-sim.jsonnet
+//
+// WCT sub-graph: DepoSetBoundarySource → DepoSetDrifter → DepoTransform → FrameBoundarySink
+//
+// Implements a full drift + electronics simulation pipeline using PDSP APA 0
+// geometry parameters.  Used by the DepoSetToFrame executor.
+//
+// Data files required (via WIRECELL_PATH):
+//   protodune-wires-larsoft-v4.json.bz2   — wire geometry (WireCellAux)
+//   dune-garfield-1d565.json.bz2          — field response (WireCellSigProc)
+//
+// TLA parameters:
+//   source_name (string): instance name for DepoSetBoundarySource
+//   sink_name   (string): instance name for FrameBoundarySink
+//   app_name    (string): instance name for Pgrapher
+//
+// Required WCT plugins: WireCellPgraph, WireCellGen, WireCellSigProc, WireCellAux
+
+local wc = import "wirecell.jsonnet";
+
+function(
+    source_name = "wcphlex_deposet_source",
+    sink_name   = "wcphlex_frame_sink",
+    app_name    = "wcphlex_pgrapher",
+)
+
+local tick           = 0.5 * wc.us;
+local nticks_ductor  = 10125;   // 10000 DAQ ticks + 125 field response ticks
+local readout_time   = nticks_ductor * tick;   // 5.0625 ms
+local start_time     = -62.5 * wc.us;          // drift time offset to response plane
+local drift_speed    = 1.6 * wc.mm / wc.us;
+
+// ---------------------------------------------------------------------------
+// Services (shared, no data file needed)
+// ---------------------------------------------------------------------------
+
+local dft = {
+    type: "FftwDFT",
+    name: "dft",
+    data: {},
+};
+
+local rng = {
+    type: "Random",
+    name: "rng",
+    data: {},
+};
+
+// ---------------------------------------------------------------------------
+// Geometry and field response data files
+// ---------------------------------------------------------------------------
+
+local wires = {
+    type: "WireSchemaFile",
+    name: "wires",
+    data: { filename: "protodune-wires-larsoft-v4.json.bz2" },
+};
+
+local fr = {
+    type: "FieldResponse",
+    name: "fr",
+    data: { filename: "dune-garfield-1d565.json.bz2" },
+};
+
+// ---------------------------------------------------------------------------
+// Electronics response
+// ---------------------------------------------------------------------------
+
+local elec = {
+    type: "ColdElecResponse",
+    name: "elec",
+    data: {
+        tick:     tick,
+        nticks:   nticks_ductor,
+        shaping:  2.0 * wc.us,
+        gain:     14.0 * wc.mV / wc.fC,
+        postgain: 1.0,
+    },
+};
+
+// ---------------------------------------------------------------------------
+// PDSP APA 0 face geometry (from wire-cell-toolkit simparams.jsonnet)
+//
+//   Face 0 (front):  anode=-3578.36  response=-3487.8875  cathode=-1.5875
+//   Face 1 (back):   anode=-3683.14  response=-3773.6125  cathode=-7259.9125
+//
+// Units: mm (WCT default system units for spatial coordinates).
+// These values serve dual purpose: AnodePlane faces AND Drifter xregions.
+// ---------------------------------------------------------------------------
+
+local faces = [
+    { anode: -3578.36 * wc.mm, response: -3487.8875 * wc.mm, cathode: -1.5875 * wc.mm },
+    { anode: -3683.14 * wc.mm, response: -3773.6125 * wc.mm, cathode: -7259.9125 * wc.mm },
+];
+
+// ---------------------------------------------------------------------------
+// Anode plane
+// ---------------------------------------------------------------------------
+
+local anode = {
+    type: "AnodePlane",
+    name: "apa0",
+    data: {
+        ident:       0,
+        nimpacts:    10,
+        wire_schema: wc.tn(wires),
+        faces:       faces,
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Plane impact responses (one per plane: U=0, V=1, W=2)
+// ---------------------------------------------------------------------------
+
+local pir(plane) = {
+    type: "PlaneImpactResponse",
+    name: "pir%d" % plane,
+    data: {
+        plane:                  plane,
+        dft:                    wc.tn(dft),
+        field_response:         wc.tn(fr),
+        nticks:                 nticks_ductor,
+        tick:                   tick,
+        short_responses:        [wc.tn(elec)],
+        overall_short_padding:  0.1 * wc.ms,
+        long_responses:         [],
+        long_padding:           1.5 * wc.ms,
+    },
+};
+local pirs = [pir(n) for n in [0, 1, 2]];
+
+// ---------------------------------------------------------------------------
+// Drifter  (xregions must match AnodePlane faces)
+// ---------------------------------------------------------------------------
+
+local drifter_comp = {
+    type: "Drifter",
+    name: "drifter",
+    data: {
+        rng:         wc.tn(rng),
+        DL:          7.2 * wc.cm2 / wc.s,
+        DT:          12.0 * wc.cm2 / wc.s,
+        lifetime:    8 * wc.ms,
+        drift_speed: drift_speed,
+        fluctuate:   false,
+        xregions:    faces,
+    },
+};
+
+local setdrifter = {
+    type: "DepoSetDrifter",
+    name: "deposet_drifter",
+    data: { drifter: wc.tn(drifter_comp) },
+};
+
+// ---------------------------------------------------------------------------
+// DepoTransform (IDepoSet → IFrame)
+// ---------------------------------------------------------------------------
+
+local transform = {
+    type: "DepoTransform",
+    name: "transform",
+    data: {
+        anode:              wc.tn(anode),
+        pirs:               [wc.tn(p) for p in pirs],
+        dft:                wc.tn(dft),
+        fluctuate:          false,
+        drift_speed:        drift_speed,
+        readout_time:       readout_time,
+        start_time:         start_time,
+        tick:               tick,
+        nsigma:             3,
+        first_frame_number: 0,
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Boundary nodes (names come from TLAs injected by DepoSetToFrame executor)
+// ---------------------------------------------------------------------------
+
+local src = {
+    type: "DepoSetBoundarySource",
+    name: source_name,
+    data: {},
+};
+
+local snk = {
+    type: "FrameBoundarySink",
+    name: sink_name,
+    data: {},
+};
+
+// ---------------------------------------------------------------------------
+// Full component list + Pgrapher
+// ---------------------------------------------------------------------------
+
+[dft, rng, wires, fr, elec, anode] + pirs + [drifter_comp, setdrifter, transform, src, snk,
+{
+    type: "Pgrapher",
+    name: app_name,
+    data: {
+        edges: [
+            {
+                tail: { node: wc.tn(src),        port: 0 },
+                head: { node: wc.tn(setdrifter),  port: 0 },
+            },
+            {
+                tail: { node: wc.tn(setdrifter),  port: 0 },
+                head: { node: wc.tn(transform),   port: 0 },
+            },
+            {
+                tail: { node: wc.tn(transform),   port: 0 },
+                head: { node: wc.tn(snk),          port: 0 },
+            },
+        ],
+    },
+}]

@@ -77,6 +77,13 @@ same pattern: consume a job-layer WireSchema, call `register_store()`, then
 `ensure_initialized()`.  The executor infrastructure (static mutex, deferred init)
 is already in place.
 
+Note: the second-real-job pipeline (`deposet-drift-sim.jsonnet`) uses a
+`WireSchemaFile` WCT component that reads the wire geometry directly from disk,
+bypassing the PHLEX job-layer `WireSchema` product entirely.  The geometry-aware
+overload would become useful only when the detector geometry is provided by PHLEX
+(e.g. via a future first-class geometry service) rather than read from a file inside
+the WCT sub-graph.
+
 ## CMake install: PHLEX_PLUGIN_PATH hint
 
 After `cmake --install`, downstream users need to add the install `lib/` directory
@@ -116,3 +123,6 @@ and sinks.  For example:
 Key insight: **do not** call `m_wcmain.finalize()` explicitly in the executor
 destructor — `WireCell::Main::~Main()` already calls it, and an explicit call
 causes a double-finalize that asserts in `boost::iostreams::chain::pop()`.
+
+`FrameSinkFile` (added in second-real-job) follows the same pattern for `IFrame` /
+`FrameFileSink`, producing WCT "frame file" `.npz` output.
