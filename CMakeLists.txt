@@ -59,6 +59,7 @@ add_library(wire_cell_phlex SHARED
   wire_cell_phlex/Executor.cpp
   wire_cell_phlex/BoundaryNodes.cpp
   wire_cell_phlex/TrivialDepoFramer.cpp
+  wire_cell_phlex/FacadeWireSchema.cpp
 )
 
 target_include_directories(wire_cell_phlex
@@ -215,3 +216,9 @@ add_test(NAME phlex_wire_schema
     "${CMAKE_CURRENT_SOURCE_DIR}/test/wire-schema-workflow.jsonnet"
 )
 set_tests_properties(phlex_wire_schema PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
+
+add_test(NAME phlex_frame_filter_facade
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/frame-filter-facade-workflow.jsonnet"
+)
+set_tests_properties(phlex_frame_filter_facade PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")

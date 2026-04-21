@@ -15,10 +15,11 @@
 //
 // Executor base class and concrete subclasses for per-event WCT graph execution.
 //
-// Design: WireCell::Main is initialized ONCE in the Executor constructor.
-// Each operator() call fills the boundary source(s), runs the WCT graph with
-// m_wcmain(), then drains the boundary sink(s).  The BoundarySource queue-based
-// design allows the same Pgraph graph to be re-driven event after event:
+// Design: WireCell::Main is initialized ONCE on the FIRST operator() call
+// (deferred initialization).  Each operator() call fills the boundary source(s),
+// runs the WCT graph with m_wcmain(), then drains the boundary sink(s).  The
+// BoundarySource queue-based design allows the same Pgraph graph to be re-driven
+// event after event:
 //
 //   for each PHLEX event:
 //       source->fill(input_ptr)   // enqueue data for this event
@@ -27,10 +28,13 @@
 //
 // This mirrors the larwirecell WCLS pattern: visit(event) + m_wcmain() + visit().
 //
-// Two-phase construction: Executor() does common config setup; each concrete
-// subclass constructor adds its app name and boundary-node TLAs, then calls
-// m_wcmain.initialize() and locates the boundary nodes via the WCT factory.
-// Virtual functions are NOT used during construction.
+// Deferred initialization rationale:
+//   When geometry arrives as a PHLEX job-layer product (wcphlex::WireSchema),
+//   it is not available at Executor construction time.  The two-argument overload
+//   operator()(WireSchema const&, Frame const&) calls
+//   FacadeWireSchema::register_store(m_scope, ws.store) before the first
+//   ensure_initialized() call.  This pre-populates the static registry that
+//   FacadeWireSchema::configure() reads during initialize().
 //
 // Config interface: boost::json::object (not phlex::configuration) so this
 // header compiles under GCC 12, which lacks std::forward_like used in
@@ -49,6 +53,7 @@
 #include "wire_cell_phlex/Data.h"
 #include "wire_cell_phlex/BoundarySource.h"
 #include "wire_cell_phlex/BoundarySink.h"
+#include "wire_cell_phlex/FacadeWireSchema.h"
 
 #include <WireCellApps/Main.h>
 #include <WireCellIface/IFrameSource.h>
@@ -57,6 +62,7 @@
 
 #include <boost/json.hpp>
 
+#include <atomic>
 #include <string>
 
 namespace wcphlex {
@@ -69,9 +75,9 @@ namespace wcphlex {
 //   m_wcmain.add_plugin(...) for each entry in wct_plugins
 //   m_wcmain.tla_var(k, v)  for each entry in wct_tla
 //
-// It does NOT call add_app() or initialize() — that is the subclass's job.
-// Subclasses call m_wcmain.add_app(), m_wcmain.tla_var() for boundary node
-// names, then m_wcmain.initialize(), then locate boundary nodes via the factory.
+// It does NOT call add_app() or initialize() — those are deferred to the first
+// ensure_initialized() call in operator().  Subclasses store boundary-node names
+// and app name, injected as TLAs, which are passed to ensure_initialized().
 class Executor {
 public:
     explicit Executor(boost::json::object const& config);
@@ -92,6 +98,8 @@ protected:
     // components with distinct names in the global WCT factory, preventing
     // cross-instance aliasing.
     std::string    m_scope{"wcphlex"};
+
+    std::atomic<bool> m_initialized{false};
 };
 
 // ---------------------------------------------------------------------------
@@ -101,15 +109,31 @@ protected:
 //   source_name = m_scope + "_frame_source"   (FrameBoundarySource)
 //   sink_name   = m_scope + "_frame_sink"     (FrameBoundarySink)
 //   app_name    = m_scope + "_pgrapher"       (Pgrapher)
+//
+// Deferred initialization: the WCT graph is not initialized until the first
+// operator() call.  This allows geometry (WireSchema) to be registered in
+// FacadeWireSchema's static map before initialize() triggers configure().
 // ---------------------------------------------------------------------------
 class FrameFilter : public Executor {
 public:
     explicit FrameFilter(boost::json::object const& config);
 
     // Process one Frame through the persistent WCT sub-graph.
+    // WCT graph is initialized on the first call.
     Frame operator()(Frame const& input);
 
+    // Geometry-aware overload: registers the WireSchema store under m_scope
+    // in FacadeWireSchema's static map before initializing WCT on the first call.
+    Frame operator()(WireSchema const& ws, Frame const& input);
+
 private:
+    // Initialize WCT graph on the first call (idempotent).
+    void ensure_initialized();
+
+    std::string m_src_name;
+    std::string m_snk_name;
+    std::string m_app_name;
+
     // Raw pointers into factory-owned objects.  Valid for the lifetime of
     // m_wcmain (i.e. for the lifetime of this FrameFilter instance).
     BoundarySource<WireCell::IFrameSource>* m_source{nullptr};
@@ -129,9 +153,17 @@ public:
     explicit DepoSetToFrame(boost::json::object const& config);
 
     // Process one DepoSet through the persistent WCT sub-graph.
+    // WCT graph is initialized on the first call.
     Frame operator()(DepoSet const& input);
 
 private:
+    // Initialize WCT graph on the first call (idempotent).
+    void ensure_initialized();
+
+    std::string m_src_name;
+    std::string m_snk_name;
+    std::string m_app_name;
+
     BoundarySource<WireCell::IDepoSetSource>* m_source{nullptr};
     BoundarySink<WireCell::IFrameSink>*       m_sink{nullptr};
 };

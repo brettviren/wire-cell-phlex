@@ -47,6 +47,14 @@ inline boost::json::object to_executor_config(phlex::configuration const& cfg)
         obj["module_label"] = *v;
     }
 
+    // Optional: when set, the FrameFilter will use the geometry-aware
+    // operator()(WireSchema const&, Frame const&) overload.  The value is the
+    // name suffix used for the FacadeWireSchema WCT component (matches the
+    // "scope" key in the Jsonnet config).  Not needed for plain frame filters.
+    if (auto v = cfg.get_if_present<bool>("use_wire_schema")) {
+        obj["use_wire_schema"] = *v;
+    }
+
     if (auto tla = cfg.get_if_present<phlex::configuration>("wct_tla")) {
         boost::json::object tla_obj;
         for (auto const& k : tla->keys()) {

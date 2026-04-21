@@ -23,7 +23,15 @@ holding the `WireCell::Main` object.
 ## The =wire_schema_source= 
 
 It currently makes a new =WireSchema= object per call.  It should cache its
-payload and return that each time.
+payload and return that each time.  
+
+This is	a fundamental divergence from WCT in that the WireSchema is
+delivered as an input to the job.  Current WCT consumers of WireSchema
+git it via a shared WireSchemaFile "tool/service" type component.  To
+make this new paradigm work, we	probably need something	new.j
+
+See initialization step 8 for when this was added..
+
 
 # Bugs
 

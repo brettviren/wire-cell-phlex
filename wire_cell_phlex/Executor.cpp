@@ -13,25 +13,46 @@
 //
 // Implementation of Executor base and FrameFilter / DepoSetToFrame subclasses.
 //
-// One-time initialization model (mirrors larwirecell WCLS):
+// Deferred initialization model (mirrors larwirecell WCLS):
 //   - Executor() does common config parsing: add_config, add_plugin, tla_var.
-//   - Each subclass constructor adds add_app("type:name") and the boundary-node
-//     TLAs, then calls m_wcmain.initialize() once.
-//   - After initialize(), boundary nodes are found in the WCT factory and
-//     stored as raw pointers (factory owns them for the Executor lifetime).
+//   - Each subclass constructor stores boundary-node names and app name, and
+//     registers TLAs and add_app() with m_wcmain — but does NOT call initialize().
+//   - The first operator() call triggers ensure_initialized(), which calls
+//     m_wcmain.initialize() and locates boundary nodes via the WCT factory.
 //   - Each operator() call: fill source → m_wcmain() → drain sink.
 //   - BoundarySource's queue design allows re-driving the same Pgraph graph
 //     across successive events without re-initialization.
+//
+// Geometry-aware path (FrameFilter):
+//   - operator()(WireSchema const&, Frame const&) calls
+//     FacadeWireSchema::register_store(m_scope, ws.store) before the first
+//     ensure_initialized().  This pre-populates the static map that
+//     FacadeWireSchema::configure() reads during initialize().
 
 #include "wire_cell_phlex/Executor.h"
 #include "wire_cell_phlex/Data.h"
 #include "wire_cell_phlex/BoundarySource.h"
 #include "wire_cell_phlex/BoundarySink.h"
+#include "wire_cell_phlex/FacadeWireSchema.h"
 
 #include <WireCellUtil/NamedFactory.h>
 
+#include <atomic>
+#include <mutex>
 #include <stdexcept>
 #include <string>
+
+namespace {
+// Serializes all WireCell::Main::initialize() calls across all Executor instances.
+//
+// WCT's global NamedFactoryRegistry and PluginManager are not thread-safe:
+// concurrent initialize() calls from two different Executor instances (e.g.
+// two FrameFilter instances loaded under different PHLEX module labels) corrupt
+// the factory.  Before deferred init was introduced, constructors ran sequentially
+// at PHLEX registration time, so this was never an issue.  Now that init fires on
+// the first event (potentially in parallel TBB tasks), we must serialize.
+std::mutex s_wct_init_mutex;
+} // anonymous namespace
 
 namespace {
 
@@ -116,31 +137,66 @@ FrameFilter::FrameFilter(boost::json::object const& config)
     // Derive unique WCT component instance names from m_scope so that two
     // FrameFilter instances loaded under different PHLEX module labels do not
     // collide in the global WCT factory.
-    std::string const src_name = m_scope + "_frame_source";
-    std::string const snk_name = m_scope + "_frame_sink";
-    std::string const app_name = m_scope + "_pgrapher";
+    m_src_name = m_scope + "_frame_source";
+    m_snk_name = m_scope + "_frame_sink";
+    m_app_name = m_scope + "_pgrapher";
 
-    m_wcmain.tla_var("source_name", src_name);
-    m_wcmain.tla_var("sink_name",   snk_name);
-    m_wcmain.tla_var("app_name",    app_name);
+    // Register TLAs and app now; initialize() is deferred to first operator() call.
+    m_wcmain.tla_var("source_name", m_src_name);
+    m_wcmain.tla_var("sink_name",   m_snk_name);
+    m_wcmain.tla_var("app_name",    m_app_name);
 
-    m_wcmain.add_app(m_app_type + ":" + app_name);
+    // When using the FacadeWireSchema path, inject wire_schema_name = m_scope so
+    // the Jsonnet config can use it as the FacadeWireSchema instance name and scope.
+    // This must match the scope passed to FacadeWireSchema::register_store() in
+    // the geometry-aware operator() overload.
+    if (config.contains("use_wire_schema") &&
+        config.at("use_wire_schema").as_bool()) {
+        m_wcmain.tla_var("wire_schema_name", m_scope);
+    }
+
+    m_wcmain.add_app(m_app_type + ":" + m_app_name);
+}
+
+void FrameFilter::ensure_initialized()
+{
+    if (m_initialized.load(std::memory_order_acquire)) return;
+
+    // Serialize all WireCell::Main::initialize() calls: the WCT global factory
+    // is not thread-safe, so two concurrent initialize() calls (e.g. from two
+    // FrameFilter instances in a PHLEX multi-instance workflow) would corrupt it.
+    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
+    if (m_initialized.load(std::memory_order_relaxed)) return; // double-check
+
     m_wcmain.initialize();
+    m_initialized.store(true, std::memory_order_release);
 
     m_source = find_boundary<WireCell::IFrameSource,
                              BoundarySource<WireCell::IFrameSource>>(
-                   "FrameBoundarySource", src_name);
+                   "FrameBoundarySource", m_src_name);
 
     m_sink = find_boundary<WireCell::IFrameSink,
                            BoundarySink<WireCell::IFrameSink>>(
-                 "FrameBoundarySink", snk_name);
+                 "FrameBoundarySink", m_snk_name);
 }
 
 Frame FrameFilter::operator()(Frame const& input)
 {
+    ensure_initialized();
     m_source->fill(input.ptr);   // enqueue data for this event
     m_wcmain();                  // run Pgrapher until quiescent
     return Frame{m_sink->drain()};
+}
+
+Frame FrameFilter::operator()(WireSchema const& ws, Frame const& input)
+{
+    // Register geometry in the static map before the first initialize() call.
+    // After the first event, this is a no-op because ensure_initialized() returns
+    // immediately once m_initialized is true, and the store is already in m_store.
+    if (!m_initialized) {
+        FacadeWireSchema::register_store(m_scope, ws.store);
+    }
+    return operator()(input);
 }
 
 // ---------------------------------------------------------------------------
@@ -150,28 +206,40 @@ Frame FrameFilter::operator()(Frame const& input)
 DepoSetToFrame::DepoSetToFrame(boost::json::object const& config)
     : Executor(config)
 {
-    std::string const src_name = m_scope + "_deposet_source";
-    std::string const snk_name = m_scope + "_frame_sink";
-    std::string const app_name = m_scope + "_pgrapher";
+    m_src_name = m_scope + "_deposet_source";
+    m_snk_name = m_scope + "_frame_sink";
+    m_app_name = m_scope + "_pgrapher";
 
-    m_wcmain.tla_var("source_name", src_name);
-    m_wcmain.tla_var("sink_name",   snk_name);
-    m_wcmain.tla_var("app_name",    app_name);
+    // Register TLAs and app now; initialize() is deferred to first operator() call.
+    m_wcmain.tla_var("source_name", m_src_name);
+    m_wcmain.tla_var("sink_name",   m_snk_name);
+    m_wcmain.tla_var("app_name",    m_app_name);
 
-    m_wcmain.add_app(m_app_type + ":" + app_name);
+    m_wcmain.add_app(m_app_type + ":" + m_app_name);
+}
+
+void DepoSetToFrame::ensure_initialized()
+{
+    if (m_initialized.load(std::memory_order_acquire)) return;
+
+    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
+    if (m_initialized.load(std::memory_order_relaxed)) return;
+
     m_wcmain.initialize();
+    m_initialized.store(true, std::memory_order_release);
 
     m_source = find_boundary<WireCell::IDepoSetSource,
                              BoundarySource<WireCell::IDepoSetSource>>(
-                   "DepoSetBoundarySource", src_name);
+                   "DepoSetBoundarySource", m_src_name);
 
     m_sink = find_boundary<WireCell::IFrameSink,
                            BoundarySink<WireCell::IFrameSink>>(
-                 "FrameBoundarySink", snk_name);
+                 "FrameBoundarySink", m_snk_name);
 }
 
 Frame DepoSetToFrame::operator()(DepoSet const& input)
 {
+    ensure_initialized();
     m_source->fill(input.ptr);   // enqueue data for this event
     m_wcmain();                  // run Pgrapher until quiescent
     return Frame{m_sink->drain()};
