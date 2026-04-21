@@ -36,6 +36,7 @@
 #include <WireCellIface/IFrame.h>
 #include <WireCellIface/ITensor.h>
 #include <WireCellIface/ITensorSet.h>
+#include <WireCellUtil/WireSchema.h>
 
 namespace wcphlex {
 
@@ -62,6 +63,14 @@ namespace wcphlex {
     // A set of named tensors.
     struct TensorSet {
         WireCell::ITensorSet::pointer ptr;
+    };
+
+    // Wire geometry schema loaded from a WCT wire file at the job layer.
+    // WireCell::WireSchema::Store internally holds a shared_ptr to its data,
+    // so copies are cheap.  The default-constructed store has a null pointer;
+    // a successfully loaded store is guaranteed to have non-empty wires().
+    struct WireSchema {
+        WireCell::WireSchema::Store store;
     };
 
 } // namespace wcphlex

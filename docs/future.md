@@ -20,6 +20,11 @@ graph with the boundary converters prior to finalizing the config.  In
 principle, this is not a big problem as the concrete executor is creating and
 holding the `WireCell::Main` object.
 
+## The =wire_schema_source= 
+
+It currently makes a new =WireSchema= object per call.  It should cache its
+payload and return that each time.
+
 # Bugs
 
 - Boundary converters need to use deque not queue

@@ -121,6 +121,23 @@ target_link_libraries(wcp_two_frame_observer PRIVATE
 )
 target_compile_options(wcp_two_frame_observer PRIVATE -UNDEBUG)
 
+# Step 8: job-layer wire geometry source and observer.
+add_library(wcp_wire_schema_source MODULE modules/wire_schema_source.cpp)
+target_link_libraries(wcp_wire_schema_source PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_wire_schema_source PRIVATE -UNDEBUG)
+
+add_library(wcp_wire_schema_observer MODULE modules/wire_schema_observer.cpp)
+target_link_libraries(wcp_wire_schema_observer PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_wire_schema_observer PRIVATE -UNDEBUG)
+
 # Step 6: IDepoSet → IFrame executor module.
 add_library(wcp_deposet_source MODULE modules/deposet_source.cpp)
 target_link_libraries(wcp_deposet_source PRIVATE
@@ -155,9 +172,24 @@ find_program(PHLEX_EXECUTABLE phlex
 get_filename_component(_phlex_bin_dir "${PHLEX_EXECUTABLE}" DIRECTORY)
 get_filename_component(_phlex_lib_dir "${_phlex_bin_dir}/../lib" ABSOLUTE)
 
+# Locate the WireCell shared data directory (wire geometry files, etc.).
+set(_wct_data_dir "")
+foreach(_prefix IN LISTS CMAKE_PREFIX_PATH)
+  if(EXISTS "${_prefix}/share/wirecell")
+    set(_wct_data_dir "${_prefix}/share/wirecell")
+    break()
+  endif()
+endforeach()
+
 set(_phlex_env
   "PHLEX_PLUGIN_PATH=${CMAKE_CURRENT_BINARY_DIR}:${_phlex_lib_dir}"
   "WIRECELL_PATH=${CMAKE_CURRENT_SOURCE_DIR}/cfg"
+)
+
+# Env for tests that need WCT shared data (wire geometry files).
+set(_phlex_env_with_data
+  "PHLEX_PLUGIN_PATH=${CMAKE_CURRENT_BINARY_DIR}:${_phlex_lib_dir}"
+  "WIRECELL_PATH=${CMAKE_CURRENT_SOURCE_DIR}/cfg:${_wct_data_dir}"
 )
 
 add_test(NAME phlex_frame_filter
@@ -177,3 +209,9 @@ add_test(NAME phlex_multi_instance
     "${CMAKE_CURRENT_SOURCE_DIR}/test/multi-instance-workflow.jsonnet"
 )
 set_tests_properties(phlex_multi_instance PROPERTIES ENVIRONMENT "${_phlex_env}")
+
+add_test(NAME phlex_wire_schema
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/wire-schema-workflow.jsonnet"
+)
+set_tests_properties(phlex_wire_schema PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
