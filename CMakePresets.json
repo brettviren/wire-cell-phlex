@@ -2,40 +2,73 @@
   "version": 3,
   "configurePresets": [
     {
-      "name": "default",
-      "displayName": "Default (Spack GCC 15)",
-      "description": "RelWithDebInfo, Spack GCC 15, no compiler extensions. GCC 15 is required because PHLEX headers use std::forward_like (C++23, absent in GCC 12).",
-      "binaryDir": "${sourceDir}/build",
+      "name": "base",
+      "hidden": true,
+      "description": "Shared settings inherited by all presets",
+      "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": {
-          "type": "STRING",
-          "value": "RelWithDebInfo"
-        },
-        "CMAKE_CXX_EXTENSIONS": {
-          "type": "BOOL",
-          "value": "OFF"
-        },
-        "CMAKE_CXX_STANDARD_REQUIRED": {
-          "type": "BOOL",
-          "value": "ON"
-        },
-        "CMAKE_CXX_COMPILER": {
-          "type": "FILEPATH",
-          "value": "/home/bviren/dune/try-phlex/spack/opt/spack/linux-x86_64/gcc-15.2.0-o77gppl4ocxtcqeijehuma5lndnrn3tv/bin/g++"
-        }
+        "CMAKE_CXX_STANDARD":          { "type": "STRING", "value": "23" },
+        "CMAKE_CXX_STANDARD_REQUIRED": { "type": "BOOL",   "value": "ON" },
+        "CMAKE_CXX_EXTENSIONS":        { "type": "BOOL",   "value": "OFF" }
+      }
+    },
+    {
+      "name": "default",
+      "displayName": "Default (optimized with debug symbols)",
+      "description": "RelWithDebInfo: -O2 optimisation, full debug symbols. Good for day-to-day development and profiling.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": { "type": "STRING", "value": "RelWithDebInfo" }
+      }
+    },
+    {
+      "name": "stripped",
+      "displayName": "Stripped (optimized, no debug symbols)",
+      "description": "Release: -O2 optimisation, no debug symbols. Use for production / installation.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": { "type": "STRING", "value": "Release" }
       }
     },
     {
       "name": "debug",
-      "displayName": "Debug (Spack GCC 15)",
-      "description": "Debug build",
-      "inherits": "default",
+      "displayName": "Debug (unoptimized with debug symbols)",
+      "description": "Debug: -O0, full debug symbols. Use when stepping through code in a debugger.",
+      "inherits": "base",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": {
-          "type": "STRING",
-          "value": "Debug"
-        }
+        "CMAKE_BUILD_TYPE": { "type": "STRING", "value": "Debug" }
       }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "stripped",
+      "configurePreset": "stripped"
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "stripped",
+      "configurePreset": "stripped",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": { "outputOnFailure": true }
     }
   ]
 }

@@ -1,16 +1,10 @@
-# wire-cell-phlex
+# wire-cell-phlex (WCPh)
 
-Integration of the [Wire-Cell Toolkit](https://wirecell.github.io/) (WCT) with the
-[PHLEX framework](https://github.com/framework-r-d/phlex).
-
-`wire-cell-phlex` provides PHLEX module libraries that wrap WCT signal-processing and
-simulation sub-graphs as `concurrency::serial` PHLEX transform nodes.  Data products
-are exchanged using thin aggregate wrapper types (`wcphlex::Frame`, `wcphlex::DepoSet`,
-…) that carry WCT's immutable `shared_ptr<const IData>` objects through PHLEX's typed
-product routing.
-
-See `docs/howto-new-workflow.md` for a step-by-step guide to writing a new workflow.
-See `docs/design-options.md` for the integration architecture.
+The `wire-cell-phlex` (WCPh) provides a general integration layer between the
+[Wire-Cell Toolkit](https://wirecell.github.io/) (WCT) and the [PHLEX
+framework](https://github.com/framework-r-d/phlex).  Through PHLEX plugin
+libraries it allows WCT data flow programming (DFP) graphs to execute as a node
+in the PHLEX DFP graph.
 
 ## Dependencies
 
@@ -18,85 +12,27 @@ See `docs/design-options.md` for the integration architecture.
 |------------|------|
 | [PHLEX](https://github.com/framework-r-d/phlex) ≥ GCC 15 | framework |
 | [Wire-Cell Toolkit](https://github.com/WireCell/wire-cell-toolkit) | signal processing / simulation |
-| Boost (json, iostreams, …) | WCT / PHLEX transitive |
-| Eigen3 | WCT transitive |
-| jsoncpp / jsonnet | WCT configuration |
-| spdlog | logging |
-| TBB | PHLEX scheduler |
-
-PHLEX headers use `std::forward_like` (C++23), which requires **GCC 15** or Clang 18+.
-The `wire_cell_phlex` shared library is header-only against PHLEX's core types, so it
-can be compiled with GCC 12+, but the PHLEX MODULE files must use GCC 15.
+| C++23 (GCC 15) | compiler |
 
 ## Building
-
-Activate the Spack environment that provides PHLEX and WCT, then:
 
 ```sh
 cmake --preset default          # configures with GCC 15, build dir = ./build
 cmake --build build
 ctest --test-dir build
 ```
+All tests should pass.
 
-All 9 tests should pass:
-
-| Test | What it exercises |
-|------|-------------------|
-| `trivial` | bare WCT link check |
-| `data_types` | wcphlex wrapper type IDs |
-| `boundary` | BoundarySource/Sink buffers |
-| `executor` | FrameFilter unit test (12 events) |
-| `phlex_frame_filter` | PHLEX: frame source → passthrough → observer |
-| `phlex_deposet_to_frame` | PHLEX: DepoSet source → trivial framer → observer |
-| `phlex_multi_instance` | PHLEX: two independent FrameFilter instances |
-| `phlex_wire_schema` | PHLEX: job-layer wire geometry load + validation |
-| `phlex_frame_filter_facade` | PHLEX: FacadeWireSchema geometry bridge |
-
-## Package layout
+## Package layout  overview
 
 ```
 wire-cell-phlex/
-├── CMakeLists.txt
-├── cmake/
-│   └── FindWireCell.cmake        # locate WCT libraries from CMake
-├── wire_cell_phlex/              # SHARED library (wire_cell_phlex)
-│   ├── Data.h                    # wcphlex wrapper types
-│   ├── BoundarySource.h          # WCT source buffer template
-│   ├── BoundarySink.h            # WCT sink buffer template
-│   ├── Executor.h / .cpp         # WctExecutor base + FrameFilter, DepoSetToFrame
-│   ├── BoundaryNodes.cpp         # WIRECELL_FACTORY registrations
-│   ├── TrivialDepoFramer.cpp     # minimal IDepoSet→IFrame for testing
-│   ├── FacadeWireSchema.h / .cpp # IWireSchema bridge for PHLEX job-layer geometry
-│   └── Data.h                    # wcphlex wrapper types
-├── modules/                      # PHLEX MODULE shared libraries (dlopen only)
-│   ├── frame_source.cpp          # wcp_frame_source:   event-layer Frame provider
-│   ├── frame_filter.cpp          # wcp_frame_filter:   Frame → Frame transform
-│   ├── frame_observer.cpp        # wcp_frame_observer: single-frame validation
-│   ├── two_frame_observer.cpp    # wcp_two_frame_observer: pair validation
-│   ├── deposet_source.cpp        # wcp_deposet_source:     event-layer DepoSet
-│   ├── deposet_to_frame.cpp      # wcp_deposet_to_frame:   DepoSet → Frame
-│   ├── wire_schema_source.cpp    # wcp_wire_schema_source:  job-layer geometry
-│   ├── wire_schema_observer.cpp  # wcp_wire_schema_observer: geometry validation
-│   └── executor_config.h         # phlex::configuration → boost::json helper
-├── cfg/                          # WCT Jsonnet sub-graph configs
-│   ├── frame-passthrough.jsonnet               # trivial Frame pass-through
-│   └── frame-passthrough-with-facade.jsonnet   # pass-through + FacadeWireSchema
-├── test/
-│   ├── CMakeLists.txt
-│   ├── test_trivial.cpp
-│   ├── test_data_types.cpp
-│   ├── test_boundary.cpp
-│   ├── test_executor.cpp
-│   ├── frame-filter-workflow.jsonnet
-│   ├── deposet-to-frame-workflow.jsonnet
-│   ├── multi-instance-workflow.jsonnet
-│   ├── wire-schema-workflow.jsonnet
-│   └── frame-filter-facade-workflow.jsonnet
-└── docs/
-    ├── howto-new-workflow.md     # step-by-step guide for adding a new workflow
-    ├── design-options.md         # integration architecture options considered
-    ├── implementation-plan.md    # phased build-out plan (Steps 1–10)
-    └── *.md                      # WCT/PHLEX reference summaries
+├── cmake/            # build control
+├── wire_cell_phlex/  # shared library source
+├── modules/          # PHLEX MODULE shared libraries (dlopen only)
+├── cfg/              # WCT Jsonnet sub-graph configs
+├── test/             # ctest tests
+└── docs/             # Documentation for humans and LLMs
 ```
 
 ## PHLEX modules reference
@@ -152,6 +88,13 @@ WIRECELL_PATH=${PWD}/cfg:/path/to/wirecell/share/wirecell \
 WIRECELL_PATH=${PWD}/cfg:/path/to/wirecell/share/wirecell \
   phlex -c test/frame-filter-facade-workflow.jsonnet
 ```
+
+## See also
+
+See `docs/howto-new-workflow.md` for a step-by-step guide to writing a new workflow.
+See `docs/design-options.md` for the integration architecture.
+
+
 
 ## License
 

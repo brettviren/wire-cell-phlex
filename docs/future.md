@@ -69,14 +69,6 @@ configure-time services can be bridged using the same `FacadeWireSchema` pattern
 3. Add a geometry-aware executor overload that populates the registry before
    `ensure_initialized()`.
 
-## BoundarySource: deque vs single slot
-
-The current `BoundarySource` holds a single slot (fill-once, serve-once, then EOS).
-If a WCT graph node produces multiple outputs per input (e.g. splitting one DepoSet
-into several frames), `BoundarySink` would need to buffer multiple items.  A
-`std::deque`-based implementation would handle this more robustly.  The current
-single-slot design is sufficient for all present use cases.
-
 ## DepoSetToFrame: geometry-aware overload
 
 `DepoSetToFrame` does not yet have an `operator()(WireSchema const&, DepoSet const&)`
