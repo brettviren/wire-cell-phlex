@@ -59,6 +59,7 @@
 #include <WireCellIface/IFrameSource.h>
 #include <WireCellIface/IFrameSink.h>
 #include <WireCellIface/IDepoSetSource.h>
+#include <WireCellIface/IDepoSetSink.h>
 
 #include <boost/json.hpp>
 
@@ -166,6 +167,105 @@ private:
 
     BoundarySource<WireCell::IDepoSetSource>* m_source{nullptr};
     BoundarySink<WireCell::IFrameSink>*       m_sink{nullptr};
+};
+
+// ---------------------------------------------------------------------------
+// Concrete executor: file → IDepoSet (reads a WCT depo file, yields one DepoSet
+// per PHLEX event call).
+//
+// The WCT sub-graph (e.g. deposet-file-source.jsonnet) includes a real WCT
+// source component (e.g. DepoFileSource) and a DepoSetBoundarySink.  On the
+// first operator()() call the entire WCT graph is run to completion, queuing
+// all depo sets in the sink buffer.  Subsequent calls drain one depo set per
+// call.  No BoundarySource is needed; the WCT source component drives the
+// graph internally.
+//
+// WCT boundary node instance names derived from m_scope:
+//   sink_name = m_scope + "_deposet_sink"   (DepoSetBoundarySink)
+//   app_name  = m_scope + "_pgrapher"       (Pgrapher)
+//
+// The input file path is passed via wct_tla: { inname: "..." } in the
+// module config.
+// ---------------------------------------------------------------------------
+class DepoSetSourceFile : public Executor {
+public:
+    explicit DepoSetSourceFile(boost::json::object const& config);
+
+    // On the first call: initialize WCT, run the entire graph, fill the queue.
+    // On every call: drain and return one DepoSet from the queue.
+    DepoSet operator()();
+
+private:
+    void ensure_initialized();
+
+    std::string m_snk_name;
+    std::string m_app_name;
+
+    std::atomic<bool>                         m_graph_ran{false};
+    BoundarySink<WireCell::IDepoSetSink>*     m_sink{nullptr};
+};
+
+// ---------------------------------------------------------------------------
+// Concrete executor: IDepoSet → file (writes each received DepoSet to a WCT
+// depo file via DepoFileSink).
+//
+// The WCT sub-graph (e.g. deposet-file-sink.jsonnet) includes a
+// DepoSetBoundarySource and a real WCT sink component (e.g. DepoFileSink).
+// Each operator()(DepoSet) call fills the boundary source with the given depo
+// set and runs the graph once.  The destructor calls m_wcmain.finalize() to
+// flush the WCT sink (ITerminal).
+//
+// WCT boundary node instance names derived from m_scope:
+//   source_name = m_scope + "_deposet_source"  (DepoSetBoundarySource)
+//   app_name    = m_scope + "_pgrapher"        (Pgrapher)
+//
+// The output file path is passed via wct_tla: { outname: "..." } in the
+// module config.
+// ---------------------------------------------------------------------------
+class DepoSetSinkFile : public Executor {
+public:
+    explicit DepoSetSinkFile(boost::json::object const& config);
+    ~DepoSetSinkFile() override;
+
+    // Deliver one DepoSet to the WCT sub-graph.  Graph is initialized on first
+    // call.
+    void operator()(DepoSet const& input);
+
+private:
+    void ensure_initialized();
+
+    std::string m_src_name;
+    std::string m_app_name;
+
+    BoundarySource<WireCell::IDepoSetSource>* m_source{nullptr};
+};
+
+// ---------------------------------------------------------------------------
+// Concrete executor: IDepoSet → IDepoSet (drift or pass-through).
+//
+// WCT boundary node instance names are derived from m_scope at construction:
+//   source_name = m_scope + "_deposet_source"  (DepoSetBoundarySource)
+//   sink_name   = m_scope + "_deposet_sink"    (DepoSetBoundarySink)
+//   app_name    = m_scope + "_pgrapher"        (Pgrapher)
+// ---------------------------------------------------------------------------
+class DepoSetFilter : public Executor {
+public:
+    explicit DepoSetFilter(boost::json::object const& config);
+
+    // Process one DepoSet through the persistent WCT sub-graph.
+    // WCT graph is initialized on the first call.
+    DepoSet operator()(DepoSet const& input);
+
+private:
+    // Initialize WCT graph on the first call (idempotent).
+    void ensure_initialized();
+
+    std::string m_src_name;
+    std::string m_snk_name;
+    std::string m_app_name;
+
+    BoundarySource<WireCell::IDepoSetSource>* m_source{nullptr};
+    BoundarySink<WireCell::IDepoSetSink>*     m_sink{nullptr};
 };
 
 } // namespace wcphlex

@@ -29,7 +29,9 @@
 #include "wire_cell_phlex/Executor.h"
 
 #include <WireCellAux/SimpleFrame.h>
+#include <WireCellAux/SimpleDepoSet.h>
 #include <WireCellIface/IFrame.h>
+#include <WireCellIface/IDepoSet.h>
 
 #include <boost/json.hpp>
 
@@ -46,15 +48,25 @@ static WireCell::IFrame::pointer make_frame(int ident)
     return std::make_shared<WireCell::Aux::SimpleFrame>(ident);
 }
 
+static WireCell::IDepoSet::pointer make_deposet(int ident)
+{
+    return std::make_shared<WireCell::Aux::SimpleDepoSet>(ident, WireCell::IDepo::vector{});
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
 int main()
 {
-    // Absolute path to frame-passthrough.jsonnet, injected at compile time.
-    std::string const cfg_path =
+    // Absolute paths to Jsonnet configs, injected at compile time.
+    std::string const frame_cfg_path =
         std::string{WCP_CFG_DIR} + "/frame-passthrough.jsonnet";
+    std::string const deposet_cfg_path =
+        std::string{WCP_CFG_DIR} + "/deposet-passthrough.jsonnet";
+
+    // Keep old name for backward compat with FrameFilter tests below.
+    std::string const& cfg_path = frame_cfg_path;
 
     // Build the executor config as a boost::json::object.
     // (phlex::configuration is not used here: its header pulls in
@@ -89,6 +101,42 @@ int main()
             assert(result.ptr == frame && "pointer identity must be preserved");
         }
         std::cout << "12-event re-use (" << 12 << " events): PASS\n";
+    }
+
+    // =========================================================================
+    // DepoSetFilter tests
+    // =========================================================================
+
+    boost::json::object ds_config{
+        {"wct_config",  deposet_cfg_path},
+        {"wct_plugins", boost::json::array{"WireCellPgraph"}},
+    };
+
+    // --- Test 4: DepoSetFilter construction ---------------------------------
+    wcphlex::DepoSetFilter dsf{ds_config};
+    std::cout << "DepoSetFilter construction: PASS\n";
+
+    // --- Test 5: single-event round-trip ------------------------------------
+    {
+        auto deposet = make_deposet(42);
+        auto result  = dsf(wcphlex::DepoSet{deposet});
+
+        assert(result.ptr            && "result must be non-null");
+        assert(result.ptr == deposet && "pointer identity must be preserved");
+        std::cout << "DepoSetFilter single-event round-trip (ident=42): PASS\n";
+    }
+
+    // --- Test 6: 12-event re-use --------------------------------------------
+    {
+        int constexpr N = 12;
+        for (int i = 0; i < N; ++i) {
+            auto deposet = make_deposet(i);
+            auto result  = dsf(wcphlex::DepoSet{deposet});
+
+            assert(result.ptr            && "result must be non-null");
+            assert(result.ptr == deposet && "pointer identity must be preserved");
+        }
+        std::cout << "DepoSetFilter 12-event re-use (" << 12 << " events): PASS\n";
     }
 
     std::cout << "All executor assertions passed.\n";

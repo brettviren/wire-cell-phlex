@@ -82,3 +82,37 @@ is already in place.
 After `cmake --install`, downstream users need to add the install `lib/` directory
 to `PHLEX_PLUGIN_PATH`.  A small CMake helper or pkg-config fragment that exports
 this path would improve the out-of-the-box experience.
+
+## PHLEX TLA limitation
+
+PHLEX 0.2.0 only supports `-c` (config file) and `-j` (parallelism) on the
+command line.  Despite `libjsonnet++` supporting `bindTlaVar()`, PHLEX does not
+expose `--tla-str` / `--tla-code` flags.  As a workaround, workflows that need
+dynamic file paths use CMake's `configure_file()` to inject values at build time
+(see `test/*.jsonnet.in` templates).
+
+**Future**: If PHLEX adds `--tla-str` support (or an equivalent mechanism for
+passing dynamic configuration to workflows), the `*.jsonnet.in` templates should
+be replaced with plain `.jsonnet` files that accept TLAs directly.
+
+## DepoSetFilter geometry-aware overload
+
+`DepoSetFilter` does not yet have an `operator()(WireSchema const&, DepoSet const&)`
+overload analogous to `FrameFilter`'s geometry-aware path.  Adding it requires the
+same pattern: consume a job-layer `WireSchema`, call
+`FacadeWireSchema::register_store(m_scope, ws.store)` before `ensure_initialized()`.
+The executor infrastructure (static mutex, deferred init) is already in place.
+
+## Source/sink executor patterns
+
+The `DepoSetSourceFile` (run-once + drain-queue) and `DepoSetSinkFile`
+(fill/run per event + finalize in `~Main()`) patterns introduced in the
+first-real-job push can serve as templates for other file-based WCT sources
+and sinks.  For example:
+
+- A `TensorSetSourceFile` wrapping `NumpyTensorSetLoader` (or similar).
+- A `FrameSourceFile` wrapping any WCT `IFrameSource` that reads from disk.
+
+Key insight: **do not** call `m_wcmain.finalize()` explicitly in the executor
+destructor — `WireCell::Main::~Main()` already calls it, and an explicit call
+causes a double-finalize that asserts in `boost::iostreams::chain::pop()`.

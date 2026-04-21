@@ -38,6 +38,7 @@
 #include <WireCellUtil/NamedFactory.h>
 
 #include <atomic>
+#include <iostream>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -243,6 +244,138 @@ Frame DepoSetToFrame::operator()(DepoSet const& input)
     m_source->fill(input.ptr);   // enqueue data for this event
     m_wcmain();                  // run Pgrapher until quiescent
     return Frame{m_sink->drain()};
+}
+
+// ---------------------------------------------------------------------------
+// DepoSetSourceFile
+// ---------------------------------------------------------------------------
+
+DepoSetSourceFile::DepoSetSourceFile(boost::json::object const& config)
+    : Executor(config)
+{
+    m_snk_name = m_scope + "_deposet_sink";
+    m_app_name = m_scope + "_pgrapher";
+
+    m_wcmain.tla_var("sink_name", m_snk_name);
+    m_wcmain.tla_var("app_name",  m_app_name);
+
+    m_wcmain.add_app(m_app_type + ":" + m_app_name);
+}
+
+void DepoSetSourceFile::ensure_initialized()
+{
+    if (m_initialized.load(std::memory_order_acquire)) return;
+
+    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
+    if (m_initialized.load(std::memory_order_relaxed)) return;
+
+    m_wcmain.initialize();
+    m_initialized.store(true, std::memory_order_release);
+
+    m_sink = find_boundary<WireCell::IDepoSetSink,
+                           BoundarySink<WireCell::IDepoSetSink>>(
+                 "DepoSetBoundarySink", m_snk_name);
+}
+
+DepoSet DepoSetSourceFile::operator()()
+{
+    if (!m_graph_ran.load(std::memory_order_acquire)) {
+        ensure_initialized();
+        m_wcmain();   // run graph to completion; all depo sets queue in m_sink
+        m_graph_ran.store(true, std::memory_order_release);
+    }
+    return DepoSet{m_sink->drain()};
+}
+
+// ---------------------------------------------------------------------------
+// DepoSetSinkFile
+// ---------------------------------------------------------------------------
+
+DepoSetSinkFile::DepoSetSinkFile(boost::json::object const& config)
+    : Executor(config)
+{
+    m_src_name = m_scope + "_deposet_source";
+    m_app_name = m_scope + "_pgrapher";
+
+    m_wcmain.tla_var("source_name", m_src_name);
+    m_wcmain.tla_var("app_name",    m_app_name);
+
+    m_wcmain.add_app(m_app_type + ":" + m_app_name);
+}
+
+DepoSetSinkFile::~DepoSetSinkFile()
+{
+    // NOTE: WireCell::Main::~Main() calls finalize() automatically, which
+    // invokes ITerminal::finalize() on all terminal components (e.g. DepoFileSink).
+    // Do NOT call m_wcmain.finalize() here — that would cause a double-finalize
+    // and an empty-chain assertion in boost::iostreams::chain::pop().
+}
+
+void DepoSetSinkFile::ensure_initialized()
+{
+    if (m_initialized.load(std::memory_order_acquire)) return;
+
+    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
+    if (m_initialized.load(std::memory_order_relaxed)) return;
+
+    m_wcmain.initialize();
+    m_initialized.store(true, std::memory_order_release);
+
+    m_source = find_boundary<WireCell::IDepoSetSource,
+                             BoundarySource<WireCell::IDepoSetSource>>(
+                   "DepoSetBoundarySource", m_src_name);
+}
+
+void DepoSetSinkFile::operator()(DepoSet const& input)
+{
+    ensure_initialized();
+    m_source->fill(input.ptr);
+    m_wcmain();
+}
+
+// ---------------------------------------------------------------------------
+// DepoSetFilter
+// ---------------------------------------------------------------------------
+
+DepoSetFilter::DepoSetFilter(boost::json::object const& config)
+    : Executor(config)
+{
+    m_src_name = m_scope + "_deposet_source";
+    m_snk_name = m_scope + "_deposet_sink";
+    m_app_name = m_scope + "_pgrapher";
+
+    m_wcmain.tla_var("source_name", m_src_name);
+    m_wcmain.tla_var("sink_name",   m_snk_name);
+    m_wcmain.tla_var("app_name",    m_app_name);
+
+    m_wcmain.add_app(m_app_type + ":" + m_app_name);
+}
+
+void DepoSetFilter::ensure_initialized()
+{
+    if (m_initialized.load(std::memory_order_acquire)) return;
+
+    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
+    if (m_initialized.load(std::memory_order_relaxed)) return;
+
+    m_wcmain.initialize();
+    m_initialized.store(true, std::memory_order_release);
+
+    m_source = find_boundary<WireCell::IDepoSetSource,
+                             BoundarySource<WireCell::IDepoSetSource>>(
+                   "DepoSetBoundarySource", m_src_name);
+
+    m_sink = find_boundary<WireCell::IDepoSetSink,
+                           BoundarySink<WireCell::IDepoSetSink>>(
+                 "DepoSetBoundarySink", m_snk_name);
+}
+
+DepoSet DepoSetFilter::operator()(DepoSet const& input)
+{
+    ensure_initialized();
+    m_source->fill(input.ptr);
+    m_wcmain();
+    return DepoSet{m_sink->drain()};
 }
 
 } // namespace wcphlex

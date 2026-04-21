@@ -156,6 +156,41 @@ target_link_libraries(wcp_deposet_to_frame PRIVATE
 )
 target_compile_options(wcp_deposet_to_frame PRIVATE -UNDEBUG)
 
+# Step A: IDepoSet → IDepoSet filter module.
+add_library(wcp_deposet_filter MODULE modules/deposet_filter.cpp)
+target_link_libraries(wcp_deposet_filter PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_deposet_filter PRIVATE -UNDEBUG)
+
+# Step B: DepoSet observer module.
+add_library(wcp_deposet_observer MODULE modules/deposet_observer.cpp)
+target_link_libraries(wcp_deposet_observer PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_deposet_observer PRIVATE -UNDEBUG)
+
+# Steps C+D: File-based DepoSet source and sink modules.
+add_library(wcp_deposet_source_file MODULE modules/deposet_source_file.cpp)
+target_link_libraries(wcp_deposet_source_file PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_deposet_source_file PRIVATE -UNDEBUG)
+
+add_library(wcp_deposet_sink_file MODULE modules/deposet_sink_file.cpp)
+target_link_libraries(wcp_deposet_sink_file PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_deposet_sink_file PRIVATE -UNDEBUG)
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -223,6 +258,44 @@ add_test(NAME phlex_frame_filter_facade
 )
 set_tests_properties(phlex_frame_filter_facade PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
 
+# Step B: DepoSet passthrough filter + observer.
+add_test(NAME phlex_deposet_filter
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/deposet-filter-workflow.jsonnet"
+)
+set_tests_properties(phlex_deposet_filter PROPERTIES ENVIRONMENT "${_phlex_env}")
+
+# Steps C+D+F: file-based DepoSet identity round-trip and drifter integration tests.
+#
+# File paths are injected into the workflow Jsonnet at configure time because
+# PHLEX 0.2.0 does not support command-line Jsonnet TLAs or external variables.
+set(WCP_TEST_DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test/data")
+set(WCP_OUTPUT_DIR    "${CMAKE_CURRENT_BINARY_DIR}")
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/test/deposet-identity-workflow.jsonnet.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/deposet-identity-workflow.jsonnet"
+  @ONLY
+)
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/test/deposet-drifter-workflow.jsonnet.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/deposet-drifter-workflow.jsonnet"
+  @ONLY
+)
+
+add_test(NAME phlex_deposet_identity
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_BINARY_DIR}/deposet-identity-workflow.jsonnet"
+)
+set_tests_properties(phlex_deposet_identity PROPERTIES ENVIRONMENT "${_phlex_env}")
+
+add_test(NAME phlex_deposet_drifter
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_BINARY_DIR}/deposet-drifter-workflow.jsonnet"
+)
+set_tests_properties(phlex_deposet_drifter PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
+
 # ---------------------------------------------------------------------------
 # Install rules
 #
@@ -257,6 +330,10 @@ foreach(_mod IN ITEMS
     wcp_two_frame_observer
     wcp_deposet_source
     wcp_deposet_to_frame
+    wcp_deposet_filter
+    wcp_deposet_observer
+    wcp_deposet_source_file
+    wcp_deposet_sink_file
     wcp_wire_schema_source
     wcp_wire_schema_observer
 )
