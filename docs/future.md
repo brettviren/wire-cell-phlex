@@ -110,31 +110,38 @@ same pattern: consume a job-layer `WireSchema`, call
 `FacadeWireSchema::register_store(m_scope, ws.store)` before `ensure_initialized()`.
 The executor infrastructure (static mutex, deferred init) is already in place.
 
-## Multi-APA fan: OmnibusSigProc thread safety
+## Multi-APA fan: OmnibusSigProc and the apa_ident=3 crash
 
 The `phlex_fans` test uses `pdhd-apa-sim.jsonnet` (DepoTransform only) instead
-of `pdhd-apa-sim-sigproc.jsonnet` because `OmnibusSigProc` is not thread-safe
-when multiple instances share the same SP filter objects.
+of `pdhd-apa-sim-sigproc.jsonnet` because `pdhd-apa-sim-sigproc.jsonnet` with
+`apa_ident=3` crashes deterministically when given drifted PDSP depos.
 
 `OmnibusSigProc` looks up 13 filter objects (e.g. `ROI_tight_lf`, `Gaus_tight`)
-by **hard-coded names** from the WCT global factory.  All four concurrent
-`OmnibusSigProc` instances receive the same shared pointer for each filter.
-When TBB dispatches all four `wcp_deposet_to_frame` operators simultaneously,
-they call `LfFilter::operator()` and `HfFilter::operator()` concurrently on
-shared instances, producing a data race → Eigen bounds assertion failure.
+by **hard-coded names** from the WCT global factory.  All instances share the
+same pointer for each filter.  However, **this sharing is safe**: `HfFilter` and
+`LfFilter` implement `filter_waveform()` as a `const` method whose output is a
+local stack variable, reading only `const` member data set at configure time.
+There is no shared mutable state and no data race.
+
+The actual obstacle is a deterministic Eigen bounds assertion in
+`OmnibusSigProc` for `apa_ident=3` + drifted depos.  The same config with
+`apa_ident=0`, `1`, or `2`, and the same config with `apa_ident=3` + raw
+un-drifted depos, all succeed.  Root cause: under investigation; likely in how
+`OmnibusSigProc::load_data()` indexes its Eigen array for APA 3's specific
+wire geometry when given frames produced by DepoTransform from the drifted
+PDHD source.
 
 **Future options**:
 
-1. Make SP filter objects (`LfFilter`, `HfFilter`) thread-safe in WCT (read-only
-   after configure, or use `std::shared_mutex` for the internal Eigen state).
+1. Diagnose and fix the `apa_ident=3` + drifted-depos crash in `OmnibusSigProc`
+   (examine `och.wire + m_pad_nwires` vs `m_fft_nwires` for APA 3's channel map).
 2. Run each per-APA sim+sigproc as two sequential PHLEX steps: `wcp_deposet_to_frame`
-   (DepoTransform only) followed by `wcp_frame_filter` (OmnibusSigProc only).
-   The frame_filter instances share SP filters but can run on non-overlapping
-   frames as long as each frame_filter is `concurrency::serial`.
+   (DepoTransform only) followed by `wcp_frame_filter` (OmnibusSigProc only),
+   with each `frame_filter` using `concurrency::serial`.
 3. Build a monolithic multi-APA WCT graph inside a single PHLEX module.
 
-The `pdhd-apa-sim-sigproc.jsonnet` config is retained for single-APA use and
-as a reference for when WCT makes SP filters thread-safe.
+The `pdhd-apa-sim-sigproc.jsonnet` config is retained for single-APA use
+(`apa_ident=0..2`) and as a reference once the APA 3 crash is resolved.
 
 ## Multi-APA fan: generalizing to N APAs
 

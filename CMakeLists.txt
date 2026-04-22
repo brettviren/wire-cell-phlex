@@ -335,6 +335,26 @@ configure_file(
   @ONLY
 )
 
+# Sigproc variants: per-APA single-instance tests and 4-APA fan with sigproc.
+# These tests currently fail (Eigen bounds assertion in OmnibusSigProc for
+# apa_ident=3 with drifted PDSP depos).  They are written to pass once that
+# bug is fixed; no WILL_FAIL property is set.
+foreach(_apa IN ITEMS 0 1 2 3)
+  set(APA_IDENT "${_apa}")
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/pdhd-apa-sigproc-workflow.jsonnet.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/pdhd-apa${_apa}-sigproc-workflow.jsonnet"
+    @ONLY
+  )
+endforeach()
+unset(APA_IDENT)
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/test/fans-sigproc-workflow.jsonnet.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/fans-sigproc-workflow.jsonnet"
+  @ONLY
+)
+
 add_test(NAME phlex_deposet_identity
   COMMAND "${PHLEX_EXECUTABLE}" -c
     "${CMAKE_CURRENT_BINARY_DIR}/deposet-identity-workflow.jsonnet"
@@ -375,12 +395,32 @@ add_test(NAME phlex_deposet_sim_sigproc
 )
 set_tests_properties(phlex_deposet_sim_sigproc PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
 
-# Fans job: PDHD 4-APA fan-out/fan-in sim+sigproc pipeline.
+# Fans job: PDHD 4-APA fan-out/fan-in sim (no sigproc, always passes).
 add_test(NAME phlex_fans
   COMMAND "${PHLEX_EXECUTABLE}" -c
     "${CMAKE_CURRENT_BINARY_DIR}/fans-workflow.jsonnet"
 )
 set_tests_properties(phlex_fans PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
+
+# Per-APA sigproc tests: isolate each APA through DepoTransform+OmnibusSigProc.
+# APAs 0-2 pass; APA 3 currently crashes with an Eigen bounds assertion and
+# will pass once that bug is fixed.
+foreach(_apa IN ITEMS 0 1 2 3)
+  add_test(NAME phlex_pdhd_apa${_apa}_sigproc
+    COMMAND "${PHLEX_EXECUTABLE}" -c
+      "${CMAKE_CURRENT_BINARY_DIR}/pdhd-apa${_apa}-sigproc-workflow.jsonnet"
+  )
+  set_tests_properties(phlex_pdhd_apa${_apa}_sigproc PROPERTIES
+    ENVIRONMENT "${_phlex_env_with_data}"
+  )
+endforeach()
+
+# 4-APA fan with full sigproc: fails today (apa_ident=3 crash), passes once fixed.
+add_test(NAME phlex_fans_sigproc
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_BINARY_DIR}/fans-sigproc-workflow.jsonnet"
+)
+set_tests_properties(phlex_fans_sigproc PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
 
 # ---------------------------------------------------------------------------
 # Install rules
