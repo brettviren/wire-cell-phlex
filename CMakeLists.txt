@@ -209,6 +209,15 @@ target_link_libraries(wcp_frame_sink_file PRIVATE
 )
 target_compile_options(wcp_frame_sink_file PRIVATE -UNDEBUG)
 
+# Fans job: 4×IFrame fan-in → merge via FrameFanin → file.
+add_library(wcp_frame_fanin_sink_file MODULE modules/frame_fanin_sink_file.cpp)
+target_link_libraries(wcp_frame_fanin_sink_file PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_frame_fanin_sink_file PRIVATE -UNDEBUG)
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -320,6 +329,12 @@ configure_file(
   @ONLY
 )
 
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/test/fans-workflow.jsonnet.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/fans-workflow.jsonnet"
+  @ONLY
+)
+
 add_test(NAME phlex_deposet_identity
   COMMAND "${PHLEX_EXECUTABLE}" -c
     "${CMAKE_CURRENT_BINARY_DIR}/deposet-identity-workflow.jsonnet"
@@ -359,6 +374,13 @@ add_test(NAME phlex_deposet_sim_sigproc
     "${CMAKE_CURRENT_BINARY_DIR}/deposet-sim-sigproc-workflow.jsonnet"
 )
 set_tests_properties(phlex_deposet_sim_sigproc PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
+
+# Fans job: PDHD 4-APA fan-out/fan-in sim+sigproc pipeline.
+add_test(NAME phlex_fans
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_BINARY_DIR}/fans-workflow.jsonnet"
+)
+set_tests_properties(phlex_fans PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
 
 # ---------------------------------------------------------------------------
 # Install rules
@@ -400,6 +422,7 @@ foreach(_mod IN ITEMS
     wcp_deposet_sink_file
     wcp_frame_source_file
     wcp_frame_sink_file
+    wcp_frame_fanin_sink_file
     wcp_wire_schema_source
     wcp_wire_schema_observer
 )

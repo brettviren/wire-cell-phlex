@@ -1,0 +1,96 @@
+{
+  // PHLEX integration test workflow: fan-out/fan-in 4-APA PDHD simulation.
+  //
+  // Topology:
+  //   wcp_deposet_source_file  (DepoFileSource + Drifter, whole-detector xregions)
+  //     └─* PHLEX broadcast (TBB fan-out) → 4× wcp_deposet_to_frame
+  //           each: DepoTransform with per-APA PDHD geometry (no sigproc)
+  //           → PHLEX multilayer_join_node<4> fan-in
+  //   wcp_frame_fanin_sink_file (FrameFanin + FrameFileSink → fans-frames.npz)
+  //
+  // PHLEX fan-out: all 4 wcp_deposet_to_frame instances specify the same
+  // input (creator="input"), so TBB delivers the same drifted DepoSet to all 4.
+  //
+  // PHLEX fan-in: input_family(q0, q1, q2, q3) fires when all 4 APA Frames
+  // for the same event have arrived.
+  //
+  // WCT fan-in: FrameFanin(multiplicity=4) merges the 4 per-APA Frames into
+  // one monolithic Frame inside the final module's WCT sub-graph.
+  //
+  // Note: OmnibusSigProc is intentionally excluded from this test because
+  // its SP filter components (ROI_tight_lf, Gaus_tight, etc.) have hard-coded
+  // names in WCT and are shared by all concurrent OmnibusSigProc instances.
+  // Running 4 of them concurrently via TBB causes a data race on those shared
+  // filter objects.  See docs/fans-job.md for details and future directions.
+  //
+  // Note: muon-depos.npz was generated for PDSP geometry; depos may be outside
+  // PDHD drift volumes, producing empty frames.  The test validates pipeline
+  // topology and data flow, not physics content.
+  //
+  // File paths are substituted by CMake configure_file().
+  // Requires WIRECELL_PATH to include:
+  //   wire-cell-phlex/cfg/           (for pdhd-*.jsonnet, etc.)
+  //   <wct-data-dir>/share/wirecell/ (for protodunehd-wires-larsoft-v1.json.bz2,
+  //                                    dune-garfield-1d565.json.bz2, wirecell.jsonnet)
+  // Required WCT plugins:
+  //   source:  WireCellPgraph, WireCellSio, WireCellGen
+  //   sim:     WireCellPgraph, WireCellGen, WireCellSigProc, WireCellAux
+  //   sink:    WireCellPgraph, WireCellGen, WireCellSio
+
+  driver: {
+    cpp: 'generate_layers',
+    layers: {
+      event: { parent: 'job', total: 1, starting_number: 1 },
+    },
+  },
+  sources: {
+    depo_source: {
+      cpp: 'wcp_deposet_source_file',
+      wct_config: 'pdhd-file-drifter.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellSio', 'WireCellGen'],
+      output_layer: 'event',
+      wct_tla: { inname: '@WCP_TEST_DATA_DIR@/muon-depos.npz' },
+    },
+  },
+  modules: {
+    sim_0: {
+      cpp: 'wcp_deposet_to_frame',
+      wct_config: 'pdhd-apa-sim.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
+      input_layer: 'event',
+      wct_tla: { apa_ident: '0' },
+    },
+    sim_1: {
+      cpp: 'wcp_deposet_to_frame',
+      wct_config: 'pdhd-apa-sim.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
+      input_layer: 'event',
+      wct_tla: { apa_ident: '1' },
+    },
+    sim_2: {
+      cpp: 'wcp_deposet_to_frame',
+      wct_config: 'pdhd-apa-sim.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
+      input_layer: 'event',
+      wct_tla: { apa_ident: '2' },
+    },
+    sim_3: {
+      cpp: 'wcp_deposet_to_frame',
+      wct_config: 'pdhd-apa-sim.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
+      input_layer: 'event',
+      wct_tla: { apa_ident: '3' },
+    },
+    frame_fanin_sink: {
+      cpp: 'wcp_frame_fanin_sink_file',
+      wct_config: 'frame-fanin-file-sink.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSio'],
+      input_layer: 'event',
+      input_from_0: 'sim_0',
+      input_from_1: 'sim_1',
+      input_from_2: 'sim_2',
+      input_from_3: 'sim_3',
+      wct_tla: { outname: '@WCP_OUTPUT_DIR@/fans-frames.npz' },
+    },
+  },
+}

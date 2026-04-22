@@ -110,6 +110,48 @@ same pattern: consume a job-layer `WireSchema`, call
 `FacadeWireSchema::register_store(m_scope, ws.store)` before `ensure_initialized()`.
 The executor infrastructure (static mutex, deferred init) is already in place.
 
+## Multi-APA fan: OmnibusSigProc thread safety
+
+The `phlex_fans` test uses `pdhd-apa-sim.jsonnet` (DepoTransform only) instead
+of `pdhd-apa-sim-sigproc.jsonnet` because `OmnibusSigProc` is not thread-safe
+when multiple instances share the same SP filter objects.
+
+`OmnibusSigProc` looks up 13 filter objects (e.g. `ROI_tight_lf`, `Gaus_tight`)
+by **hard-coded names** from the WCT global factory.  All four concurrent
+`OmnibusSigProc` instances receive the same shared pointer for each filter.
+When TBB dispatches all four `wcp_deposet_to_frame` operators simultaneously,
+they call `LfFilter::operator()` and `HfFilter::operator()` concurrently on
+shared instances, producing a data race → Eigen bounds assertion failure.
+
+**Future options**:
+
+1. Make SP filter objects (`LfFilter`, `HfFilter`) thread-safe in WCT (read-only
+   after configure, or use `std::shared_mutex` for the internal Eigen state).
+2. Run each per-APA sim+sigproc as two sequential PHLEX steps: `wcp_deposet_to_frame`
+   (DepoTransform only) followed by `wcp_frame_filter` (OmnibusSigProc only).
+   The frame_filter instances share SP filters but can run on non-overlapping
+   frames as long as each frame_filter is `concurrency::serial`.
+3. Build a monolithic multi-APA WCT graph inside a single PHLEX module.
+
+The `pdhd-apa-sim-sigproc.jsonnet` config is retained for single-APA use and
+as a reference for when WCT makes SP filters thread-safe.
+
+## Multi-APA fan: generalizing to N APAs
+
+The `FrameFaninSinkFile` executor and `wcp_frame_fanin_sink_file` PHLEX module
+are fixed at 4 inputs (compile-time).  PHLEX's `input_family()` uses a
+`static_assert` to match the lambda parameter count at compile time.
+
+For FDHD (200 APAs), a runtime-N approach is required.  Options:
+
+1. **Template-generated modules**: generate `wcp_frame_fanin_sink_file_N` for
+   N ∈ {2, 4, 8, 16, ...} at compile time via a CMake template or macro.
+2. **PHLEX runtime fan-in API**: if PHLEX adds a dynamic `input_family()` (a
+   `join_node` whose arity is determined at construction time), one module can
+   handle any N.
+3. **Hierarchical fan-in**: for large N, build a tree of 4-input fan-in stages
+   (N/4 intermediate modules fan into one final module).
+
 ## Source/sink executor patterns
 
 The `DepoSetSourceFile` (run-once + drain-queue) and `DepoSetSinkFile`

@@ -339,4 +339,38 @@ private:
     BoundarySource<WireCell::IFrameSource>* m_source{nullptr};
 };
 
+// ---------------------------------------------------------------------------
+// Concrete executor: N×IFrame → file (receives N Frames, merges via WCT
+// FrameFanin, writes the merged Frame via FrameFileSink).
+//
+// Fixed multiplicity 4.  The WCT sub-graph (e.g. frame-fanin-file-sink.jsonnet)
+// has 4 FrameBoundarySource nodes feeding FrameFanin, which feeds FrameFileSink.
+// Each operator()(f0, f1, f2, f3) call fills all 4 sources and runs the graph
+// once.  WireCell::Main::~Main() calls finalize() to flush the file.
+//
+// WCT boundary node instance names derived from m_scope:
+//   source_name_N = m_scope + "_frame_source_N"  for N in {0,1,2,3}
+//   app_name      = m_scope + "_pgrapher"
+//
+// The output file path is passed via wct_tla: { outname: "..." }.
+// ---------------------------------------------------------------------------
+class FrameFaninSinkFile : public Executor {
+public:
+    explicit FrameFaninSinkFile(boost::json::object const& config);
+    ~FrameFaninSinkFile() override;  // empty body — Main::~Main() calls finalize()
+
+    // Receive 4 Frames, fill 4 boundary sources, run WCT (FrameFanin → FrameFileSink).
+    void operator()(Frame const& f0, Frame const& f1,
+                    Frame const& f2, Frame const& f3);
+
+private:
+    void ensure_initialized();
+
+    static constexpr int k_multiplicity = 4;
+
+    std::array<std::string, k_multiplicity>                        m_src_names;
+    std::string                                                    m_app_name;
+    std::array<BoundarySource<WireCell::IFrameSource>*, k_multiplicity> m_sources{};
+};
+
 } // namespace wcphlex

@@ -465,4 +465,58 @@ void FrameSinkFile::operator()(Frame const& input)
     m_wcmain();
 }
 
+// ---------------------------------------------------------------------------
+// FrameFaninSinkFile
+// ---------------------------------------------------------------------------
+
+FrameFaninSinkFile::FrameFaninSinkFile(boost::json::object const& config)
+    : Executor(config)
+{
+    m_app_name = m_scope + "_pgrapher";
+
+    for (int n = 0; n < k_multiplicity; ++n) {
+        m_src_names[n] = m_scope + "_frame_source_" + std::to_string(n);
+        m_wcmain.tla_var("source_name_" + std::to_string(n), m_src_names[n]);
+    }
+    m_wcmain.tla_var("app_name", m_app_name);
+
+    m_wcmain.add_app(m_app_type + ":" + m_app_name);
+}
+
+FrameFaninSinkFile::~FrameFaninSinkFile()
+{
+    // NOTE: WireCell::Main::~Main() calls finalize() automatically, which
+    // invokes ITerminal::finalize() on all terminal components (e.g. FrameFileSink).
+    // Do NOT call m_wcmain.finalize() here — double-finalize assertion in
+    // boost::iostreams::chain::pop().
+}
+
+void FrameFaninSinkFile::ensure_initialized()
+{
+    if (m_initialized.load(std::memory_order_acquire)) return;
+
+    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
+    if (m_initialized.load(std::memory_order_relaxed)) return;
+
+    m_wcmain.initialize();
+    m_initialized.store(true, std::memory_order_release);
+
+    for (int n = 0; n < k_multiplicity; ++n) {
+        m_sources[n] = find_boundary<WireCell::IFrameSource,
+                                     BoundarySource<WireCell::IFrameSource>>(
+                           "FrameBoundarySource", m_src_names[n]);
+    }
+}
+
+void FrameFaninSinkFile::operator()(Frame const& f0, Frame const& f1,
+                                    Frame const& f2, Frame const& f3)
+{
+    ensure_initialized();
+    m_sources[0]->fill(f0.ptr);
+    m_sources[1]->fill(f1.ptr);
+    m_sources[2]->fill(f2.ptr);
+    m_sources[3]->fill(f3.ptr);
+    m_wcmain();
+}
+
 } // namespace wcphlex
