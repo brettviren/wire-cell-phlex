@@ -379,6 +379,47 @@ DepoSet DepoSetFilter::operator()(DepoSet const& input)
 }
 
 // ---------------------------------------------------------------------------
+// FrameSourceFile
+// ---------------------------------------------------------------------------
+
+FrameSourceFile::FrameSourceFile(boost::json::object const& config)
+    : Executor(config)
+{
+    m_snk_name = m_scope + "_frame_sink";
+    m_app_name = m_scope + "_pgrapher";
+
+    m_wcmain.tla_var("sink_name", m_snk_name);
+    m_wcmain.tla_var("app_name",  m_app_name);
+
+    m_wcmain.add_app(m_app_type + ":" + m_app_name);
+}
+
+void FrameSourceFile::ensure_initialized()
+{
+    if (m_initialized.load(std::memory_order_acquire)) return;
+
+    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
+    if (m_initialized.load(std::memory_order_relaxed)) return;
+
+    m_wcmain.initialize();
+    m_initialized.store(true, std::memory_order_release);
+
+    m_sink = find_boundary<WireCell::IFrameSink,
+                           BoundarySink<WireCell::IFrameSink>>(
+                 "FrameBoundarySink", m_snk_name);
+}
+
+Frame FrameSourceFile::operator()()
+{
+    if (!m_graph_ran.load(std::memory_order_acquire)) {
+        ensure_initialized();
+        m_wcmain();   // run graph to completion; all frames queue in m_sink
+        m_graph_ran.store(true, std::memory_order_release);
+    }
+    return Frame{m_sink->drain()};
+}
+
+// ---------------------------------------------------------------------------
 // FrameSinkFile
 // ---------------------------------------------------------------------------
 

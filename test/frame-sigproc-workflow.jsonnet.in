@@ -1,0 +1,51 @@
+{
+  // PHLEX integration test workflow: Variant A — standalone signal processing.
+  //
+  // Reads sim-frames.npz (produced by phlex_deposet_sim) via wcp_frame_source_file,
+  // runs OmnibusSigProc via wcp_frame_filter (frame-sigproc.jsonnet), and writes
+  // the signal-processed frames to sp-frames-a.npz via wcp_frame_sink_file.
+  //
+  // total: 1 matches the single frame in sim-frames.npz.
+  //
+  // File paths are substituted by CMake configure_file().
+  // Requires WIRECELL_PATH to include:
+  //   wire-cell-phlex/cfg/           (for frame-sigproc.jsonnet, sp-filters.jsonnet)
+  //   <wct-data-dir>/share/wirecell/ (for protodune-wires-larsoft-v4.json.bz2,
+  //                                    dune-garfield-1d565.json.bz2, wirecell.jsonnet)
+  // Required WCT plugins:
+  //   source/sink: WireCellSio
+  //   filter:      WireCellGen, WireCellSigProc, WireCellAux
+
+  driver: {
+    cpp: 'generate_layers',
+    layers: {
+      event: { parent: 'job', total: 1, starting_number: 1 },
+    },
+  },
+  sources: {
+    frame_source: {
+      cpp: 'wcp_frame_source_file',
+      wct_config: 'frame-file-source.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellSio'],
+      output_layer: 'event',
+      wct_tla: { inname: '@WCP_OUTPUT_DIR@/sim-frames.npz' },
+    },
+  },
+  modules: {
+    frame_sigproc: {
+      cpp: 'wcp_frame_filter',
+      wct_config: 'frame-sigproc.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
+      input_layer: 'event',
+      input_from: 'input',
+    },
+    frame_sink: {
+      cpp: 'wcp_frame_sink_file',
+      wct_config: 'frame-file-sink.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellSio'],
+      input_layer: 'event',
+      input_from: 'frame_sigproc',
+      wct_tla: { outname: '@WCP_OUTPUT_DIR@/sp-frames-a.npz' },
+    },
+  },
+}

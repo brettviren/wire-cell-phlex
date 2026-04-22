@@ -191,6 +191,15 @@ target_link_libraries(wcp_deposet_sink_file PRIVATE
 )
 target_compile_options(wcp_deposet_sink_file PRIVATE -UNDEBUG)
 
+# Third real job: file → IFrame source module.
+add_library(wcp_frame_source_file MODULE modules/frame_source_file.cpp)
+target_link_libraries(wcp_frame_source_file PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcp_frame_source_file PRIVATE -UNDEBUG)
+
 # Second real job: IFrame → file sink module.
 add_library(wcp_frame_sink_file MODULE modules/frame_sink_file.cpp)
 target_link_libraries(wcp_frame_sink_file PRIVATE
@@ -299,6 +308,18 @@ configure_file(
   @ONLY
 )
 
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/test/frame-sigproc-workflow.jsonnet.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/frame-sigproc-workflow.jsonnet"
+  @ONLY
+)
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/test/deposet-sim-sigproc-workflow.jsonnet.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/deposet-sim-sigproc-workflow.jsonnet"
+  @ONLY
+)
+
 add_test(NAME phlex_deposet_identity
   COMMAND "${PHLEX_EXECUTABLE}" -c
     "${CMAKE_CURRENT_BINARY_DIR}/deposet-identity-workflow.jsonnet"
@@ -316,7 +337,28 @@ add_test(NAME phlex_deposet_sim
   COMMAND "${PHLEX_EXECUTABLE}" -c
     "${CMAKE_CURRENT_BINARY_DIR}/deposet-sim-workflow.jsonnet"
 )
-set_tests_properties(phlex_deposet_sim PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
+set_tests_properties(phlex_deposet_sim PROPERTIES
+  ENVIRONMENT "${_phlex_env_with_data}"
+  FIXTURES_SETUP phlex_deposet_sim_fixture
+)
+
+# Third real job Variant A: Frame file → OmnibusSigProc → Frame file.
+# Depends on phlex_deposet_sim to produce sim-frames.npz first.
+add_test(NAME phlex_frame_sigproc
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_BINARY_DIR}/frame-sigproc-workflow.jsonnet"
+)
+set_tests_properties(phlex_frame_sigproc PROPERTIES
+  ENVIRONMENT "${_phlex_env_with_data}"
+  FIXTURES_REQUIRED phlex_deposet_sim_fixture
+)
+
+# Third real job Variant B: DepoSet → drift+sim+sigproc → Frame file.
+add_test(NAME phlex_deposet_sim_sigproc
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_BINARY_DIR}/deposet-sim-sigproc-workflow.jsonnet"
+)
+set_tests_properties(phlex_deposet_sim_sigproc PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
 
 # ---------------------------------------------------------------------------
 # Install rules
@@ -356,6 +398,7 @@ foreach(_mod IN ITEMS
     wcp_deposet_observer
     wcp_deposet_source_file
     wcp_deposet_sink_file
+    wcp_frame_source_file
     wcp_frame_sink_file
     wcp_wire_schema_source
     wcp_wire_schema_observer

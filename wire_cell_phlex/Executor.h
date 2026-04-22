@@ -269,6 +269,42 @@ private:
 };
 
 // ---------------------------------------------------------------------------
+// Concrete executor: file → IFrame (reads a WCT frame file, yields one Frame
+// per PHLEX event call).
+//
+// Mirrors DepoSetSourceFile but for IFrame.  The WCT sub-graph (e.g.
+// frame-file-source.jsonnet) contains a real WCT source component (e.g.
+// FrameFileSource) and a FrameBoundarySink.  On the first operator()() call
+// the entire WCT graph is run to completion, queuing all frames in the sink
+// buffer.  Subsequent calls drain one Frame per call.  No BoundarySource is
+// needed; the WCT source component drives the graph internally.
+//
+// WCT boundary node instance names derived from m_scope:
+//   sink_name = m_scope + "_frame_sink"   (FrameBoundarySink)
+//   app_name  = m_scope + "_pgrapher"     (Pgrapher)
+//
+// The input file path is passed via wct_tla: { inname: "..." } in the
+// module config.
+// ---------------------------------------------------------------------------
+class FrameSourceFile : public Executor {
+public:
+    explicit FrameSourceFile(boost::json::object const& config);
+
+    // On the first call: initialize WCT, run the entire graph, fill the queue.
+    // On every call: drain and return one Frame from the queue.
+    Frame operator()();
+
+private:
+    void ensure_initialized();
+
+    std::string m_snk_name;
+    std::string m_app_name;
+
+    std::atomic<bool>                      m_graph_ran{false};
+    BoundarySink<WireCell::IFrameSink>*    m_sink{nullptr};
+};
+
+// ---------------------------------------------------------------------------
 // Concrete executor: IFrame → file (writes each received Frame to a WCT
 // frame file via FrameFileSink).
 //

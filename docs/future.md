@@ -118,7 +118,6 @@ first-real-job push can serve as templates for other file-based WCT sources
 and sinks.  For example:
 
 - A `TensorSetSourceFile` wrapping `NumpyTensorSetLoader` (or similar).
-- A `FrameSourceFile` wrapping any WCT `IFrameSource` that reads from disk.
 
 Key insight: **do not** call `m_wcmain.finalize()` explicitly in the executor
 destructor — `WireCell::Main::~Main()` already calls it, and an explicit call
@@ -126,3 +125,6 @@ causes a double-finalize that asserts in `boost::iostreams::chain::pop()`.
 
 `FrameSinkFile` (added in second-real-job) follows the same pattern for `IFrame` /
 `FrameFileSink`, producing WCT "frame file" `.npz` output.
+
+`FrameSourceFile` (added in third-real-job) implements the run-once+drain-queue
+source pattern for `IFrame` / `FrameFileSource`.
