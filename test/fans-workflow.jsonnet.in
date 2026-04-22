@@ -17,11 +17,16 @@
   // WCT fan-in: FrameFanin(multiplicity=4) merges the 4 per-APA Frames into
   // one monolithic Frame inside the final module's WCT sub-graph.
   //
-  // Note: OmnibusSigProc is intentionally excluded from this test because
-  // its SP filter components (ROI_tight_lf, Gaus_tight, etc.) have hard-coded
-  // names in WCT and are shared by all concurrent OmnibusSigProc instances.
-  // Running 4 of them concurrently via TBB causes a data race on those shared
-  // filter objects.  See docs/fans-job.md for details and future directions.
+  // Note: OmnibusSigProc is intentionally excluded from this test.
+  // The SP filter objects (ROI_tight_lf, Gaus_tight, etc.) have hard-coded
+  // names and are shared across OmnibusSigProc instances, but they are
+  // thread-safe (const methods, no shared mutable state).  The actual
+  // obstacle is a deterministic crash in OmnibusSigProc when processing
+  // apa_ident=3 with drifted PDSP depos — an Eigen bounds assertion.  This
+  // has been traced to OmnibusSigProc::load_data() using absolute tbin values
+  // instead of relative-to-tbinmin, which requires Reframer+Digitizer upstream.
+  // The pdhd-apa*-sigproc tests exercise this path once the bug is fixed.
+  // See docs/fans-job.md for details.
   //
   // Note: muon-depos.npz was generated for PDSP geometry; depos may be outside
   // PDHD drift volumes, producing empty frames.  The test validates pipeline

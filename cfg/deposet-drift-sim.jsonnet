@@ -25,9 +25,11 @@ function(
 )
 
 local tick           = 0.5 * wc.us;
-local nticks_ductor  = 10125;   // 10000 DAQ ticks + 125 field response ticks
+local nticks_daq     = 10000;   // DAQ readout ticks
+local response_nticks = 125;    // field response headroom: 62.5µs / 0.5µs
+local nticks_ductor  = nticks_daq + response_nticks;  // 10125 total
 local readout_time   = nticks_ductor * tick;   // 5.0625 ms
-local start_time     = -62.5 * wc.us;          // drift time offset to response plane
+local start_time     = -62.5 * wc.us;          // -response_time = start of DepoTransform window
 local drift_speed    = 1.6 * wc.mm / wc.us;
 
 // ---------------------------------------------------------------------------
@@ -175,6 +177,72 @@ local transform = {
 };
 
 // ---------------------------------------------------------------------------
+// Reframer: crops the 125-tick field-response headroom from DepoTransform
+// output and forces tbin=0 on all output traces (one per anode channel).
+// Required by OmnibusSigProc which assumes tbin==0 on every input trace.
+// ---------------------------------------------------------------------------
+
+local reframer = {
+    type: "Reframer",
+    name: "reframer",
+    data: {
+        anode:   wc.tn(anode),
+        tags:    [],
+        fill:    0.0,
+        tbin:    response_nticks,   // skip first 125 response-headroom ticks
+        toffset: 0,
+        nticks:  nticks_daq,        // output exactly nticks_daq ticks, tbin=0
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Noise model + AddNoise (empirical PDSP noise spectra)
+// ---------------------------------------------------------------------------
+
+local noise_model = {
+    type: "EmpiricalNoiseModel",
+    name: "noise_model",
+    data: {
+        anode:             wc.tn(anode),
+        dft:               wc.tn(dft),
+        chanstat:          "",
+        spectra_file:      "protodune-noise-spectra-v1.json.bz2",
+        nsamples:          nticks_daq,
+        period:            tick,
+        wire_length_scale: 1.0 * wc.cm,
+    },
+};
+
+local addnoise = {
+    type: "AddNoise",
+    name: "addnoise",
+    data: {
+        rng:                    wc.tn(rng),
+        dft:                    wc.tn(dft),
+        model:                  wc.tn(noise_model),
+        nsamples:               nticks_daq,
+        replacement_percentage: 0.02,
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Digitizer: converts floating-point voltage traces to integer ADC counts.
+// PDSP: 12-bit ADC, fullscale 0.2–1.6 V, per-plane baselines.
+// ---------------------------------------------------------------------------
+
+local digitizer = {
+    type: "Digitizer",
+    name: "digitizer",
+    data: {
+        anode:     wc.tn(anode),
+        resolution: 12,
+        gain:       1.0,
+        fullscale:  [0.2 * wc.volt, 1.6 * wc.volt],
+        baselines:  [1003.4 * wc.mV, 1003.4 * wc.mV, 507.7 * wc.mV],
+    },
+};
+
+// ---------------------------------------------------------------------------
 // Boundary nodes (names come from TLAs injected by DepoSetToFrame executor)
 // ---------------------------------------------------------------------------
 
@@ -194,7 +262,8 @@ local snk = {
 // Full component list + Pgrapher
 // ---------------------------------------------------------------------------
 
-[dft, rng, wires, fr, elec, anode] + pirs + [drifter_comp, setdrifter, transform, src, snk,
+[dft, rng, wires, fr, elec, anode] + pirs +
+[drifter_comp, setdrifter, transform, reframer, noise_model, addnoise, digitizer, src, snk,
 {
     type: "Pgrapher",
     name: app_name,
@@ -210,6 +279,18 @@ local snk = {
             },
             {
                 tail: { node: wc.tn(transform),   port: 0 },
+                head: { node: wc.tn(reframer),    port: 0 },
+            },
+            {
+                tail: { node: wc.tn(reframer),    port: 0 },
+                head: { node: wc.tn(addnoise),    port: 0 },
+            },
+            {
+                tail: { node: wc.tn(addnoise),    port: 0 },
+                head: { node: wc.tn(digitizer),   port: 0 },
+            },
+            {
+                tail: { node: wc.tn(digitizer),   port: 0 },
                 head: { node: wc.tn(snk),          port: 0 },
             },
         ],

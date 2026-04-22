@@ -42,13 +42,18 @@
 // boost::json::object from phlex::configuration before constructing an Executor.
 //
 // Expected JSON keys:
-//   wct_config  (string, required): path to a Jsonnet config file.
-//               The file must be a Jsonnet function accepting at minimum the
-//               TLA parameters: source_name, sink_name, app_name.
-//   wct_plugins (array of strings, optional): additional WCT plugin libraries
-//               to load (e.g. ["WireCellPgraph"]).
-//   wct_app     (string, optional, default "Pgrapher"): WCT IApplication type.
-//   wct_tla     (object, optional): string→string map of extra Jsonnet TLAs.
+//   wct_config    (string, required): path to a Jsonnet config file.
+//                 The file must be a Jsonnet function accepting at minimum the
+//                 TLA parameters: source_name, sink_name, app_name.
+//   wct_plugins   (array of strings, optional): additional WCT plugin libraries
+//                 to load (e.g. ["WireCellPgraph"]).
+//   wct_app       (string, optional, default "Pgrapher"): WCT IApplication type.
+//   wct_tla       (object, optional): string→string map of extra Jsonnet TLAs.
+//   wct_debug_log (bool, optional, default false): when true, route WCT log
+//                 output to stdout at "debug" level before initializing the
+//                 WCT graph.  Useful for diagnosing OmnibusSigProc channel-map
+//                 issues (the configure() log shows per-face wire counts and
+//                 channel ranges used to set m_nwires).
 
 #include "wire_cell_phlex/Data.h"
 #include "wire_cell_phlex/BoundarySource.h"
@@ -101,6 +106,16 @@ protected:
     std::string    m_scope{"wcphlex"};
 
     std::atomic<bool> m_initialized{false};
+
+    // When true, route all WCT log output to stdout at "debug" level.
+    // Called from each subclass's ensure_initialized() before m_wcmain.initialize().
+    bool m_debug_log{false};
+
+protected:
+    // If m_debug_log is set, calls add_logsink("stdout") and set_loglevel("","debug")
+    // on m_wcmain.  Must be called inside the s_wct_init_mutex lock, just before
+    // m_wcmain.initialize().
+    void setup_debug_logging();
 };
 
 // ---------------------------------------------------------------------------

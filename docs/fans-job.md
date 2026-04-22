@@ -96,7 +96,7 @@ To prevent collisions, all per-APA component names include the APA identifier:
 The executor scope (module label) contributes the TLA `source_name`,
 `sink_name`, `app_name` for the boundary nodes and Pgrapher.
 
-## OmnibusSigProc: sigproc excluded from fans test
+## OmnibusSigProc: missing Reframer+AddNoise+Digitizer pipeline
 
 `OmnibusSigProc` looks up 13 SP filter objects by **hard-coded names** (e.g.
 `ROI_tight_lf`, `Gaus_tight`) in the WCT global factory.  When multiple
@@ -112,26 +112,53 @@ is read.  There is no shared mutable state, so concurrent calls from
 multiple TBB worker threads are harmless.
 
 **The actual obstacle** is a deterministic, single-threaded crash in
-`OmnibusSigProc` when processing `apa_ident=3` with drifted PDSP depos via
-`pdhd-apa-sim-sigproc.jsonnet`.  The crash manifests as an Eigen bounds
-assertion and does not occur with `apa_ident=0`, `1`, or `2`, nor with
-raw (un-drifted) depos.  Root cause: under investigation, but likely related
-to how DepoTransform produces traces for APA 3's specific wire geometry when
-given depos from the drifted PDHD source.
+`OmnibusSigProc` when processing `apa_ident=3` with drifted PDSP depos.
+The crash is an Eigen bounds assertion in `OmnibusSigProc::load_data()`:
 
-**Consequence**: The fans test uses `pdhd-apa-sim.jsonnet` (DepoTransform
-only, no OmnibusSigProc) rather than `pdhd-apa-sim-sigproc.jsonnet`.  This
-still exercises the complete PHLEX fan topology.  Adding sigproc to the fans
-pipeline requires either:
+```cpp
+// OmnibusSigProc::load_data() — BUGGY: uses absolute tbin, not relative
+m_r_data[plane](och.wire + m_pad_nwires[plane], tbin + qind) = q;
+// Correct would be: (tbin - m_tbin_start) + qind
+```
 
-1. Diagnosing and fixing the `apa_ident=3` + drifted-depos crash in
-   `OmnibusSigProc` (or working around it in the WCT sub-graph config).
-2. Running OmnibusSigProc as a separate `wcp_frame_filter` pass after the
-   per-APA sim, inside a single executor that processes all APAs sequentially.
-3. Building a monolithic single-`Main` executor for the whole 4-APA pipeline.
+`init_overall_response()` computes `m_fft_nticks` from the **span**
+`tbinmax − tbinmin` (e.g. 1480 for `nticks=1280`).  But `load_data()` uses
+the absolute `tbin` value (e.g. 2656) as the column index, which exceeds
+the array width.
 
-The `pdhd-apa-sim-sigproc.jsonnet` config is retained for single-APA use (e.g.
-`apa_ident=0`) and as a reference for when the APA 3 crash is resolved.
+**Root cause: missing pipeline stages between DepoTransform and OmnibusSigProc.**
+In traditional WCT jobs (both PDSP and PDHD), the simulation pipeline is:
+
+```
+DepoTransform → Reframer → AddNoise → Digitizer → OmnibusSigProc
+```
+
+The **Reframer** is the critical step.  It creates one output trace per
+anode channel, all with `tbin=0` (see `Reframer::process_one()` line:
+`make_shared<SimpleTrace>(chid, 0, wave)`).  The `tbin` parameter (=125)
+tells the Reframer which input tick to align to output tick 0, cropping
+the field-response headroom.  After Reframer, every trace entering the
+Digitizer and then OmnibusSigProc has `tbin=0`, satisfying OmnibusSigProc's
+undocumented requirement.
+
+**Why APA 3 specifically**: PDSP muon depos cover both positive and negative x.
+Positive-x PDSP depos fall within PDHD APA 3's drift volume (face=1, centered
+at x ≈ +3573 mm).  These depos drift ≈2000 mm to the APA, arriving ≈1265 µs
+after the readout start, giving `tbin ≈ 2656` in the DepoTransform output.
+APAs 0, 1, 2 receive zero positive-x depos and produce empty frames, triggering
+OmnibusSigProc's early-return path (safe).
+
+**Fix**: All WCT configs that use DepoTransform now include
+`Reframer → AddNoise → Digitizer` between DepoTransform and OmnibusSigProc
+(or before the boundary sink for configs without sigproc).  This also required
+increasing `nticks_ductor` from `nticks_daq` to `nticks_daq + response_nticks`
+(125 extra ticks) so DepoTransform generates the headroom that Reframer crops.
+
+**Status**: The `fans-workflow.jsonnet.in` test uses `pdhd-apa-sim.jsonnet`
+(now includes Reframer+AddNoise+Digitizer but no OmnibusSigProc) to exercise
+the fan topology.  The `pdhd-apa*-sigproc` tests exercise OmnibusSigProc per
+APA with the correct pipeline.  The `fans-sigproc` test should now pass for
+all 4 APAs once the pipeline fix is verified.
 
 ## Test data note
 

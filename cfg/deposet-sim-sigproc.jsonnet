@@ -31,11 +31,13 @@ function(
     app_name    = "wcphlex_pgrapher",
 )
 
-local tick           = 0.5 * wc.us;
-local nticks_ductor  = 10125;
-local readout_time   = nticks_ductor * tick;
-local start_time     = -62.5 * wc.us;
-local drift_speed    = 1.6 * wc.mm / wc.us;
+local tick            = 0.5 * wc.us;
+local nticks_daq      = 10000;   // DAQ readout ticks
+local response_nticks = 125;     // field response headroom: 62.5µs / 0.5µs
+local nticks_ductor   = nticks_daq + response_nticks;  // 10125 total
+local readout_time    = nticks_ductor * tick;
+local start_time      = -62.5 * wc.us;   // -response_time = start of DepoTransform window
+local drift_speed     = 1.6 * wc.mm / wc.us;
 
 // ---------------------------------------------------------------------------
 // Services
@@ -176,6 +178,71 @@ local transform = {
 };
 
 // ---------------------------------------------------------------------------
+// Reframer: crops the 125-tick field-response headroom and forces tbin=0.
+// OmnibusSigProc requires tbin==0 on every input trace.
+// ---------------------------------------------------------------------------
+
+local reframer = {
+    type: "Reframer",
+    name: "reframer",
+    data: {
+        anode:   wc.tn(anode),
+        tags:    [],
+        fill:    0.0,
+        tbin:    response_nticks,
+        toffset: 0,
+        nticks:  nticks_daq,
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Noise model + AddNoise (empirical PDSP noise spectra)
+// ---------------------------------------------------------------------------
+
+local noise_model = {
+    type: "EmpiricalNoiseModel",
+    name: "noise_model",
+    data: {
+        anode:             wc.tn(anode),
+        dft:               wc.tn(dft),
+        chanstat:          "",
+        spectra_file:      "protodune-noise-spectra-v1.json.bz2",
+        nsamples:          nticks_daq,
+        period:            tick,
+        wire_length_scale: 1.0 * wc.cm,
+    },
+};
+
+local addnoise = {
+    type: "AddNoise",
+    name: "addnoise",
+    data: {
+        rng:                    wc.tn(rng),
+        dft:                    wc.tn(dft),
+        model:                  wc.tn(noise_model),
+        nsamples:               nticks_daq,
+        replacement_percentage: 0.02,
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Digitizer: floating-point voltage traces → integer ADC counts.
+// PDSP: 12-bit ADC, fullscale 0.2–1.6 V.
+// ---------------------------------------------------------------------------
+
+local digitizer = {
+    type: "Digitizer",
+    name: "digitizer",
+    data: {
+        anode:      wc.tn(anode),
+        resolution: 12,
+        gain:       1.0,
+        fullscale:  [0.2 * wc.volt, 1.6 * wc.volt],
+        baselines:  [1003.4 * wc.mV, 1003.4 * wc.mV, 507.7 * wc.mV],
+    },
+};
+
+// ---------------------------------------------------------------------------
 // OmnibusSigProc (IFrame → IFrame)
 // ---------------------------------------------------------------------------
 
@@ -234,7 +301,8 @@ local snk = {
 // Full component list + Pgrapher
 // ---------------------------------------------------------------------------
 
-[dft, rng, wires, fr, elec, anode] + pirs + [drifter_comp, setdrifter, transform, sigproc]
+[dft, rng, wires, fr, elec, anode] + pirs +
+[drifter_comp, setdrifter, transform, reframer, noise_model, addnoise, digitizer, sigproc]
 + spfilt
 + [src, snk,
 {
@@ -252,6 +320,18 @@ local snk = {
             },
             {
                 tail: { node: wc.tn(transform),   port: 0 },
+                head: { node: wc.tn(reframer),    port: 0 },
+            },
+            {
+                tail: { node: wc.tn(reframer),    port: 0 },
+                head: { node: wc.tn(addnoise),    port: 0 },
+            },
+            {
+                tail: { node: wc.tn(addnoise),    port: 0 },
+                head: { node: wc.tn(digitizer),   port: 0 },
+            },
+            {
+                tail: { node: wc.tn(digitizer),   port: 0 },
                 head: { node: wc.tn(sigproc),     port: 0 },
             },
             {

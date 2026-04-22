@@ -124,8 +124,21 @@ Executor::Executor(boost::json::object const& config)
     if (config.contains("module_label")) {
         m_scope = std::string{config.at("module_label").as_string()};
     }
+
+    // Optional: enable verbose WCT debug logging to stdout.
+    if (config.contains("wct_debug_log")) {
+        m_debug_log = config.at("wct_debug_log").as_bool();
+    }
+
     // Note: add_app() and initialize() are called by subclass constructors
     // after they inject their boundary-node TLAs.
+}
+
+void Executor::setup_debug_logging()
+{
+    if (!m_debug_log) return;
+    m_wcmain.add_logsink("stdout");
+    m_wcmain.set_loglevel("", "debug");
 }
 
 // ---------------------------------------------------------------------------
@@ -169,6 +182,7 @@ void FrameFilter::ensure_initialized()
     std::lock_guard<std::mutex> lock(s_wct_init_mutex);
     if (m_initialized.load(std::memory_order_relaxed)) return; // double-check
 
+    setup_debug_logging();
     m_wcmain.initialize();
     m_initialized.store(true, std::memory_order_release);
 
@@ -226,6 +240,7 @@ void DepoSetToFrame::ensure_initialized()
     std::lock_guard<std::mutex> lock(s_wct_init_mutex);
     if (m_initialized.load(std::memory_order_relaxed)) return;
 
+    setup_debug_logging();
     m_wcmain.initialize();
     m_initialized.store(true, std::memory_order_release);
 
@@ -269,6 +284,7 @@ void DepoSetSourceFile::ensure_initialized()
     std::lock_guard<std::mutex> lock(s_wct_init_mutex);
     if (m_initialized.load(std::memory_order_relaxed)) return;
 
+    setup_debug_logging();
     m_wcmain.initialize();
     m_initialized.store(true, std::memory_order_release);
 
@@ -318,6 +334,7 @@ void DepoSetSinkFile::ensure_initialized()
     std::lock_guard<std::mutex> lock(s_wct_init_mutex);
     if (m_initialized.load(std::memory_order_relaxed)) return;
 
+    setup_debug_logging();
     m_wcmain.initialize();
     m_initialized.store(true, std::memory_order_release);
 
@@ -358,6 +375,7 @@ void DepoSetFilter::ensure_initialized()
     std::lock_guard<std::mutex> lock(s_wct_init_mutex);
     if (m_initialized.load(std::memory_order_relaxed)) return;
 
+    setup_debug_logging();
     m_wcmain.initialize();
     m_initialized.store(true, std::memory_order_release);
 
@@ -401,6 +419,7 @@ void FrameSourceFile::ensure_initialized()
     std::lock_guard<std::mutex> lock(s_wct_init_mutex);
     if (m_initialized.load(std::memory_order_relaxed)) return;
 
+    setup_debug_logging();
     m_wcmain.initialize();
     m_initialized.store(true, std::memory_order_release);
 
@@ -450,6 +469,7 @@ void FrameSinkFile::ensure_initialized()
     std::lock_guard<std::mutex> lock(s_wct_init_mutex);
     if (m_initialized.load(std::memory_order_relaxed)) return;
 
+    setup_debug_logging();
     m_wcmain.initialize();
     m_initialized.store(true, std::memory_order_release);
 
@@ -498,6 +518,7 @@ void FrameFaninSinkFile::ensure_initialized()
     std::lock_guard<std::mutex> lock(s_wct_init_mutex);
     if (m_initialized.load(std::memory_order_relaxed)) return;
 
+    setup_debug_logging();
     m_wcmain.initialize();
     m_initialized.store(true, std::memory_order_release);
 
