@@ -11,15 +11,15 @@
 
 // wire_cell_phlex/Executor.cpp
 //
-// Implementation of Executor base and FrameFilter / DepoSetToFrame subclasses.
+// Implementation of Executor base and all concrete subclasses.
 //
 // Deferred initialization model (mirrors larwirecell WCLS):
-//   - Executor() does common config parsing: add_config, add_plugin, tla_var.
-//   - Each subclass constructor stores boundary-node names and app name, and
-//     registers TLAs and add_app() with m_wcmain — but does NOT call initialize().
+//   - Executor() does common config parsing: add_config, add_plugin, tla_var,
+//     add_app().  Subclass constructors add boundary-node name TLAs.
 //   - The first operator() call triggers ensure_initialized(), which calls
-//     m_wcmain.initialize() and locates boundary nodes via the WCT factory.
-//   - Each operator() call: fill source → m_wcmain() → drain sink.
+//     m_wcmain.initialize(), then virtual initialize_ports() so the subclass
+//     can locate its BoundarySource/BoundarySink instances in the WCT factory.
+//   - Each operator() call: fill source(s) → run_graph() → drain sink(s).
 //   - BoundarySource's queue design allows re-driving the same Pgraph graph
 //     across successive events without re-initialization.
 //
@@ -130,8 +130,12 @@ Executor::Executor(boost::json::object const& config)
         m_debug_log = config.at("wct_debug_log").as_bool();
     }
 
-    // Note: add_app() and initialize() are called by subclass constructors
-    // after they inject their boundary-node TLAs.
+    // Compute app instance name and register it.  All subclasses use the same
+    // pattern: m_scope + "_pgrapher".  Subclass constructors only need to add
+    // their boundary-node TLAs (source_name, sink_name, etc.).
+    m_app_name = m_scope + "_pgrapher";
+    m_wcmain.tla_var("app_name", m_app_name);
+    m_wcmain.add_app(m_app_type + ":" + m_app_name);
 }
 
 void Executor::setup_debug_logging()
@@ -139,6 +143,35 @@ void Executor::setup_debug_logging()
     if (!m_debug_log) return;
     m_wcmain.add_logsink("stdout");
     m_wcmain.set_loglevel("", "debug");
+}
+
+void Executor::ensure_initialized()
+{
+    if (m_initialized.load(std::memory_order_acquire)) return;
+
+    // Serialize all WireCell::Main::initialize() calls: the WCT global factory
+    // is not thread-safe, so two concurrent initialize() calls (e.g. from two
+    // Executor instances in a PHLEX multi-instance workflow) would corrupt it.
+    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
+    if (m_initialized.load(std::memory_order_relaxed)) return; // double-check
+
+    setup_debug_logging();
+    m_wcmain.initialize();
+    initialize_ports();   // virtual: each subclass finds its boundary nodes here
+
+    // Store AFTER initialize_ports() so that any thread seeing m_initialized==true
+    // on the fast path is guaranteed to also see fully-assigned boundary pointers.
+    m_initialized.store(true, std::memory_order_release);
+}
+
+void Executor::initialize_ports()
+{
+    // Default: no-op.  Subclasses that use BoundarySource/BoundarySink override this.
+}
+
+void Executor::run_graph()
+{
+    m_wcmain();
 }
 
 // ---------------------------------------------------------------------------
@@ -153,12 +186,9 @@ FrameFilter::FrameFilter(boost::json::object const& config)
     // collide in the global WCT factory.
     m_src_name = m_scope + "_frame_source";
     m_snk_name = m_scope + "_frame_sink";
-    m_app_name = m_scope + "_pgrapher";
 
-    // Register TLAs and app now; initialize() is deferred to first operator() call.
     m_wcmain.tla_var("source_name", m_src_name);
     m_wcmain.tla_var("sink_name",   m_snk_name);
-    m_wcmain.tla_var("app_name",    m_app_name);
 
     // When using the FacadeWireSchema path, inject wire_schema_name = m_scope so
     // the Jsonnet config can use it as the FacadeWireSchema instance name and scope.
@@ -168,24 +198,10 @@ FrameFilter::FrameFilter(boost::json::object const& config)
         config.at("use_wire_schema").as_bool()) {
         m_wcmain.tla_var("wire_schema_name", m_scope);
     }
-
-    m_wcmain.add_app(m_app_type + ":" + m_app_name);
 }
 
-void FrameFilter::ensure_initialized()
+void FrameFilter::initialize_ports()
 {
-    if (m_initialized.load(std::memory_order_acquire)) return;
-
-    // Serialize all WireCell::Main::initialize() calls: the WCT global factory
-    // is not thread-safe, so two concurrent initialize() calls (e.g. from two
-    // FrameFilter instances in a PHLEX multi-instance workflow) would corrupt it.
-    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
-    if (m_initialized.load(std::memory_order_relaxed)) return; // double-check
-
-    setup_debug_logging();
-    m_wcmain.initialize();
-    m_initialized.store(true, std::memory_order_release);
-
     m_source = find_boundary<WireCell::IFrameSource,
                              BoundarySource<WireCell::IFrameSource>>(
                    "FrameBoundarySource", m_src_name);
@@ -198,8 +214,8 @@ void FrameFilter::ensure_initialized()
 Frame FrameFilter::operator()(Frame const& input)
 {
     ensure_initialized();
-    m_source->fill(input.ptr);   // enqueue data for this event
-    m_wcmain();                  // run Pgrapher until quiescent
+    m_source->fill(input.ptr);
+    run_graph();
     return Frame{m_sink->drain()};
 }
 
@@ -223,27 +239,13 @@ DepoSetToFrame::DepoSetToFrame(boost::json::object const& config)
 {
     m_src_name = m_scope + "_deposet_source";
     m_snk_name = m_scope + "_frame_sink";
-    m_app_name = m_scope + "_pgrapher";
 
-    // Register TLAs and app now; initialize() is deferred to first operator() call.
     m_wcmain.tla_var("source_name", m_src_name);
     m_wcmain.tla_var("sink_name",   m_snk_name);
-    m_wcmain.tla_var("app_name",    m_app_name);
-
-    m_wcmain.add_app(m_app_type + ":" + m_app_name);
 }
 
-void DepoSetToFrame::ensure_initialized()
+void DepoSetToFrame::initialize_ports()
 {
-    if (m_initialized.load(std::memory_order_acquire)) return;
-
-    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
-    if (m_initialized.load(std::memory_order_relaxed)) return;
-
-    setup_debug_logging();
-    m_wcmain.initialize();
-    m_initialized.store(true, std::memory_order_release);
-
     m_source = find_boundary<WireCell::IDepoSetSource,
                              BoundarySource<WireCell::IDepoSetSource>>(
                    "DepoSetBoundarySource", m_src_name);
@@ -256,8 +258,8 @@ void DepoSetToFrame::ensure_initialized()
 Frame DepoSetToFrame::operator()(DepoSet const& input)
 {
     ensure_initialized();
-    m_source->fill(input.ptr);   // enqueue data for this event
-    m_wcmain();                  // run Pgrapher until quiescent
+    m_source->fill(input.ptr);
+    run_graph();
     return Frame{m_sink->drain()};
 }
 
@@ -269,25 +271,12 @@ DepoSetSourceFile::DepoSetSourceFile(boost::json::object const& config)
     : Executor(config)
 {
     m_snk_name = m_scope + "_deposet_sink";
-    m_app_name = m_scope + "_pgrapher";
 
     m_wcmain.tla_var("sink_name", m_snk_name);
-    m_wcmain.tla_var("app_name",  m_app_name);
-
-    m_wcmain.add_app(m_app_type + ":" + m_app_name);
 }
 
-void DepoSetSourceFile::ensure_initialized()
+void DepoSetSourceFile::initialize_ports()
 {
-    if (m_initialized.load(std::memory_order_acquire)) return;
-
-    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
-    if (m_initialized.load(std::memory_order_relaxed)) return;
-
-    setup_debug_logging();
-    m_wcmain.initialize();
-    m_initialized.store(true, std::memory_order_release);
-
     m_sink = find_boundary<WireCell::IDepoSetSink,
                            BoundarySink<WireCell::IDepoSetSink>>(
                  "DepoSetBoundarySink", m_snk_name);
@@ -297,7 +286,7 @@ DepoSet DepoSetSourceFile::operator()()
 {
     if (!m_graph_ran.load(std::memory_order_acquire)) {
         ensure_initialized();
-        m_wcmain();   // run graph to completion; all depo sets queue in m_sink
+        run_graph();   // run graph to completion; all depo sets queue in m_sink
         m_graph_ran.store(true, std::memory_order_release);
     }
     return DepoSet{m_sink->drain()};
@@ -311,12 +300,8 @@ DepoSetSinkFile::DepoSetSinkFile(boost::json::object const& config)
     : Executor(config)
 {
     m_src_name = m_scope + "_deposet_source";
-    m_app_name = m_scope + "_pgrapher";
 
     m_wcmain.tla_var("source_name", m_src_name);
-    m_wcmain.tla_var("app_name",    m_app_name);
-
-    m_wcmain.add_app(m_app_type + ":" + m_app_name);
 }
 
 DepoSetSinkFile::~DepoSetSinkFile()
@@ -327,17 +312,8 @@ DepoSetSinkFile::~DepoSetSinkFile()
     // and an empty-chain assertion in boost::iostreams::chain::pop().
 }
 
-void DepoSetSinkFile::ensure_initialized()
+void DepoSetSinkFile::initialize_ports()
 {
-    if (m_initialized.load(std::memory_order_acquire)) return;
-
-    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
-    if (m_initialized.load(std::memory_order_relaxed)) return;
-
-    setup_debug_logging();
-    m_wcmain.initialize();
-    m_initialized.store(true, std::memory_order_release);
-
     m_source = find_boundary<WireCell::IDepoSetSource,
                              BoundarySource<WireCell::IDepoSetSource>>(
                    "DepoSetBoundarySource", m_src_name);
@@ -347,7 +323,7 @@ void DepoSetSinkFile::operator()(DepoSet const& input)
 {
     ensure_initialized();
     m_source->fill(input.ptr);
-    m_wcmain();
+    run_graph();
 }
 
 // ---------------------------------------------------------------------------
@@ -359,26 +335,13 @@ DepoSetFilter::DepoSetFilter(boost::json::object const& config)
 {
     m_src_name = m_scope + "_deposet_source";
     m_snk_name = m_scope + "_deposet_sink";
-    m_app_name = m_scope + "_pgrapher";
 
     m_wcmain.tla_var("source_name", m_src_name);
     m_wcmain.tla_var("sink_name",   m_snk_name);
-    m_wcmain.tla_var("app_name",    m_app_name);
-
-    m_wcmain.add_app(m_app_type + ":" + m_app_name);
 }
 
-void DepoSetFilter::ensure_initialized()
+void DepoSetFilter::initialize_ports()
 {
-    if (m_initialized.load(std::memory_order_acquire)) return;
-
-    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
-    if (m_initialized.load(std::memory_order_relaxed)) return;
-
-    setup_debug_logging();
-    m_wcmain.initialize();
-    m_initialized.store(true, std::memory_order_release);
-
     m_source = find_boundary<WireCell::IDepoSetSource,
                              BoundarySource<WireCell::IDepoSetSource>>(
                    "DepoSetBoundarySource", m_src_name);
@@ -392,7 +355,7 @@ DepoSet DepoSetFilter::operator()(DepoSet const& input)
 {
     ensure_initialized();
     m_source->fill(input.ptr);
-    m_wcmain();
+    run_graph();
     return DepoSet{m_sink->drain()};
 }
 
@@ -404,25 +367,12 @@ FrameSourceFile::FrameSourceFile(boost::json::object const& config)
     : Executor(config)
 {
     m_snk_name = m_scope + "_frame_sink";
-    m_app_name = m_scope + "_pgrapher";
 
     m_wcmain.tla_var("sink_name", m_snk_name);
-    m_wcmain.tla_var("app_name",  m_app_name);
-
-    m_wcmain.add_app(m_app_type + ":" + m_app_name);
 }
 
-void FrameSourceFile::ensure_initialized()
+void FrameSourceFile::initialize_ports()
 {
-    if (m_initialized.load(std::memory_order_acquire)) return;
-
-    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
-    if (m_initialized.load(std::memory_order_relaxed)) return;
-
-    setup_debug_logging();
-    m_wcmain.initialize();
-    m_initialized.store(true, std::memory_order_release);
-
     m_sink = find_boundary<WireCell::IFrameSink,
                            BoundarySink<WireCell::IFrameSink>>(
                  "FrameBoundarySink", m_snk_name);
@@ -432,7 +382,7 @@ Frame FrameSourceFile::operator()()
 {
     if (!m_graph_ran.load(std::memory_order_acquire)) {
         ensure_initialized();
-        m_wcmain();   // run graph to completion; all frames queue in m_sink
+        run_graph();   // run graph to completion; all frames queue in m_sink
         m_graph_ran.store(true, std::memory_order_release);
     }
     return Frame{m_sink->drain()};
@@ -446,12 +396,8 @@ FrameSinkFile::FrameSinkFile(boost::json::object const& config)
     : Executor(config)
 {
     m_src_name = m_scope + "_frame_source";
-    m_app_name = m_scope + "_pgrapher";
 
     m_wcmain.tla_var("source_name", m_src_name);
-    m_wcmain.tla_var("app_name",    m_app_name);
-
-    m_wcmain.add_app(m_app_type + ":" + m_app_name);
 }
 
 FrameSinkFile::~FrameSinkFile()
@@ -462,17 +408,8 @@ FrameSinkFile::~FrameSinkFile()
     // and an empty-chain assertion in boost::iostreams::chain::pop().
 }
 
-void FrameSinkFile::ensure_initialized()
+void FrameSinkFile::initialize_ports()
 {
-    if (m_initialized.load(std::memory_order_acquire)) return;
-
-    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
-    if (m_initialized.load(std::memory_order_relaxed)) return;
-
-    setup_debug_logging();
-    m_wcmain.initialize();
-    m_initialized.store(true, std::memory_order_release);
-
     m_source = find_boundary<WireCell::IFrameSource,
                              BoundarySource<WireCell::IFrameSource>>(
                    "FrameBoundarySource", m_src_name);
@@ -482,7 +419,7 @@ void FrameSinkFile::operator()(Frame const& input)
 {
     ensure_initialized();
     m_source->fill(input.ptr);
-    m_wcmain();
+    run_graph();
 }
 
 // ---------------------------------------------------------------------------
@@ -492,15 +429,10 @@ void FrameSinkFile::operator()(Frame const& input)
 FrameFaninSinkFile::FrameFaninSinkFile(boost::json::object const& config)
     : Executor(config)
 {
-    m_app_name = m_scope + "_pgrapher";
-
     for (int n = 0; n < k_multiplicity; ++n) {
         m_src_names[n] = m_scope + "_frame_source_" + std::to_string(n);
         m_wcmain.tla_var("source_name_" + std::to_string(n), m_src_names[n]);
     }
-    m_wcmain.tla_var("app_name", m_app_name);
-
-    m_wcmain.add_app(m_app_type + ":" + m_app_name);
 }
 
 FrameFaninSinkFile::~FrameFaninSinkFile()
@@ -511,17 +443,8 @@ FrameFaninSinkFile::~FrameFaninSinkFile()
     // boost::iostreams::chain::pop().
 }
 
-void FrameFaninSinkFile::ensure_initialized()
+void FrameFaninSinkFile::initialize_ports()
 {
-    if (m_initialized.load(std::memory_order_acquire)) return;
-
-    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
-    if (m_initialized.load(std::memory_order_relaxed)) return;
-
-    setup_debug_logging();
-    m_wcmain.initialize();
-    m_initialized.store(true, std::memory_order_release);
-
     for (int n = 0; n < k_multiplicity; ++n) {
         m_sources[n] = find_boundary<WireCell::IFrameSource,
                                      BoundarySource<WireCell::IFrameSource>>(
@@ -537,7 +460,7 @@ void FrameFaninSinkFile::operator()(Frame const& f0, Frame const& f1,
     m_sources[1]->fill(f1.ptr);
     m_sources[2]->fill(f2.ptr);
     m_sources[3]->fill(f3.ptr);
-    m_wcmain();
+    run_graph();
 }
 
 } // namespace wcphlex

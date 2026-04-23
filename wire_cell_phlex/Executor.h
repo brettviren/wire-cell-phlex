@@ -17,14 +17,14 @@
 //
 // Design: WireCell::Main is initialized ONCE on the FIRST operator() call
 // (deferred initialization).  Each operator() call fills the boundary source(s),
-// runs the WCT graph with m_wcmain(), then drains the boundary sink(s).  The
+// runs the WCT graph with run_graph(), then drains the boundary sink(s).  The
 // BoundarySource queue-based design allows the same Pgraph graph to be re-driven
 // event after event:
 //
 //   for each PHLEX event:
-//       source->fill(input_ptr)   // enqueue data for this event
-//       m_wcmain()                // run graph until quiescent
-//       result = sink->drain()    // dequeue output
+//       source->fill(input_ptr)    // enqueue data for this event
+//       run_graph()                // m_wcmain() — run graph until quiescent
+//       result = sink->drain()     // dequeue output
 //
 // This mirrors the larwirecell WCLS pattern: visit(event) + m_wcmain() + visit().
 //
@@ -35,6 +35,15 @@
 //   FacadeWireSchema::register_store(m_scope, ws.store) before the first
 //   ensure_initialized() call.  This pre-populates the static registry that
 //   FacadeWireSchema::configure() reads during initialize().
+//
+// Lifecycle (see docs/executors.md for the full guide):
+//   1. Constructor: Executor() parses config, computes m_scope and m_app_name,
+//      registers TLAs and add_app().  Subclass constructors add boundary-node
+//      name TLAs.
+//   2. First operator() call: ensure_initialized() acquires the global WCT init
+//      mutex, calls m_wcmain.initialize(), then calls virtual initialize_ports()
+//      so the subclass can find its BoundarySource/BoundarySink instances.
+//   3. Each operator() call: fill sources → run_graph() → drain sinks.
 //
 // Config interface: boost::json::object (not phlex::configuration) so this
 // header compiles under GCC 12, which lacks std::forward_like used in
@@ -73,17 +82,18 @@
 
 namespace wcphlex {
 
-// Base class: common config parsing and WCT plugin/TLA setup.
+// Base class: common config parsing, deferred initialization, and graph execution.
 //
 // Executor() parses the boost::json::object config and calls:
 //   m_wcmain.add_config(...)
 //   m_wcmain.add_plugin("wire_cell_phlex")  // always
 //   m_wcmain.add_plugin(...) for each entry in wct_plugins
 //   m_wcmain.tla_var(k, v)  for each entry in wct_tla
+//   m_wcmain.tla_var("app_name", m_app_name)
+//   m_wcmain.add_app(m_app_type + ":" + m_app_name)
 //
-// It does NOT call add_app() or initialize() — those are deferred to the first
-// ensure_initialized() call in operator().  Subclasses store boundary-node names
-// and app name, injected as TLAs, which are passed to ensure_initialized().
+// Subclass constructors add boundary-node TLAs (source_name, sink_name, etc.).
+// initialize() is deferred to the first ensure_initialized() call in operator().
 class Executor {
 public:
     explicit Executor(boost::json::object const& config);
@@ -94,7 +104,7 @@ public:
 
 protected:
     WireCell::Main m_wcmain;
-    std::string    m_app_type{"Pgrapher"}; // from wct_app; subclass builds "type:name"
+    std::string    m_app_type{"Pgrapher"}; // from wct_app; used to build add_app() name
 
     // Scope prefix for all WCT component instance names created by this executor.
     // Populated from the "module_label" key PHLEX injects into every module's
@@ -105,16 +115,33 @@ protected:
     // cross-instance aliasing.
     std::string    m_scope{"wcphlex"};
 
+    // App instance name: always m_scope + "_pgrapher".  Set in Executor()
+    // before add_app() is called; available to subclasses for reference.
+    std::string    m_app_name;
+
     std::atomic<bool> m_initialized{false};
 
     // When true, route all WCT log output to stdout at "debug" level.
-    // Called from each subclass's ensure_initialized() before m_wcmain.initialize().
     bool m_debug_log{false};
 
-protected:
+    // Idempotent initialization guard (DCLP).  Called by every operator().
+    // First call: acquires s_wct_init_mutex, calls m_wcmain.initialize(),
+    // calls virtual initialize_ports(), then sets m_initialized.
+    // Subsequent calls: fast-path return on m_initialized==true.
+    void ensure_initialized();
+
+    // Override in concrete subclasses to find BoundarySource/BoundarySink
+    // instances in the WCT factory after m_wcmain.initialize() completes.
+    // Default implementation is a no-op (safe for subclasses with no boundary nodes).
+    virtual void initialize_ports();
+
+    // Execute the WCT graph: calls m_wcmain().  Called by every operator()
+    // after filling boundary sources.
+    void run_graph();
+
+private:
     // If m_debug_log is set, calls add_logsink("stdout") and set_loglevel("","debug")
-    // on m_wcmain.  Must be called inside the s_wct_init_mutex lock, just before
-    // m_wcmain.initialize().
+    // on m_wcmain.  Called inside ensure_initialized() before m_wcmain.initialize().
     void setup_debug_logging();
 };
 
@@ -143,12 +170,10 @@ public:
     Frame operator()(WireSchema const& ws, Frame const& input);
 
 private:
-    // Initialize WCT graph on the first call (idempotent).
-    void ensure_initialized();
+    void initialize_ports() override;
 
     std::string m_src_name;
     std::string m_snk_name;
-    std::string m_app_name;
 
     // Raw pointers into factory-owned objects.  Valid for the lifetime of
     // m_wcmain (i.e. for the lifetime of this FrameFilter instance).
@@ -173,12 +198,10 @@ public:
     Frame operator()(DepoSet const& input);
 
 private:
-    // Initialize WCT graph on the first call (idempotent).
-    void ensure_initialized();
+    void initialize_ports() override;
 
     std::string m_src_name;
     std::string m_snk_name;
-    std::string m_app_name;
 
     BoundarySource<WireCell::IDepoSetSource>* m_source{nullptr};
     BoundarySink<WireCell::IFrameSink>*       m_sink{nullptr};
@@ -211,10 +234,9 @@ public:
     DepoSet operator()();
 
 private:
-    void ensure_initialized();
+    void initialize_ports() override;
 
     std::string m_snk_name;
-    std::string m_app_name;
 
     std::atomic<bool>                         m_graph_ran{false};
     BoundarySink<WireCell::IDepoSetSink>*     m_sink{nullptr};
@@ -247,10 +269,9 @@ public:
     void operator()(DepoSet const& input);
 
 private:
-    void ensure_initialized();
+    void initialize_ports() override;
 
     std::string m_src_name;
-    std::string m_app_name;
 
     BoundarySource<WireCell::IDepoSetSource>* m_source{nullptr};
 };
@@ -272,12 +293,10 @@ public:
     DepoSet operator()(DepoSet const& input);
 
 private:
-    // Initialize WCT graph on the first call (idempotent).
-    void ensure_initialized();
+    void initialize_ports() override;
 
     std::string m_src_name;
     std::string m_snk_name;
-    std::string m_app_name;
 
     BoundarySource<WireCell::IDepoSetSource>* m_source{nullptr};
     BoundarySink<WireCell::IDepoSetSink>*     m_sink{nullptr};
@@ -310,10 +329,9 @@ public:
     Frame operator()();
 
 private:
-    void ensure_initialized();
+    void initialize_ports() override;
 
     std::string m_snk_name;
-    std::string m_app_name;
 
     std::atomic<bool>                      m_graph_ran{false};
     BoundarySink<WireCell::IFrameSink>*    m_sink{nullptr};
@@ -346,10 +364,9 @@ public:
     void operator()(Frame const& input);
 
 private:
-    void ensure_initialized();
+    void initialize_ports() override;
 
     std::string m_src_name;
-    std::string m_app_name;
 
     BoundarySource<WireCell::IFrameSource>* m_source{nullptr};
 };
@@ -379,12 +396,11 @@ public:
                     Frame const& f2, Frame const& f3);
 
 private:
-    void ensure_initialized();
+    void initialize_ports() override;
 
     static constexpr int k_multiplicity = 4;
 
-    std::array<std::string, k_multiplicity>                        m_src_names;
-    std::string                                                    m_app_name;
+    std::array<std::string, k_multiplicity>                             m_src_names;
     std::array<BoundarySource<WireCell::IFrameSource>*, k_multiplicity> m_sources{};
 };
 
