@@ -416,7 +416,10 @@ add_test(NAME phlex_sim_sigproc
   COMMAND "${PHLEX_EXECUTABLE}" -c
     "${CMAKE_CURRENT_BINARY_DIR}/sim-sigproc-workflow.jsonnet"
 )
-set_tests_properties(phlex_sim_sigproc PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
+set_tests_properties(phlex_sim_sigproc PROPERTIES
+  ENVIRONMENT "${_phlex_env_with_data}"
+  FIXTURES_SETUP phlex_sim_sigproc_fixture
+)
 
 # Two-island sim+sigproc: independent (mismatched) service components.
 # Same topology as phlex_sim_sigproc but service_prefix="sim_"/"sp_" forces
@@ -427,7 +430,26 @@ add_test(NAME phlex_sim_sigproc_mismatch
   COMMAND "${PHLEX_EXECUTABLE}" -c
     "${CMAKE_CURRENT_BINARY_DIR}/sim-sigproc-mismatch-workflow.jsonnet"
 )
-set_tests_properties(phlex_sim_sigproc_mismatch PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
+set_tests_properties(phlex_sim_sigproc_mismatch PROPERTIES
+  ENVIRONMENT "${_phlex_env_with_data}"
+  FIXTURES_SETUP phlex_sim_sigproc_mismatch_fixture
+)
+
+# Compare shared vs. independent outputs: should be bit-identical when the
+# same data files and parameters are used, validating that factory sharing
+# (same name → same instance, re-configured) is equivalent to using
+# independent instances.
+add_test(NAME phlex_sim_sigproc_compare
+  COMMAND python3
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/compare_frames_npz.py"
+    --max-diff 2
+    --max-ch-diff 1
+    "${CMAKE_CURRENT_BINARY_DIR}/sim-sigproc-frames.npz"
+    "${CMAKE_CURRENT_BINARY_DIR}/sim-sigproc-mismatch-frames.npz"
+)
+set_tests_properties(phlex_sim_sigproc_compare PROPERTIES
+  FIXTURES_REQUIRED "phlex_sim_sigproc_fixture;phlex_sim_sigproc_mismatch_fixture"
+)
 
 # Fans job: PDHD 4-APA fan-out/fan-in sim (no sigproc, always passes).
 add_test(NAME phlex_fans

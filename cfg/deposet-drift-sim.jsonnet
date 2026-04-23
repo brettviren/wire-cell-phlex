@@ -48,7 +48,7 @@ local dft = {
 local rng = {
     type: "Random",
     name: service_prefix + "rng",
-    data: {},
+    data: { seed: 1 },   // fixed seed for reproducible noise; change to 0 for time-based
 };
 
 // ---------------------------------------------------------------------------
@@ -77,7 +77,7 @@ local elec = {
     data: {
         tick:     tick,
         nticks:   nticks_ductor,
-        shaping:  2.0 * wc.us,
+        shaping:  2.2 * wc.us,         // PDSP shaping time; must match frame-sigproc.jsonnet
         gain:     14.0 * wc.mV / wc.fC,
         postgain: 1.0,
     },
