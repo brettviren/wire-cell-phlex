@@ -1,0 +1,76 @@
+{
+  // PHLEX integration test workflow: two-island sim + sigproc with independent
+  // (mismatched) service components.
+  //
+  // Same topology as sim-sigproc-workflow.jsonnet.in, but the sim and sigproc
+  // islands use different service_prefix values so every service component gets
+  // its own independent instance in the WCT global NamedFactory:
+  //
+  //   frame_sim    service_prefix="sim_" → AnodePlane:sim_apa0, FieldResponse:sim_fr, ...
+  //   frame_sigproc service_prefix="sp_" → AnodePlane:sp_apa0,  FieldResponse:sp_fr, ...
+  //
+  // Neither island's Main::initialize() finds the other's components in the
+  // factory, so configure() is called exactly once per instance with no
+  // cross-island interference.
+  //
+  // This models the real-world scenario where sim is replaced by actual detector
+  // data and the analysis uses a signal processing model (FieldResponse, elec
+  // response) that may differ from the true detector response.  AnodePlane is
+  // included here only as a convenient test object; in practice the geometry
+  // would always be shared.
+  //
+  // The two service_prefix values are intentionally distinct but the underlying
+  // data files are the same (same wires, same FR file), so the output should be
+  // physically identical to sim-sigproc-workflow.jsonnet.in.  Both tests passing
+  // with matching output validates that the sharing mechanism is benign for
+  // components configured identically.
+  //
+  // File paths are substituted by CMake configure_file().
+  // Requires WIRECELL_PATH to include:
+  //   wire-cell-phlex/cfg/           (for deposet-drift-sim.jsonnet, frame-sigproc.jsonnet, etc.)
+  //   <wct-data-dir>/share/wirecell/ (for protodune-wires-larsoft-v4.json.bz2,
+  //                                    dune-garfield-1d565.json.bz2,
+  //                                    protodune-noise-spectra-v1.json.bz2,
+  //                                    wirecell.jsonnet)
+
+  driver: {
+    cpp: 'generate_layers',
+    layers: {
+      event: { parent: 'job', total: 1, starting_number: 1 },
+    },
+  },
+  sources: {
+    deposet_source: {
+      cpp: 'wcp_deposet_source_file',
+      wct_config: 'deposet-file-source.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellSio'],
+      output_layer: 'event',
+      wct_tla: { inname: '@WCP_TEST_DATA_DIR@/muon-depos.npz' },
+    },
+  },
+  modules: {
+    frame_sim: {
+      cpp: 'wcp_deposet_to_frame',
+      wct_config: 'deposet-drift-sim.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
+      input_layer: 'event',
+      wct_tla: { service_prefix: 'sim_' },
+    },
+    frame_sigproc: {
+      cpp: 'wcp_frame_filter',
+      wct_config: 'frame-sigproc.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
+      input_layer: 'event',
+      input_from: 'frame_sim',
+      wct_tla: { service_prefix: 'sp_' },
+    },
+    frame_sink: {
+      cpp: 'wcp_frame_sink_file',
+      wct_config: 'frame-file-sink.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellSio'],
+      input_layer: 'event',
+      input_from: 'frame_sigproc',
+      wct_tla: { outname: '@WCP_OUTPUT_DIR@/sim-sigproc-mismatch-frames.npz' },
+    },
+  },
+}

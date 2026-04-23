@@ -336,6 +336,12 @@ configure_file(
 )
 
 configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/test/sim-sigproc-mismatch-workflow.jsonnet.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/sim-sigproc-mismatch-workflow.jsonnet"
+  @ONLY
+)
+
+configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/test/fans-workflow.jsonnet.in"
   "${CMAKE_CURRENT_BINARY_DIR}/fans-workflow.jsonnet"
   @ONLY
@@ -411,6 +417,17 @@ add_test(NAME phlex_sim_sigproc
     "${CMAKE_CURRENT_BINARY_DIR}/sim-sigproc-workflow.jsonnet"
 )
 set_tests_properties(phlex_sim_sigproc PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
+
+# Two-island sim+sigproc: independent (mismatched) service components.
+# Same topology as phlex_sim_sigproc but service_prefix="sim_"/"sp_" forces
+# each island to create its own AnodePlane, FieldResponse, etc. instances.
+# Both tests should produce physically identical output since the same data
+# files are used; differences would indicate a sharing-related bug.
+add_test(NAME phlex_sim_sigproc_mismatch
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_BINARY_DIR}/sim-sigproc-mismatch-workflow.jsonnet"
+)
+set_tests_properties(phlex_sim_sigproc_mismatch PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
 
 # Fans job: PDHD 4-APA fan-out/fan-in sim (no sigproc, always passes).
 add_test(NAME phlex_fans
