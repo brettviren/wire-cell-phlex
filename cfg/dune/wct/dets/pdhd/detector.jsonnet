@@ -215,6 +215,22 @@ local sim_defaults = {
         rc_layers: 0,
     },
 
+    // DepoFluxSplat parameters.
+    // smear_long and smear_tran represent the extra longitudinal / transverse
+    // spread that the full sim+SP chain induces beyond pure charge flux.
+    // Values are per wire-plane: [U, V, W].
+    // Determined empirically via "wcpy gen morse-*"; PDHD reuses PDSP values
+    // (same field-response family).
+    splat: {
+        sparse:          true,
+        tick:            daq_defaults.tick,
+        window_start:    0,
+        window_duration: daq_defaults.tick * daq_defaults.nticks,
+        reference_time:  0.0,
+        smear_long: [2.691862363980221, 2.6750200122535057, 2.7137567141154055],
+        smear_tran: [0.7377218875719689, 0.7157764520393882, 0.13980698710556544],
+    },
+
     // Overall detector bounding box (informational; for kinematics generators etc.)
     bounds: {
         tail: wc.point(-4.0, 0.0, 0.0, wc.m),

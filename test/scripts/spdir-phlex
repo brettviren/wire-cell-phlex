@@ -1,0 +1,399 @@
+#!/usr/bin/env -S snakemake --cores all --snakefile
+# -*- snakemake -*-
+
+#
+# PHLEX SPDIR workflow.
+#
+# Produces SP metrics plots (efficiency, bias, resolution) as a function of
+# track angle for a given detector, using the wire-cell-phlex framework and
+# the factored cfg/dune/ configurations.
+#
+# This is a translation of wire-cell-toolkit/test/scripts/spdir to PHLEX.
+# Simplifications vs. the original:
+#   - No hi/lo field response variants (single nominal FR only)
+#   - No UVCGAN support
+#   - Detectors: pdhd and pdvd (via cfg/dune/wct/dets/)
+#
+# Pipeline for each (detector, plane, theta_xz, theta_y):
+#   1. tracking  : wcpy gen detlinegen  -> depos.npz, depos.json
+#   2. sim       : phlex (wct/job/sim)  -> digits.npz
+#   3. splat     : phlex (wct/job/splat)-> splats.npz  [truth reference]
+#   4. sigproc   : phlex (wct/job/sigproc) -> signals.npz
+#   5. metrics   : wcpy test ssss-metrics  -> metrics.json
+#   6. mplots    : wcpy test plot-ssss     -> mplots.pdf
+#   7. plots     : wcpy test plot-metrics  -> plots.pdf  (all angles, per plane)
+#
+# Invocation:
+#   spdir-phlex --config detector=pdhd --directory=/tmp/pdhd-spdir
+#   spdir-phlex --config detector=pdvd --directory=/tmp/pdvd-spdir
+#
+# For quick testing with fewer angles:
+#   spdir-phlex --directory=/tmp/pdhd-spdir-quick \
+#     --config detector=pdhd "theta_xz_deg=[10,45,80]" "theta_y_deg=[90,90,90]"
+#
+# NOTE: Snakemake 9+ replaces the entire config dict on each --config flag, so
+# all key=value pairs MUST be passed to a single --config invocation
+# (space-separated, not multiple --config flags).
+#
+# Environment variables needed (or set env_overrides in config):
+#   PHLEX           : path to phlex executable
+#   PHLEX_PLUGIN_PATH: colon-separated dirs containing wcp_*.so libraries
+#   WIRECELL_PATH   : colon-separated dirs for WCT Jsonnet and data files
+#                     Must include: wire-cell-phlex/cfg and wct-data directory
+#   WCPY            : path to wcpy executable (default: wcpy)
+#
+# Alternatively override via --config (in single --config invocation):
+#   --config phlex=/path/to/phlex wirecell_path="cfg:/path/to/data"
+#   --config phlex_plugin_path="/path/to/wcp_libs:/path/to/phlex_libs"
+
+import os
+import json
+
+# ---------------------------------------------------------------------------
+# Configuration defaults
+# ---------------------------------------------------------------------------
+for k, v in dict(
+        # Canonical detector name.
+        detector="pdhd",
+
+        # APA (anode) index within the detector.
+        apa=0,
+
+        # Matched arrays of track angles.
+        # theta_y: angle from Y axis to track direction (usually 90 degrees).
+        # theta_xz: angle from X axis to projection into X-Z plane.
+        theta_y_deg=(90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90),
+        theta_xz_deg=(0, 1, 3, 5, 10, 20, 30, 45, 60, 75, 80, 82, 84, 89),
+
+        # Wire planes to process.
+        planes=[0, 1, 2],
+
+        # Optional environment overrides (defaults: use environment variables).
+        phlex=None,
+        wcpy=None,
+        wirecell_path=None,
+        phlex_plugin_path=None,
+).items():
+    config.setdefault(k, v)
+
+# ---------------------------------------------------------------------------
+# Environment resolution
+# ---------------------------------------------------------------------------
+
+PHLEX = config.get("phlex") or os.environ.get("PHLEX", "phlex")
+WCPY  = config.get("wcpy")  or os.environ.get("WCPY", "wcpy")
+
+# Build environment for shell rules.
+# WIRECELL_PATH must contain:
+#   1. wire-cell-phlex/cfg/   (for dune/ jsonnet configs)
+#   2. wct data directory     (for wires, field response, noise spectra files)
+#      This must include wirecell.jsonnet AND detector-specific data files.
+#      We search two ways:
+#        a) A sibling wire-cell-data/ repo (contains all data, may lack wirecell.jsonnet)
+#        b) An install prefix data/share/wirecell dir (contains wirecell.jsonnet)
+#      Both are included when found so that wirecell.jsonnet and data files are all
+#      available regardless of which directory holds each.
+_wcp_cfg = os.path.join(workflow.basedir, "..", "..", "cfg")
+_wct_data_dirs = []
+
+# Check for a sibling wire-cell-data repo (peer of wire-cell-phlex/).
+_sibling_data = os.path.realpath(
+    os.path.join(workflow.basedir, "..", "..", "..", "wire-cell-data"))
+if os.path.isdir(_sibling_data):
+    _wct_data_dirs.append(_sibling_data)
+
+# Search typical install prefixes for a dir containing wirecell.jsonnet.
+_wct_install_data = ""
+for prefix in ["/home/bviren/newsp/toolkit", "/usr/local", "/usr"]:
+    for subdir in ["data", "share/wirecell"]:
+        candidate = os.path.join(prefix, subdir)
+        if os.path.exists(os.path.join(candidate, "wirecell.jsonnet")):
+            _wct_install_data = candidate
+            break
+    if _wct_install_data:
+        break
+if _wct_install_data and _wct_install_data not in _wct_data_dirs:
+    _wct_data_dirs.append(_wct_install_data)
+
+# Also check the installed local/share/wirecell next to the repo.
+_local_share = os.path.realpath(
+    os.path.join(workflow.basedir, "..", "..", "..", "local", "share", "wirecell"))
+if os.path.exists(os.path.join(_local_share, "wirecell.jsonnet")) and \
+        _local_share not in _wct_data_dirs:
+    _wct_data_dirs.append(_local_share)
+
+WIRECELL_PATH = (config.get("wirecell_path") or
+                 os.environ.get("WIRECELL_PATH") or
+                 ":".join(filter(None, [_wcp_cfg] + _wct_data_dirs)))
+
+# PHLEX_PLUGIN_PATH must contain the wire-cell-phlex build dir (wcp_*.so) and
+# the phlex library dir.
+_build_dir = os.path.join(workflow.basedir, "..", "..", "build")
+_phlex_bin = os.path.realpath(PHLEX)
+_phlex_lib = os.path.join(os.path.dirname(os.path.dirname(_phlex_bin)), "lib")
+PHLEX_PLUGIN_PATH = (config.get("phlex_plugin_path") or
+                     os.environ.get("PHLEX_PLUGIN_PATH") or
+                     ":".join(filter(None, [_build_dir, _phlex_lib])))
+
+# wcsonnet evaluates Jsonnet using WIRECELL_PATH library search (like WCT uses).
+# It is used to pre-evaluate PHLEX workflow Jsonnet to JSON before passing to phlex,
+# since phlex's built-in Jsonnet does NOT search WIRECELL_PATH for imports.
+WCSONNET = (config.get("wcsonnet") or
+            os.environ.get("WCSONNET", "wcsonnet"))
+
+# Export to shell
+os.environ["WIRECELL_PATH"] = WIRECELL_PATH
+os.environ["PHLEX_PLUGIN_PATH"] = PHLEX_PLUGIN_PATH
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+thetas = list(zip(config['theta_xz_deg'], config['theta_y_deg']))
+
+class FailsafeDict(dict):
+    def __getitem__(self, item):
+        try:
+            return super().__getitem__(item)
+        except KeyError:
+            return "{" + str(item) + "}"
+
+def fname(tier=None, ext='npz', **kwds):
+    """Generate standard file name."""
+    if tier is None:
+        raise ValueError("tier must be given")
+    pre  = '{detector}-{tier}'
+    post = 'p{plane}-txz{txz}deg-ty{ty}deg.{ext}'
+    plotpost = '{coords}coords.{ext}'
+    if tier in ('plots',):
+        parts = [pre, plotpost]
+    else:
+        parts = [pre, post]
+    pattern = '-'.join(parts)
+    dat = FailsafeDict(kwds, tier=tier, ext=ext)
+    return pattern.format_map(dat)
+
+def expand_thetas(**kwds):
+    return [fname(txz=txz, ty=ty, **kwds) for txz, ty in thetas]
+
+def expand_detector(**kwds):
+    return expand(expand_thetas(**kwds), plane=config['planes'],
+                  detector=[config['detector']], allow_missing=True)
+
+
+def tracking_params(w):
+    """Detector-specific arguments for detlinegen."""
+    det = w.detector
+    # Horizontal drift: track offset 1 m back from the wire plane in X.
+    if det in ("pdhd", "pdsp"):
+        return "--offset '-1*m,0*m,0*m'"
+    # Vertical drift: offset 1 m in Y (toward drift volume center from collection plane).
+    # NOTE: 'pdvd' maps to 'dune-vd' in the WCT detectors.jsonnet registry used by
+    # wcpy gen detlinegen.  See the --detector override in the tracking rule.
+    if det == "pdvd":
+        return "--offset '0*m,-1*m,0*m'"
+    return ""
+
+
+def detlinegen_detector(w):
+    """Map our canonical detector names to the wcpy/detectors.jsonnet name."""
+    # 'pdvd' is not yet in detectors.jsonnet; map to 'dune-vd' which has the
+    # correct wires file (protodunevd-wires-larsoft-v3.json.bz2).
+    # TODO: add 'pdvd' alias to wire-cell-data detectors.jsonnet.
+    mapping = {"pdvd": "dune-vd"}
+    return mapping.get(w.detector, w.detector)
+
+
+# ---------------------------------------------------------------------------
+# Rules
+# ---------------------------------------------------------------------------
+
+rule all:
+    input:
+        expand(expand_detector(tier='plots', ext='pdf'), coords=['wire', 'global']),
+        expand_detector(tier='mplots', ext='pdf'),
+
+
+_apa = config['apa']
+
+rule tracking:
+    """Generate ideal minimum-ionizing track depositions at a specific angle."""
+    output:
+        depos=fname(tier='depos'),
+        meta=fname(tier='depos', ext='json'),
+    params:
+        offset=tracking_params,
+        detname=detlinegen_detector,
+        apa=_apa,
+        wcpy=WCPY,
+    shell: '''
+    {params.wcpy} gen detlinegen \
+      {params.offset} \
+      --detector={wildcards.detector} \
+      --apa={params.apa} \
+      --plane={wildcards.plane} \
+      --angle-coords=wire-plane \
+      --theta_xz="{wildcards.txz}*deg" \
+      --theta_y="{wildcards.ty}*deg" \
+      --output_depos {output.depos} \
+      --output_meta {output.meta}
+    '''
+
+
+rule sim:
+    """Drift depos + electronics simulation + digitization -> digits.
+
+    Uses wcsonnet to evaluate the PHLEX workflow Jsonnet to JSON (so WIRECELL_PATH
+    is used for import resolution), then passes the JSON to phlex.
+    """
+    input:
+        depos=fname(tier='depos'),
+    output:
+        digits=fname(tier='digits'),
+    params:
+        phlex=PHLEX,
+        wcsonnet=WCSONNET,
+        apa=_apa,
+    shell: '''
+    {params.wcsonnet} \
+      --tla-code 'params={{detname: "{wildcards.detector}"}}' \
+      --tla-str depo_file="{input.depos}" \
+      --tla-str output_file="{output.digits}" \
+      --tla-code anode_index={params.apa} \
+      dune/phlex/job/sim.jsonnet \
+      > {output.digits}.workflow.json
+    {params.phlex} -c {output.digits}.workflow.json
+    '''
+
+
+rule splat:
+    """Drift depos + DepoFluxSplat -> truth reference frames.
+
+    Uses wcsonnet to evaluate the PHLEX workflow Jsonnet to JSON, then calls phlex.
+    """
+    input:
+        depos=fname(tier='depos'),
+    output:
+        splats=fname(tier='splats'),
+    params:
+        phlex=PHLEX,
+        wcsonnet=WCSONNET,
+        apa=_apa,
+    shell: '''
+    {params.wcsonnet} \
+      --tla-code 'params={{detname: "{wildcards.detector}"}}' \
+      --tla-str depo_file="{input.depos}" \
+      --tla-str output_file="{output.splats}" \
+      --tla-code anode_index={params.apa} \
+      dune/phlex/job/splat.jsonnet \
+      > {output.splats}.workflow.json
+    {params.phlex} -c {output.splats}.workflow.json
+    '''
+
+
+rule sigproc:
+    """OmnibusSigProc signal processing: digits -> signals.
+
+    Uses wcsonnet to evaluate the PHLEX workflow Jsonnet to JSON, then calls phlex.
+    """
+    input:
+        digits=fname(tier='digits'),
+    output:
+        signals=fname(tier='signals'),
+    params:
+        phlex=PHLEX,
+        wcsonnet=WCSONNET,
+        apa=_apa,
+    shell: '''
+    {params.wcsonnet} \
+      --tla-code 'params={{detname: "{wildcards.detector}"}}' \
+      --tla-str input_file="{input.digits}" \
+      --tla-str output_file="{output.signals}" \
+      --tla-code anode_index={params.apa} \
+      dune/phlex/job/sigproc.jsonnet \
+      > {output.signals}.workflow.json
+    {params.phlex} -c {output.signals}.workflow.json
+    '''
+
+
+rule metrics:
+    """Compute per-plane SP metrics (efficiency, bias, resolution)."""
+    input:
+        splats  = fname(tier='splats'),
+        signals = fname(tier='signals'),
+        depos   = fname(tier='depos', ext='json'),
+    output:
+        metrics = fname(tier='metrics', ext='json'),
+    params:
+        wcpy=WCPY,
+    shell: '''
+    {params.wcpy} test ssss-metrics \
+      --output {output.metrics} \
+      --params {input.depos} \
+      {input.splats} {input.signals}
+    '''
+
+
+def plots_args(w):
+    """Generate additional args for the plots command."""
+    args = f"--title '{w.detector.upper()} SP'"
+    if w.coords == "global":
+        args += " --coordinate-plane=2"
+    return args
+
+
+rule plots:
+    """Summary SP metrics plots across all angles for a given plane."""
+    input:
+        metrics=expand_detector(tier='metrics', ext='json'),
+    output:
+        fname(tier='plots', ext='pdf'),
+    params:
+        args=plots_args,
+        wcpy=WCPY,
+    wildcard_constraints:
+        coords='wire|global',
+    shell: '''
+    {params.wcpy} test plot-metrics {params.args} -o {output} {input.metrics}
+    '''
+
+
+rule metric_plots:
+    """Detailed per-angle comparison plots (splat vs signal)."""
+    input:
+        splats  = fname(tier='splats'),
+        signals = fname(tier='signals'),
+    output:
+        plots = fname(tier='mplots', ext='pdf'),
+    params:
+        wcpy=WCPY,
+    shell: '''
+    {params.wcpy} test plot-ssss --output {output.plots} {input.splats} {input.signals}
+    '''
+
+
+# ---------------------------------------------------------------------------
+# Aggregate targets
+# ---------------------------------------------------------------------------
+
+rule all_depos:
+    input: expand_detector(tier='depos')
+
+rule all_digits:
+    input: expand_detector(tier='digits')
+
+rule all_splats:
+    input: expand_detector(tier='splats')
+
+rule all_signals:
+    input: expand_detector(tier='signals')
+
+rule all_metrics:
+    input: expand_detector(tier='metrics', ext='json')
+
+rule all_mplots:
+    input: expand_detector(tier='mplots', ext='pdf')
+
+rule all_plots:
+    input:
+        expand(expand_detector(tier='plots', ext='pdf'), coords=['wire', 'global'])

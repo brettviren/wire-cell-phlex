@@ -211,6 +211,22 @@ local sim_defaults = {
         rc_layers: 0,
     },
 
+    // DepoFluxSplat parameters.
+    // smear_long and smear_tran represent the extra longitudinal / transverse
+    // spread that the full sim+SP chain induces beyond pure charge flux.
+    // Values are per wire-plane: [U, V, W].
+    // No empirically derived values exist for PDVD yet (requires "wcpy gen morse-*").
+    // Using zeros for now (conservative: splat truth is tighter than SP output).
+    splat: {
+        sparse:          true,
+        tick:            daq_defaults.tick,
+        window_start:    0,
+        window_duration: daq_defaults.tick * daq_defaults.nticks,
+        reference_time:  0.0,
+        smear_long: [0.0, 0.0, 0.0],
+        smear_tran: [0.0, 0.0, 0.0],
+    },
+
     // Overall detector bounding box (informational)
     bounds: {
         tail: wc.point(-3.15, -3.42, 0.0,  wc.m),
