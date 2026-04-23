@@ -86,6 +86,12 @@ thread-safe.  After initialization the boundary nodes are accessed only
 by the single PHLEX thread that owns the Executor instance (one instance
 per PHLEX module label), so no further locking is needed.
 
+Note: this need for initializing WCT during PHLEX execution time is due to
+anticipated need of having WCT "service" components be facades over PHLEX
+"resources" which are available at each execution.  If these can be made
+available earlier and in a single-thread context, WCT initialization will be
+moved there/then.
+
 The `m_initialized` store is placed **after** `initialize_ports()` so
 that any thread observing `m_initialized == true` on the acquire fast-path
 is guaranteed to see fully-assigned boundary pointers (happens-before).
