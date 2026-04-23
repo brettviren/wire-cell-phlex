@@ -26,6 +26,10 @@
 // Expected config keys:
 //   wct_config      (string, required): Path to the WCT Jsonnet config file.
 //   input_layer     (string, required): PHLEX layer for the input Frame product.
+//   input_from      (string, optional, default "input"): PHLEX creator name of
+//                   the input Frame product.  "input" (the default) consumes from
+//                   a PHLEX source.  Set to the module label of an upstream module
+//                   (e.g. "frame_sim") to consume from that module's output Frame.
 //   input_suffix    (string, optional, default "frame"): suffix of input product.
 //                   Set to a distinct value when consuming one of several frame
 //                   streams in the same layer (multi-instance scenario).
@@ -54,6 +58,7 @@ using namespace phlex;
 PHLEX_REGISTER_ALGORITHMS(m, config)
 {
     auto const layer        = config.get<std::string>("input_layer");
+    auto const from         = config.get<std::string>("input_from", std::string{"input"});
     auto const suffix       = config.get<std::string>("input_suffix", std::string{"frame"});
     auto const use_ws       = config.get<bool>("use_wire_schema", false);
     auto const ws_layer     = config.get<std::string>("wire_schema_layer", std::string{"job"});
@@ -73,7 +78,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
           .input_family(
               product_query{.creator = "input", .layer = ws_layer,
                             .suffix  = experimental::identifier{"wire_schema"}},
-              product_query{.creator = "input", .layer = layer,
+              product_query{.creator = from, .layer = layer,
                             .suffix  = experimental::identifier{suffix}})
           .output_product_suffixes("frame");
     } else {
@@ -83,7 +88,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
                         return (*ff)(input);
                     },
                     concurrency::serial)
-          .input_family(product_query{.creator = "input", .layer = layer,
+          .input_family(product_query{.creator = from, .layer = layer,
                                       .suffix  = experimental::identifier{suffix}})
           .output_product_suffixes("frame");
     }

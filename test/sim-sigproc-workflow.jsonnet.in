@@ -1,0 +1,98 @@
+{
+  // PHLEX integration test workflow: two-island sim + sigproc pipeline.
+  //
+  // Topology:
+  //   wcp_deposet_source_file  (DepoFileSource + Drifter)
+  //     → wcp_deposet_to_frame  (DepoTransform + Reframer + AddNoise + Digitizer)
+  //     → wcp_frame_filter      (OmnibusSigProc)
+  //     → wcp_frame_sink_file   (FrameFileSink)
+  //
+  // Purpose: exercise two separate WCT "islands" (each with its own
+  // WireCell::Main) sharing service components (AnodePlane, FftwDFT,
+  // WireSchemaFile, FieldResponse, ColdElecResponse) via the global WCT
+  // NamedFactory.
+  //
+  // Sharing mechanism: components with the same (type, name) in the global
+  // factory are shared across Main instances.  The service_prefix TLA controls
+  // whether service components use bare names (shared) or prefixed names
+  // (independent).
+  //
+  //   service_prefix="" (default, both islands):
+  //     Both islands resolve AnodePlane:apa0 to the same shared_ptr.
+  //     The second Main::initialize() finds it in the factory and re-calls
+  //     configure() — harmless when both configs define it identically.
+  //
+  //   service_prefix="sim_" (sim) + service_prefix="sp_" (sigproc):
+  //     Independent AnodePlane:sim_apa0 and AnodePlane:sp_apa0 instances.
+  //     Useful for testing model-mismatch scenarios (e.g. different FR).
+  //
+  // Note: the SP filter objects (ROI_tight_lf, Gaus_tight, etc.) from
+  // sp-filters.jsonnet have hard-coded names required by OmnibusSigProc's
+  // C++ code and are never prefixed — they are always shared across islands.
+  //
+  // Note: deposet-drift-sim.jsonnet uses shaping=2.0µs while
+  // frame-sigproc.jsonnet uses 2.2µs.  In shared mode (service_prefix=""),
+  // the sigproc island's configure() on ColdElecResponse:elec overwrites
+  // the sim island's value (2.0→2.2µs).  This is benign for this test
+  // (PlaneImpactResponse already computed from the sim's configure pass),
+  // but is a known inconsistency.  Prefer deposet-sim-sigproc.jsonnet for
+  // production use of the combined single-island pipeline.
+  //
+  // File paths are substituted by CMake configure_file().
+  // Requires WIRECELL_PATH to include:
+  //   wire-cell-phlex/cfg/           (for deposet-drift-sim.jsonnet, frame-sigproc.jsonnet, etc.)
+  //   <wct-data-dir>/share/wirecell/ (for protodune-wires-larsoft-v4.json.bz2,
+  //                                    dune-garfield-1d565.json.bz2,
+  //                                    protodune-noise-spectra-v1.json.bz2,
+  //                                    wirecell.jsonnet)
+  // Required WCT plugins:
+  //   source: WireCellPgraph, WireCellSio
+  //   sim:    WireCellPgraph, WireCellGen, WireCellSigProc, WireCellAux
+  //   sp:     WireCellPgraph, WireCellGen, WireCellSigProc, WireCellAux
+  //   sink:   WireCellPgraph, WireCellSio
+
+  driver: {
+    cpp: 'generate_layers',
+    layers: {
+      event: { parent: 'job', total: 1, starting_number: 1 },
+    },
+  },
+  sources: {
+    deposet_source: {
+      cpp: 'wcp_deposet_source_file',
+      wct_config: 'deposet-file-source.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellSio'],
+      output_layer: 'event',
+      wct_tla: { inname: '@WCP_TEST_DATA_DIR@/muon-depos.npz' },
+    },
+  },
+  modules: {
+    frame_sim: {
+      cpp: 'wcp_deposet_to_frame',
+      wct_config: 'deposet-drift-sim.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
+      input_layer: 'event',
+      // service_prefix not set → default "" → service components use bare names
+      // (e.g. AnodePlane:apa0) and will be shared with the sigproc island below.
+      // To use independent instances, add: wct_tla: { service_prefix: 'sim_' }
+    },
+    frame_sigproc: {
+      cpp: 'wcp_frame_filter',
+      wct_config: 'frame-sigproc.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
+      input_layer: 'event',
+      input_from: 'frame_sim',
+      // service_prefix not set → default "" → resolves to the same factory instances
+      // as frame_sim (AnodePlane:apa0, FieldResponse:fr, etc. are shared).
+      // To use independent instances, add: wct_tla: { service_prefix: 'sp_' }
+    },
+    frame_sink: {
+      cpp: 'wcp_frame_sink_file',
+      wct_config: 'frame-file-sink.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellSio'],
+      input_layer: 'event',
+      input_from: 'frame_sigproc',
+      wct_tla: { outname: '@WCP_OUTPUT_DIR@/sim-sigproc-frames.npz' },
+    },
+  },
+}

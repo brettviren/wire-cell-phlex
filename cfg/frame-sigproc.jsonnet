@@ -23,9 +23,12 @@ local wc = import "wirecell.jsonnet";
 local spfilt = import "sp-filters.jsonnet";
 
 function(
-    source_name = "wcphlex_frame_source",
-    sink_name   = "wcphlex_frame_sink",
-    app_name    = "wcphlex_pgrapher",
+    source_name    = "wcphlex_frame_source",
+    sink_name      = "wcphlex_frame_sink",
+    app_name       = "wcphlex_pgrapher",
+    service_prefix = "",   // prefix for all service component names;
+                           // "" (default) = bare names, shared with any other island
+                           // that uses the same default; non-empty = independent copies
 )
 
 local tick = 0.5 * wc.us;
@@ -36,7 +39,7 @@ local tick = 0.5 * wc.us;
 
 local dft = {
     type: "FftwDFT",
-    name: "dft",
+    name: service_prefix + "dft",
     data: {},
 };
 
@@ -46,13 +49,13 @@ local dft = {
 
 local wires = {
     type: "WireSchemaFile",
-    name: "wires",
+    name: service_prefix + "wires",
     data: { filename: "protodune-wires-larsoft-v4.json.bz2" },
 };
 
 local fr = {
     type: "FieldResponse",
-    name: "fr",
+    name: service_prefix + "fr",
     data: { filename: "dune-garfield-1d565.json.bz2" },
 };
 
@@ -62,7 +65,7 @@ local fr = {
 
 local elec = {
     type: "ColdElecResponse",
-    name: "elec",
+    name: service_prefix + "elec",
     data: {
         tick:     tick,
         nticks:   10125,
@@ -83,7 +86,7 @@ local faces = [
 
 local anode = {
     type: "AnodePlane",
-    name: "apa0",
+    name: service_prefix + "apa0",
     data: {
         ident:       0,
         nimpacts:    10,
@@ -102,7 +105,7 @@ local anode = {
 
 local sigproc = {
     type: "OmnibusSigProc",
-    name: "sigproc",
+    name: service_prefix + "sigproc",
     data: {
         anode:          wc.tn(anode),
         dft:            wc.tn(dft),

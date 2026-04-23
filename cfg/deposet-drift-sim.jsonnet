@@ -19,9 +19,12 @@
 local wc = import "wirecell.jsonnet";
 
 function(
-    source_name = "wcphlex_deposet_source",
-    sink_name   = "wcphlex_frame_sink",
-    app_name    = "wcphlex_pgrapher",
+    source_name    = "wcphlex_deposet_source",
+    sink_name      = "wcphlex_frame_sink",
+    app_name       = "wcphlex_pgrapher",
+    service_prefix = "",   // prefix for all service component names;
+                           // "" (default) = bare names, shared with any other island
+                           // that uses the same default; non-empty = independent copies
 )
 
 local tick           = 0.5 * wc.us;
@@ -38,13 +41,13 @@ local drift_speed    = 1.6 * wc.mm / wc.us;
 
 local dft = {
     type: "FftwDFT",
-    name: "dft",
+    name: service_prefix + "dft",
     data: {},
 };
 
 local rng = {
     type: "Random",
-    name: "rng",
+    name: service_prefix + "rng",
     data: {},
 };
 
@@ -54,13 +57,13 @@ local rng = {
 
 local wires = {
     type: "WireSchemaFile",
-    name: "wires",
+    name: service_prefix + "wires",
     data: { filename: "protodune-wires-larsoft-v4.json.bz2" },
 };
 
 local fr = {
     type: "FieldResponse",
-    name: "fr",
+    name: service_prefix + "fr",
     data: { filename: "dune-garfield-1d565.json.bz2" },
 };
 
@@ -70,7 +73,7 @@ local fr = {
 
 local elec = {
     type: "ColdElecResponse",
-    name: "elec",
+    name: service_prefix + "elec",
     data: {
         tick:     tick,
         nticks:   nticks_ductor,
@@ -101,7 +104,7 @@ local faces = [
 
 local anode = {
     type: "AnodePlane",
-    name: "apa0",
+    name: service_prefix + "apa0",
     data: {
         ident:       0,
         nimpacts:    10,
@@ -116,7 +119,7 @@ local anode = {
 
 local pir(plane) = {
     type: "PlaneImpactResponse",
-    name: "pir%d" % plane,
+    name: service_prefix + "pir%d" % plane,
     data: {
         plane:                  plane,
         dft:                    wc.tn(dft),
@@ -137,7 +140,7 @@ local pirs = [pir(n) for n in [0, 1, 2]];
 
 local drifter_comp = {
     type: "Drifter",
-    name: "drifter",
+    name: service_prefix + "drifter",
     data: {
         rng:         wc.tn(rng),
         DL:          7.2 * wc.cm2 / wc.s,
@@ -151,7 +154,7 @@ local drifter_comp = {
 
 local setdrifter = {
     type: "DepoSetDrifter",
-    name: "deposet_drifter",
+    name: service_prefix + "deposet_drifter",
     data: { drifter: wc.tn(drifter_comp) },
 };
 
@@ -161,7 +164,7 @@ local setdrifter = {
 
 local transform = {
     type: "DepoTransform",
-    name: "transform",
+    name: service_prefix + "transform",
     data: {
         anode:              wc.tn(anode),
         pirs:               [wc.tn(p) for p in pirs],
@@ -184,7 +187,7 @@ local transform = {
 
 local reframer = {
     type: "Reframer",
-    name: "reframer",
+    name: service_prefix + "reframer",
     data: {
         anode:   wc.tn(anode),
         tags:    [],
@@ -201,7 +204,7 @@ local reframer = {
 
 local noise_model = {
     type: "EmpiricalNoiseModel",
-    name: "noise_model",
+    name: service_prefix + "noise_model",
     data: {
         anode:             wc.tn(anode),
         dft:               wc.tn(dft),
@@ -215,7 +218,7 @@ local noise_model = {
 
 local addnoise = {
     type: "AddNoise",
-    name: "addnoise",
+    name: service_prefix + "addnoise",
     data: {
         rng:                    wc.tn(rng),
         dft:                    wc.tn(dft),
@@ -232,7 +235,7 @@ local addnoise = {
 
 local digitizer = {
     type: "Digitizer",
-    name: "digitizer",
+    name: service_prefix + "digitizer",
     data: {
         anode:     wc.tn(anode),
         resolution: 12,

@@ -330,6 +330,12 @@ configure_file(
 )
 
 configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/test/sim-sigproc-workflow.jsonnet.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/sim-sigproc-workflow.jsonnet"
+  @ONLY
+)
+
+configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/test/fans-workflow.jsonnet.in"
   "${CMAKE_CURRENT_BINARY_DIR}/fans-workflow.jsonnet"
   @ONLY
@@ -394,6 +400,17 @@ add_test(NAME phlex_deposet_sim_sigproc
     "${CMAKE_CURRENT_BINARY_DIR}/deposet-sim-sigproc-workflow.jsonnet"
 )
 set_tests_properties(phlex_deposet_sim_sigproc PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
+
+# Two-island sim+sigproc: exercises WCT service sharing across two Main instances.
+# The sim island (deposet-drift-sim.jsonnet) and sigproc island (frame-sigproc.jsonnet)
+# both use service_prefix="" (default), so they resolve to the same AnodePlane:apa0,
+# FieldResponse:fr, etc. via the global WCT NamedFactory.
+# To test independent (mismatched) instances, set service_prefix="sim_"/"sp_" per island.
+add_test(NAME phlex_sim_sigproc
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_BINARY_DIR}/sim-sigproc-workflow.jsonnet"
+)
+set_tests_properties(phlex_sim_sigproc PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
 
 # Fans job: PDHD 4-APA fan-out/fan-in sim (no sigproc, always passes).
 add_test(NAME phlex_fans
