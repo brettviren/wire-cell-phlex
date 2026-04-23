@@ -1,0 +1,23 @@
+// test/pdhd-sim-sigproc-workflow.jsonnet.in
+//
+// PHLEX integration test: PDHD single-APA sim+sigproc using the new factored
+// dune/wct/job/sim-sigproc.jsonnet config.
+//
+// Tests that the factored detector-abstraction layer correctly generates a
+// working PDHD APA0 simulation + signal processing pipeline via the new
+// wct/dets/pdhd/detector.jsonnet detector description.
+//
+// File paths are substituted by CMake configure_file().
+// Requires WIRECELL_PATH to include:
+//   wire-cell-phlex/cfg/           (for dune/ configs and utility jsonnet)
+//   <wct-data-dir>/share/wirecell/ (for data files and wirecell.jsonnet)
+
+local build = import "dune/phlex/job/sim-sigproc.jsonnet";
+
+build(
+    params      = { detname: "pdhd" },
+    depo_file   = "@WCP_TEST_DATA_DIR@/muon-depos.npz",
+    output_file = "@WCP_OUTPUT_DIR@/pdhd-sim-sigproc-frames.npz",
+    anode_index = 0,
+    nevents     = 1,
+)

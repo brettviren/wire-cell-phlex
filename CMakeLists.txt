@@ -367,6 +367,13 @@ configure_file(
   @ONLY
 )
 
+# PDHD factored config test: uses the new dune/wct/dets and dune/wct/job layer.
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/test/pdhd-sim-sigproc-workflow.jsonnet.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/pdhd-sim-sigproc-workflow.jsonnet"
+  @ONLY
+)
+
 add_test(NAME phlex_deposet_identity
   COMMAND "${PHLEX_EXECUTABLE}" -c
     "${CMAKE_CURRENT_BINARY_DIR}/deposet-identity-workflow.jsonnet"
@@ -470,6 +477,33 @@ foreach(_apa IN ITEMS 0 1 2 3)
     ENVIRONMENT "${_phlex_env_with_data}"
   )
 endforeach()
+
+# PDHD factored config integration test.
+# Exercises the new dune/wct/dets/pdhd/detector.jsonnet + dune/wct/job/sim-sigproc.jsonnet
+# pipeline.  Output goes to pdhd-sim-sigproc-frames.npz.
+add_test(NAME phlex_pdhd_sim_sigproc_factored
+  COMMAND "${PHLEX_EXECUTABLE}" -c
+    "${CMAKE_CURRENT_BINARY_DIR}/pdhd-sim-sigproc-workflow.jsonnet"
+)
+set_tests_properties(phlex_pdhd_sim_sigproc_factored PROPERTIES
+  ENVIRONMENT "${_phlex_env_with_data}"
+  FIXTURES_SETUP phlex_pdhd_sim_sigproc_factored_fixture
+)
+
+# Compare factored PDHD output against the existing pdhd-apa0-sigproc reference.
+# Both should produce equivalent signal-processed output for APA0.
+# Uses the same tolerance as the shared/independent comparison test.
+add_test(NAME phlex_pdhd_sim_sigproc_factored_compare
+  COMMAND python3
+    "${CMAKE_CURRENT_SOURCE_DIR}/test/compare_frames_npz.py"
+    --max-diff 2
+    --max-ch-diff 1
+    "${CMAKE_CURRENT_BINARY_DIR}/pdhd-sim-sigproc-frames.npz"
+    "${CMAKE_CURRENT_BINARY_DIR}/sim-sigproc-frames.npz"
+)
+set_tests_properties(phlex_pdhd_sim_sigproc_factored_compare PROPERTIES
+  FIXTURES_REQUIRED "phlex_pdhd_sim_sigproc_factored_fixture;phlex_sim_sigproc_fixture"
+)
 
 # 4-APA fan with full sigproc: fails today (apa_ident=3 crash), passes once fixed.
 add_test(NAME phlex_fans_sigproc
