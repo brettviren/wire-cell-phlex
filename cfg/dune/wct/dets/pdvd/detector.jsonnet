@@ -220,8 +220,11 @@ local sim_defaults = {
     splat: {
         sparse:          true,
         tick:            daq_defaults.tick,
-        window_start:    0,
-        window_duration: daq_defaults.tick * daq_defaults.nticks,
+        // window_start: extend backward from tick0_time by the field-response headroom
+        // (same calculation as sim.jsonnet start_time).
+        window_start:    sim_defaults.tick0_time - response_plane / lar_defaults.drift_speed,
+        // window_duration: full DAQ window plus the field-response headroom ticks.
+        window_duration: (daq_defaults.nticks + wc.roundToInt(response_plane / lar_defaults.drift_speed / daq_defaults.tick)) * daq_defaults.tick,
         reference_time:  0.0,
         smear_long: [0.0, 0.0, 0.0],
         smear_tran: [0.0, 0.0, 0.0],

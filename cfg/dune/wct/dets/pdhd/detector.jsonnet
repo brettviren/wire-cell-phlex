@@ -117,19 +117,29 @@ local make_anode(n) =
         },
 
         // OmnibusSigProc tuning.
-        // APA0 differs from APAs 1-3 in: r_th_factor, plane2layer, and Wiener filter names.
+        // APA0 differs from APAs 1-3 in: plane2layer and Wiener filter names.
+        //
+        // NOTE on r_th_factor / troi_col_th_factor:
+        // dunereco/DUNEWireCell/pdhd/sp.jsonnet (in the dunereco repo) uses
+        //   r_th_factor=2.5 for APA0 and troi_col_th_factor=5.0.
+        // However, wcls-rawdigit-sp.jsonnet imports sp.jsonnet via the absolute
+        // WIRECELL_PATH path 'pgrapher/experiment/pdhd/sp.jsonnet', which
+        // resolves to the toolkit's sp.jsonnet (not dunereco's).
+        // The toolkit sp.jsonnet has r_th_factor=3.0 for all APAs and
+        // troi_col_th_factor=2.5.  We use the toolkit values here because that
+        // is what production LArSoft jobs actually execute.
         sigproc: {
             ctoffset:    1.0 * wc.us,
             ftoffset:    0.0,
             postgain:    1.0,
             fft_flag:    0,
-            troi_col_th_factor: 5.0,
+            troi_col_th_factor: 2.5,
             troi_ind_th_factor: 3.0,
             lroi_rebin:         6,
             lroi_th_factor:     3.5,
             lroi_th_factor1:    0.7,
             lroi_jump_one_bin:  1,
-            r_th_factor: if n == 0 then 2.5 else 3.0,
+            r_th_factor: 3.0,
             r_fake_signal_low_th:             375,
             r_fake_signal_high_th:            750,
             r_fake_signal_low_th_ind_factor:  1.0,
@@ -224,8 +234,11 @@ local sim_defaults = {
     splat: {
         sparse:          true,
         tick:            daq_defaults.tick,
-        window_start:    0,
-        window_duration: daq_defaults.tick * daq_defaults.nticks,
+        // window_start: extend backward from tick0_time by the field-response headroom
+        // (same calculation as sim.jsonnet start_time).
+        window_start:    sim_defaults.tick0_time - response_plane / lar_defaults.drift_speed,
+        // window_duration: full DAQ window plus the field-response headroom ticks.
+        window_duration: (daq_defaults.nticks + wc.roundToInt(response_plane / lar_defaults.drift_speed / daq_defaults.tick)) * daq_defaults.tick,
         reference_time:  0.0,
         smear_long: [2.691862363980221, 2.6750200122535057, 2.7137567141154055],
         smear_tran: [0.7377218875719689, 0.7157764520393882, 0.13980698710556544],
