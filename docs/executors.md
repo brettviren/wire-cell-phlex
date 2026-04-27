@@ -310,7 +310,8 @@ PHLEX modules build this object via `to_executor_config(phlex::configuration)`.
 | `wct_plugins` | array of strings | no | Additional WCT plugin libraries |
 | `wct_app` | string | no (default `"Pgrapher"`) | WCT IApplication type |
 | `wct_tla` | object (string→string) | no | Extra Jsonnet TLA assignments |
-| `wct_debug_log` | bool | no (default false) | Route WCT log to stdout at debug level |
+| `wct_log_sink` | string | no (default `""`) | Route WCT log to this destination: `"stdout"`, `"stderr"`, or a file path |
+| `wct_log_level` | string | no (default `""`) | Set WCT log level: `"warn"`, `"info"`, `"debug"`, etc. |
 | `module_label` | string | no (injected by PHLEX) | Scope prefix for WCT component names |
 
 The `module_label` key is injected automatically by the PHLEX framework into

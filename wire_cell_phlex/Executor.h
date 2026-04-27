@@ -58,11 +58,15 @@
 //                 to load (e.g. ["WireCellPgraph"]).
 //   wct_app       (string, optional, default "Pgrapher"): WCT IApplication type.
 //   wct_tla       (object, optional): string→string map of extra Jsonnet TLAs.
-//   wct_debug_log (bool, optional, default false): when true, route WCT log
-//                 output to stdout at "debug" level before initializing the
-//                 WCT graph.  Useful for diagnosing OmnibusSigProc channel-map
-//                 issues (the configure() log shows per-face wire counts and
-//                 channel ranges used to set m_nwires).
+//   wct_log_sink  (string, optional, default ""): when non-empty, route WCT log
+//                 output to this destination before initializing the WCT graph.
+//                 Accepted values: "stdout", "stderr", or a file path.
+//                 Useful for diagnosing OmnibusSigProc channel-map issues
+//                 (the configure() log shows per-face wire counts and channel
+//                 ranges used to set m_nwires).
+//   wct_log_level (string, optional, default ""): when non-empty, set the WCT
+//                 log level.  Accepted values: "warn", "info", "debug", etc.
+//                 Only meaningful when wct_log_sink is also set.
 
 #include "wire_cell_phlex/Data.h"
 #include "wire_cell_phlex/BoundarySource.h"
@@ -121,8 +125,11 @@ protected:
 
     std::atomic<bool> m_initialized{false};
 
-    // When true, route all WCT log output to stdout at "debug" level.
-    bool m_debug_log{false};
+    // Log sink destination ("stdout", "stderr", or a file path).  Empty = no log setup.
+    std::string m_log_sink;
+
+    // Log level string (e.g. "warn", "info", "debug").  Empty = no level set.
+    std::string m_log_level;
 
     // Idempotent initialization guard (DCLP).  Called by every operator().
     // First call: acquires s_wct_init_mutex, calls m_wcmain.initialize(),
@@ -140,8 +147,9 @@ protected:
     void run_graph();
 
 private:
-    // If m_debug_log is set, calls add_logsink("stdout") and set_loglevel("","debug")
-    // on m_wcmain.  Called inside ensure_initialized() before m_wcmain.initialize().
+    // If m_log_sink is non-empty, calls add_logsink(m_log_sink) on m_wcmain.
+    // If m_log_level is non-empty, calls set_loglevel("", m_log_level) on m_wcmain.
+    // Called inside ensure_initialized() before m_wcmain.initialize().
     void setup_debug_logging();
 };
 

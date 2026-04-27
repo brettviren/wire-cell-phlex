@@ -125,9 +125,14 @@ Executor::Executor(boost::json::object const& config)
         m_scope = std::string{config.at("module_label").as_string()};
     }
 
-    // Optional: enable verbose WCT debug logging to stdout.
-    if (config.contains("wct_debug_log")) {
-        m_debug_log = config.at("wct_debug_log").as_bool();
+    // Optional: WCT log sink ("stdout", "stderr", or a file path).
+    if (config.contains("wct_log_sink")) {
+        m_log_sink = std::string{config.at("wct_log_sink").as_string()};
+    }
+
+    // Optional: WCT log level ("warn", "info", "debug", etc.).
+    if (config.contains("wct_log_level")) {
+        m_log_level = std::string{config.at("wct_log_level").as_string()};
     }
 
     // Compute app instance name and register it.  All subclasses use the same
@@ -140,9 +145,12 @@ Executor::Executor(boost::json::object const& config)
 
 void Executor::setup_debug_logging()
 {
-    if (!m_debug_log) return;
-    m_wcmain.add_logsink("stdout");
-    m_wcmain.set_loglevel("", "debug");
+    if (!m_log_sink.empty()) {
+        m_wcmain.add_logsink(m_log_sink);
+    }
+    if (!m_log_level.empty()) {
+        m_wcmain.set_loglevel("", m_log_level);
+    }
 }
 
 void Executor::ensure_initialized()

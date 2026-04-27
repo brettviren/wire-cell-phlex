@@ -63,9 +63,14 @@ inline boost::json::object to_executor_config(phlex::configuration const& cfg)
         obj["wct_tla"] = std::move(tla_obj);
     }
 
-    // Optional: enable WCT debug logging to stdout before initialize().
-    if (auto v = cfg.get_if_present<bool>("wct_debug_log")) {
-        obj["wct_debug_log"] = *v;
+    // Optional: WCT log sink ("stdout", "stderr", or a file path).
+    if (auto v = cfg.get_if_present<std::string>("wct_log_sink")) {
+        obj["wct_log_sink"] = *v;
+    }
+
+    // Optional: WCT log level ("warn", "info", "debug", etc.).
+    if (auto v = cfg.get_if_present<std::string>("wct_log_level")) {
+        obj["wct_log_level"] = *v;
     }
 
     return obj;
