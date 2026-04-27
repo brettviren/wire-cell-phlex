@@ -63,6 +63,6 @@ local with_log = {
             },
         } + with_log,
 
-        frame_sink: sinks.frame(output_file),
+        frame_sink: sinks.frame(output_file, "frame_sim"),
     },
 }

@@ -18,6 +18,9 @@
 //   wct_log_sink  (string):  WCT log destination: "stdout", "stderr", or a file path (default: no logging)
 //   wct_log_level (string):  WCT log level: "warn", "info", "debug", etc. (default: no level set)
 
+local sinks   = import "sinks.jsonnet";
+local sources = import "sources.jsonnet";
+
 function(
     params,
     input_file    = "digits.npz",
@@ -31,7 +34,7 @@ function(
 local ai_str = "%d" % anode_index;
 
 // Conditionally add wct_log_sink / wct_log_level to an entry.
-local with_log(entry) = entry + {
+local with_log = {
     [if wct_log_sink  != "" then "wct_log_sink"]:  wct_log_sink,
     [if wct_log_level != "" then "wct_log_level"]: wct_log_level,
 };
@@ -45,17 +48,11 @@ local with_log(entry) = entry + {
     },
 
     sources: {
-        frame_source: with_log({
-            cpp:          "wcp_frame_source_file",
-            wct_config:   "frame-file-source.jsonnet",
-            wct_plugins:  ["WireCellPgraph", "WireCellSio"],
-            output_layer: "event",
-            wct_tla:      { inname: input_file },
-        }),
+        frame_source: sources.frame(input_file),
     },
 
     modules: {
-        frame_sigproc: with_log({
+        frame_sigproc: {
             cpp:         "wcp_frame_filter",
             wct_config:  "dune/wct/job/sigproc.jsonnet",
             wct_plugins: ["WireCellPgraph", "WireCellGen", "WireCellSigProc", "WireCellAux"],
@@ -64,15 +61,8 @@ local with_log(entry) = entry + {
                 detector:    params.detname,
                 anode_index: ai_str,
             },
-        }),
+        } + with_log,
 
-        frame_sink: with_log({
-            cpp:         "wcp_frame_sink_file",
-            wct_config:  "frame-file-sink.jsonnet",
-            wct_plugins: ["WireCellPgraph", "WireCellSio"],
-            input_layer: "event",
-            input_from:  "frame_sigproc",
-            wct_tla:     { outname: output_file },
-        }),
+        frame_sink: sinks.frame(output_file, "frame_sigproc"),
     },
 }

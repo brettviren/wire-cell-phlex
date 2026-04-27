@@ -24,7 +24,8 @@
 //   anode_index  (integer): which anode from det.anodes[] to simulate (default 0)
 //   nevents      (integer): number of events to process (default 1)
 
-local dets = import "dune/wct/dets.jsonnet";
+local sinks   = import "sinks.jsonnet";
+local sources = import "sources.jsonnet";
 
 function(
     params,
@@ -34,8 +35,7 @@ function(
     nevents     = 1,
 )
 
-local det     = dets[params.detname](params);
-local ai_str  = "%d" % anode_index;  // PHLEX wct_tla requires string values
+local ai_str = "%d" % anode_index;  // PHLEX wct_tla requires string values
 
 {
     driver: {
@@ -46,13 +46,7 @@ local ai_str  = "%d" % anode_index;  // PHLEX wct_tla requires string values
     },
 
     sources: {
-        deposet_source: {
-            cpp:          "wcp_deposet_source_file",
-            wct_config:   "deposet-file-source.jsonnet",
-            wct_plugins:  ["WireCellPgraph", "WireCellSio"],
-            output_layer: "event",
-            wct_tla:      { inname: depo_file },
-        },
+        deposet_source: sources.deposet(depo_file),
     },
 
     modules: {
@@ -71,13 +65,6 @@ local ai_str  = "%d" % anode_index;  // PHLEX wct_tla requires string values
         },
 
         // Write the signal-processed frames to an NPZ file.
-        frame_sink: {
-            cpp:         "wcp_frame_sink_file",
-            wct_config:  "frame-file-sink.jsonnet",
-            wct_plugins: ["WireCellPgraph", "WireCellSio"],
-            input_layer: "event",
-            input_from:  "frame_sim_sigproc",
-            wct_tla:     { outname: output_file },
-        },
+        frame_sink: sinks.frame(output_file, "frame_sim_sigproc"),
     },
 }
