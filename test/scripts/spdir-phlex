@@ -141,10 +141,6 @@ PHLEX_PLUGIN_PATH = (config.get("phlex_plugin_path") or
 WCSONNET = (config.get("wcsonnet") or
             os.environ.get("WCSONNET", "wcsonnet"))
 
-# Helper script: injects wct_log_sink / wct_log_level into a PHLEX workflow JSON.
-# Sits alongside the other test helpers in test/ (one directory above test/scripts/).
-INJECT_WCT_LOG = os.path.join(workflow.basedir, "..", "inject_wct_log.py")
-
 # Export to shell
 os.environ["WIRECELL_PATH"] = WIRECELL_PATH
 os.environ["PHLEX_PLUGIN_PATH"] = PHLEX_PLUGIN_PATH
@@ -248,7 +244,8 @@ rule sim:
     """Drift depos + electronics simulation + digitization -> digits.
 
     Uses wcsonnet to evaluate the PHLEX workflow Jsonnet to JSON (so WIRECELL_PATH
-    is used for import resolution), injects WCT log parameters, then calls phlex.
+    is used for import resolution), then calls phlex.  WCT log parameters are
+    passed as TLAs so the Jsonnet injects them directly into the workflow JSON.
     """
     input:
         depos=fname(tier='depos'),
@@ -258,7 +255,6 @@ rule sim:
     params:
         phlex=PHLEX,
         wcsonnet=WCSONNET,
-        inject=INJECT_WCT_LOG,
         apa=_apa,
     shell: '''
     {params.wcsonnet} \
@@ -266,9 +262,10 @@ rule sim:
       --tla-str depo_file="{input.depos}" \
       --tla-str output_file="{output.digits}" \
       --tla-code anode_index={params.apa} \
+      --tla-str wct_log_sink="{output.wlog}" \
+      --tla-str wct_log_level=debug \
       dune/phlex/job/sim.jsonnet \
       > {output.digits}.workflow.json
-    python3 {params.inject} {output.digits}.workflow.json {output.wlog}
     {params.phlex} -c {output.digits}.workflow.json
     '''
 
@@ -277,7 +274,8 @@ rule splat:
     """Drift depos + DepoFluxSplat -> truth reference frames.
 
     Uses wcsonnet to evaluate the PHLEX workflow Jsonnet to JSON (so WIRECELL_PATH
-    is used for import resolution), injects WCT log parameters, then calls phlex.
+    is used for import resolution), then calls phlex.  WCT log parameters are
+    passed as TLAs so the Jsonnet injects them directly into the workflow JSON.
     """
     input:
         depos=fname(tier='depos'),
@@ -287,7 +285,6 @@ rule splat:
     params:
         phlex=PHLEX,
         wcsonnet=WCSONNET,
-        inject=INJECT_WCT_LOG,
         apa=_apa,
     shell: '''
     {params.wcsonnet} \
@@ -295,9 +292,10 @@ rule splat:
       --tla-str depo_file="{input.depos}" \
       --tla-str output_file="{output.splats}" \
       --tla-code anode_index={params.apa} \
+      --tla-str wct_log_sink="{output.wlog}" \
+      --tla-str wct_log_level=debug \
       dune/phlex/job/splat.jsonnet \
       > {output.splats}.workflow.json
-    python3 {params.inject} {output.splats}.workflow.json {output.wlog}
     {params.phlex} -c {output.splats}.workflow.json
     '''
 
@@ -306,7 +304,8 @@ rule sigproc:
     """OmnibusSigProc signal processing: digits -> signals.
 
     Uses wcsonnet to evaluate the PHLEX workflow Jsonnet to JSON (so WIRECELL_PATH
-    is used for import resolution), injects WCT log parameters, then calls phlex.
+    is used for import resolution), then calls phlex.  WCT log parameters are
+    passed as TLAs so the Jsonnet injects them directly into the workflow JSON.
     """
     input:
         digits=fname(tier='digits'),
@@ -316,7 +315,6 @@ rule sigproc:
     params:
         phlex=PHLEX,
         wcsonnet=WCSONNET,
-        inject=INJECT_WCT_LOG,
         apa=_apa,
     shell: '''
     {params.wcsonnet} \
@@ -324,9 +322,10 @@ rule sigproc:
       --tla-str input_file="{input.digits}" \
       --tla-str output_file="{output.signals}" \
       --tla-code anode_index={params.apa} \
+      --tla-str wct_log_sink="{output.wlog}" \
+      --tla-str wct_log_level=debug \
       dune/phlex/job/sigproc.jsonnet \
       > {output.signals}.workflow.json
-    python3 {params.inject} {output.signals}.workflow.json {output.wlog}
     {params.phlex} -c {output.signals}.workflow.json
     '''
 
