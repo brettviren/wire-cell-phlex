@@ -151,6 +151,8 @@ os.environ["PHLEX_PLUGIN_PATH"] = PHLEX_PLUGIN_PATH
 
 thetas = list(zip(config['theta_xz_deg'], config['theta_y_deg']))
 
+_apa = config['apa']
+
 class FailsafeDict(dict):
     def __getitem__(self, item):
         try:
@@ -163,7 +165,8 @@ def fname(tier=None, ext='npz', **kwds):
     if tier is None:
         raise ValueError("tier must be given")
     pre  = '{detector}-{tier}'
-    post = 'p{plane}-txz{txz}deg-ty{ty}deg.{ext}'
+    apa = 'a' + str(_apa)
+    post = apa + '-p{plane}-txz{txz}deg-ty{ty}deg.{ext}'
     plotpost = '{coords}coords.{ext}'
     if tier in ('plots',):
         parts = [pre, plotpost]
@@ -213,9 +216,6 @@ rule all:
         expand(expand_detector(tier='plots', ext='pdf'), coords=['wire', 'global']),
         expand_detector(tier='mplots', ext='pdf'),
 
-
-_apa = config['apa']
-
 rule tracking:
     """Generate ideal minimum-ionizing track depositions at a specific angle."""
     output:
@@ -245,6 +245,9 @@ rule sim:
 
     Uses wcsonnet to evaluate the PHLEX workflow Jsonnet to JSON (so WIRECELL_PATH
     is used for import resolution), then passes the JSON to phlex.
+
+    This is done because PHLEX currently does not support providing Jsonnet TLAs
+    or search path.
     """
     input:
         depos=fname(tier='depos'),
@@ -326,8 +329,10 @@ rule metrics:
         metrics = fname(tier='metrics', ext='json'),
     params:
         wcpy=WCPY,
+        apa=_apa,
     shell: '''
     {params.wcpy} test ssss-metrics \
+      --anode-number {params.apa} \
       --output {output.metrics} \
       --params {input.depos} \
       {input.splats} {input.signals}
@@ -367,8 +372,12 @@ rule metric_plots:
         plots = fname(tier='mplots', ext='pdf'),
     params:
         wcpy=WCPY,
+        apa=_apa,
     shell: '''
-    {params.wcpy} test plot-ssss --output {output.plots} {input.splats} {input.signals}
+    {params.wcpy} test plot-ssss \
+    --anode-number {params.apa} \
+    --output {output.plots} \
+    {input.splats} {input.signals}
     '''
 
 
