@@ -41,7 +41,6 @@ local apa_plane = 0.5 * apa_g2g;
 // PDVD uses 18.1 cm (larger than PDHD's 10 cm due to different detector geometry).
 // MUST match the field response files used.
 local response_plane = 18.1 * wc.cm;
-local res_plane      = 0.5 * apa_w2w + response_plane;
 
 // Cathode cut-off
 local cpa_plane = apa_cpa - 0.5 * cpa_thick;
@@ -59,20 +58,24 @@ local make_anode(a) =
         name: "anode%d" % a,
 
         // Both faces active (sim-mode geometry).
-        // PDVD faces are symmetric: both faces of an anode have the same geometry
-        // (the vertical drift has both "halves" of an anode seeing the same drift).
-        faces: [
-            {
-                anode:    centerline + sign * apa_plane,
-                response: centerline + sign * res_plane,
-                cathode:  centerline + sign * cpa_plane,
-            },
-            {
-                anode:    centerline + sign * apa_plane,
-                response: centerline + sign * res_plane,
-                cathode:  centerline + sign * cpa_plane,
-            },
-        ],
+        // PDVD faces are symmetric: both faces of an anode have the same geometry.
+        //
+        // Coordinate note: the PDVD wire file maps physical Y (vertical drift axis)
+        // to WCT X.  Anodes 0-3 sit at negative X (bottom CRPs), anodes 4-7 at
+        // positive X (top CRPs), and the cathode is near X=0 (center).
+        //
+        // For bottom anodes (sign=-1, anode at X ≈ -347 cm):
+        //   cathode = centerline - sign*cpa_plane ≈ -341.55 + 339.0 ≈ -2.5 cm  (center) ✓
+        //   response = anode - sign*response_plane ≈ -347 + 18.1 ≈ -329 cm     (inside drift) ✓
+        // For top anodes (sign=+1, anode at X ≈ +347 cm):
+        //   cathode ≈ +2.5 cm  (center) ✓
+        //   response ≈ +329 cm (inside drift) ✓
+        local face = {
+            anode:    centerline + sign * apa_plane,
+            response: centerline + sign * (apa_plane - response_plane),
+            cathode:  centerline - sign * cpa_plane,
+        },
+        faces: [ face, face ],
 
         // Electronics response.
         // Bottom drift (a < 4): standard ColdElecResponse

@@ -190,21 +190,23 @@ def tracking_params(w):
     # Horizontal drift: track offset 1 m back from the wire plane in X.
     if det in ("pdhd", "pdsp"):
         return "--offset '-1*m,0*m,0*m'"
-    # Vertical drift: offset 1 m in Y (toward drift volume center from collection plane).
-    # NOTE: 'pdvd' maps to 'dune-vd' in the WCT detectors.jsonnet registry used by
-    # wcpy gen detlinegen.  See the --detector override in the tracking rule.
+    # Vertical drift (PDVD): the wire file maps physical Y (drift axis) to WCT X.
+    # Anodes 0-3 are at negative X (bottom), anodes 4-7 at positive X (top).
+    # The cathode is near X=0 (center between top and bottom).
+    # The offset must move the track TOWARD the cathode (away from the anode in X):
+    #   - bottom anodes (apa 0-3, sign=-1): offset is +1m in X (toward +X cathode)
+    #   - top anodes    (apa 4-7, sign=+1): offset is -1m in X (toward -X cathode)
+    # Note: 'pdvd' IS in detectors.jsonnet (no alias mapping needed).
     if det == "pdvd":
-        return "--offset '0*m,-1*m,0*m'"
+        sign = -1 if _apa <= 3 else 1
+        x_offset = -sign   # +1 for bottom, -1 for top
+        return f"--offset '{x_offset}*m,0*m,0*m'"
     return ""
 
 
 def detlinegen_detector(w):
     """Map our canonical detector names to the wcpy/detectors.jsonnet name."""
-    # 'pdvd' is not yet in detectors.jsonnet; map to 'dune-vd' which has the
-    # correct wires file (protodunevd-wires-larsoft-v3.json.bz2).
-    # TODO: add 'pdvd' alias to wire-cell-data detectors.jsonnet.
-    mapping = {"pdvd": "dune-vd"}
-    return mapping.get(w.detector, w.detector)
+    return w.detector
 
 
 # ---------------------------------------------------------------------------

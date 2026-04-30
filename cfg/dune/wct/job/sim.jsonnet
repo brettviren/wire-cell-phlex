@@ -124,6 +124,14 @@ local anode = {
 // Plane impact responses (one per wire plane: U=0, V=1, W=2)
 // ---------------------------------------------------------------------------
 
+// overall_short_padding must exceed the full field-response duration so that
+// PlaneImpactResponse captures the entire response without truncation.
+// The FR duration ≈ (response_plane / drift_speed) × 1.5 is an empirical
+// upper bound: PDHD FR = 100 μs, PDVD FR = 132.5 μs (with origin=181 mm
+// and transit time 118 μs). Using 2× response_plane/drift_speed gives
+// 125 μs (PDHD) and 246 μs (PDVD), safely covering both.
+local pir_short_padding = det.response_plane / det.lar.drift_speed * 2.0;
+
 local pir(plane) = {
     type: "PlaneImpactResponse",
     name: service_prefix + "pir%d_" % plane + a.name,
@@ -134,7 +142,7 @@ local pir(plane) = {
         nticks:                nticks_ductor,
         tick:                  tick,
         short_responses:       [wc.tn(elec)],
-        overall_short_padding: 0.1 * wc.ms,
+        overall_short_padding: pir_short_padding,
         long_responses:        [],
         long_padding:          1.5 * wc.ms,
     },
