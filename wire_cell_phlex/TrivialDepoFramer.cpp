@@ -11,7 +11,7 @@
 
 // wire_cell_phlex/TrivialDepoFramer.cpp
 
-#include "wire_cell_phlex/TrivialDepoFramer.h"
+#include "wire_cell_phlex/TrivialDepoFramer.hpp"
 
 #include <WireCellAux/SimpleFrame.h>
 #include <WireCellUtil/NamedFactory.h>

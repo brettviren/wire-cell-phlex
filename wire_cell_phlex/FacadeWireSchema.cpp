@@ -20,7 +20,7 @@
 // The Executor calls register_store(scope, store) before initialize().
 // During configure(), this instance copies the store from the static map.
 
-#include "wire_cell_phlex/FacadeWireSchema.h"
+#include "wire_cell_phlex/FacadeWireSchema.hpp"
 
 #include <WireCellUtil/NamedFactory.h>
 #include <WireCellUtil/Exceptions.h>

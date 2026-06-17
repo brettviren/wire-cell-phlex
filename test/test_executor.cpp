@@ -26,7 +26,7 @@
 // The WireCellPgraph plugin provides the Pgrapher IApplication used by
 // FrameFilter; it is loaded at runtime via WireCell::Main::add_plugin.
 
-#include "wire_cell_phlex/Executor.h"
+#include "wire_cell_phlex/Executor.hpp"
 
 #include <WireCellAux/SimpleFrame.h>
 #include <WireCellAux/SimpleDepoSet.h>

@@ -29,11 +29,11 @@
 //     ensure_initialized().  This pre-populates the static map that
 //     FacadeWireSchema::configure() reads during initialize().
 
-#include "wire_cell_phlex/Executor.h"
-#include "wire_cell_phlex/Data.h"
-#include "wire_cell_phlex/BoundarySource.h"
-#include "wire_cell_phlex/BoundarySink.h"
-#include "wire_cell_phlex/FacadeWireSchema.h"
+#include "wire_cell_phlex/Executor.hpp"
+#include "wire_cell_phlex/Data.hpp"
+#include "wire_cell_phlex/BoundarySource.hpp"
+#include "wire_cell_phlex/BoundarySink.hpp"
+#include "wire_cell_phlex/FacadeWireSchema.hpp"
 
 #include <WireCellUtil/NamedFactory.h>
 

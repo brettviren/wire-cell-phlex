@@ -15,10 +15,10 @@
 // wire_cell_phlex without error.  No WCT graph or executor construction;
 // just confirms that key headers are accessible and types are instantiable.
 
-#include "wire_cell_phlex/Data.h"
-#include "wire_cell_phlex/BoundarySource.h"
-#include "wire_cell_phlex/BoundarySink.h"
-#include "wire_cell_phlex/Executor.h"
+#include "wire_cell_phlex/Data.hpp"
+#include "wire_cell_phlex/BoundarySource.hpp"
+#include "wire_cell_phlex/BoundarySink.hpp"
+#include "wire_cell_phlex/Executor.hpp"
 
 #include <WireCellIface/IFrameSource.h>
 #include <WireCellIface/IFrameSink.h>

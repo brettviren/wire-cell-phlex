@@ -28,10 +28,10 @@
 //   wct_tla      (object, optional): Extra Jsonnet TLAs.
 //                Use { inname: "path/to/depos.npz" } to set the input file.
 
-#include "wire_cell_phlex/Data.h"
-#include "wire_cell_phlex/Executor.h"
+#include "wire_cell_phlex/Data.hpp"
+#include "wire_cell_phlex/Executor.hpp"
 
-#include "modules/executor_config.h"
+#include "modules/executor_config.hpp"
 #include "phlex/configuration.hpp"
 #include "phlex/model/data_cell_index.hpp"
 #include "phlex/source.hpp"

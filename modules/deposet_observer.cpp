@@ -20,7 +20,7 @@
 //   input_from   (string, required): creator name of the DepoSet product
 //                (the module label of the upstream transform, e.g. "deposet_filter").
 
-#include "wire_cell_phlex/Data.h"
+#include "wire_cell_phlex/Data.hpp"
 
 #include "phlex/configuration.hpp"
 #include "phlex/module.hpp"

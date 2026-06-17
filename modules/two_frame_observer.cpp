@@ -22,7 +22,7 @@
 //   input_from_a  (string, required): creator name of the first Frame product.
 //   input_from_b  (string, required): creator name of the second Frame product.
 
-#include "wire_cell_phlex/Data.h"
+#include "wire_cell_phlex/Data.hpp"
 
 #include "phlex/configuration.hpp"
 #include "phlex/module.hpp"

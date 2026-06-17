@@ -24,10 +24,10 @@
 //   wct_app      (string, optional):    WCT IApplication type (default "Pgrapher").
 //   wct_tla      (object, optional):    String→string map of extra Jsonnet TLAs.
 
-#include "wire_cell_phlex/Data.h"
-#include "wire_cell_phlex/Executor.h"
+#include "wire_cell_phlex/Data.hpp"
+#include "wire_cell_phlex/Executor.hpp"
 
-#include "modules/executor_config.h"
+#include "modules/executor_config.hpp"
 #include "phlex/module.hpp"
 
 #include <memory>

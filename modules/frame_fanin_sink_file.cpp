@@ -34,10 +34,10 @@
 //                 WireCellGen, WireCellSio.
 //   wct_tla       (object, optional): Use { outname: "path/to/output.npz" }.
 
-#include "wire_cell_phlex/Data.h"
-#include "wire_cell_phlex/Executor.h"
+#include "wire_cell_phlex/Data.hpp"
+#include "wire_cell_phlex/Executor.hpp"
 
-#include "modules/executor_config.h"
+#include "modules/executor_config.hpp"
 #include "phlex/configuration.hpp"
 #include "phlex/module.hpp"
 

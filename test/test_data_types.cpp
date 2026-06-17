@@ -26,7 +26,7 @@
 // harmless: routing is unambiguous because (creator, suffix) is unique per
 // product, and PHLEX uses dynamic_cast for type-safe retrieval.
 
-#include "wire_cell_phlex/Data.h"
+#include "wire_cell_phlex/Data.hpp"
 #include "phlex/model/type_id.hpp"
 
 #include <cassert>

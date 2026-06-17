@@ -535,7 +535,7 @@ install(TARGETS wire_cell_phlex
 # Public headers
 install(DIRECTORY wire_cell_phlex/
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/wire_cell_phlex"
-  FILES_MATCHING PATTERN "*.h"
+  FILES_MATCHING PATTERN "*.hpp"
 )
 
 # PHLEX MODULE libraries (dlopen only — no EXPORT needed)

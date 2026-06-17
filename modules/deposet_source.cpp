@@ -20,7 +20,7 @@
 // Expected config keys:
 //   output_layer  (string, required): PHLEX layer name for the output DepoSet product.
 
-#include "wire_cell_phlex/Data.h"
+#include "wire_cell_phlex/Data.hpp"
 
 #include "phlex/configuration.hpp"
 #include "phlex/model/data_cell_index.hpp"

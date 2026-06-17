@@ -20,8 +20,8 @@
 //   DepoSetBoundarySource / DepoSetBoundarySink
 //   TensorSetBoundarySource / TensorSetBoundarySink
 
-#include "wire_cell_phlex/BoundarySource.h"
-#include "wire_cell_phlex/BoundarySink.h"
+#include "wire_cell_phlex/BoundarySource.hpp"
+#include "wire_cell_phlex/BoundarySink.hpp"
 
 #include <WireCellIface/IFrameSource.h>
 #include <WireCellIface/IFrameSink.h>

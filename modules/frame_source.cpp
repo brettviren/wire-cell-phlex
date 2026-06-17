@@ -23,7 +23,7 @@
 //                  Set to a distinct value (e.g. "frame_a") when two instances of
 //                  this module run in the same layer so their products don't collide.
 
-#include "wire_cell_phlex/Data.h"
+#include "wire_cell_phlex/Data.hpp"
 
 #include "phlex/configuration.hpp"
 #include "phlex/model/data_cell_index.hpp"

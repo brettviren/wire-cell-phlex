@@ -29,8 +29,8 @@
 //   4. DepoSet variants behave identically.
 //   5. Multi-fill: two fill() calls before execution serve both items then EOS.
 
-#include "wire_cell_phlex/BoundarySource.h"
-#include "wire_cell_phlex/BoundarySink.h"
+#include "wire_cell_phlex/BoundarySource.hpp"
+#include "wire_cell_phlex/BoundarySink.hpp"
 
 #include <WireCellAux/SimpleFrame.h>
 #include <WireCellAux/SimpleDepoSet.h>

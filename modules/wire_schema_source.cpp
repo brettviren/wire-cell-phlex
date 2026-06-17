@@ -29,7 +29,7 @@
 //                    WIRECELL_PATH) of a WCT wire geometry file
 //                    (e.g. "microboone-celltree-wires-v2.1.json.bz2").
 
-#include "wire_cell_phlex/Data.h"
+#include "wire_cell_phlex/Data.hpp"
 
 #include "phlex/configuration.hpp"
 #include "phlex/model/data_cell_index.hpp"
