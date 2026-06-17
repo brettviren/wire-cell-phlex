@@ -312,4 +312,4 @@ be called at construction time:
 The `FacadeWireSchema` pattern (static registry bridging PHLEX
 job-layer delivery to WCT configure-time lookup) is the prototype
 for this direction.  See `docs/executors.md` for the lifecycle details
-and `wire_cell_phlex/FacadeWireSchema.{h,cpp}` for the implementation.
+and `wire_cell_phlex/FacadeWireSchema.{hpp,cpp}` for the implementation.

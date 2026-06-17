@@ -86,7 +86,7 @@ add_subdirectory(test)
 `cmake/FindWireCell.cmake`: adapt from `larwirecell/Modules/FindWireCell.cmake`,
 which already locates WCT libraries via pkg-config or CMake config files.
 
-`wire_cell_phlex/Executor.cpp`: a stub `#include "wire_cell_phlex/Executor.h"` that
+`wire_cell_phlex/Executor.cpp`: a stub `#include "wire_cell_phlex/Executor.hpp"` that
 compiles without error.
 
 `test/CMakeLists.txt`: one trivial CTest that runs `/bin/true`.
@@ -112,7 +112,7 @@ product routing. Thin aggregate wrapper structs have proper type_ids.
 
 **Files to create:**
 
-`wire_cell_phlex/Data.h`:
+`wire_cell_phlex/Data.hpp`:
 ```cpp
 #pragma once
 #include <WireCellIface/IDepo.h>
@@ -136,7 +136,7 @@ namespace wcphlex {
 neither 0xFF (opaque) nor equal to each other. Also exercises construction from a
 `nullptr` WCT pointer and move semantics.
 
-Add to `wire_cell_phlex/Executor.cpp` a `#include "wire_cell_phlex/Data.h"` to ensure
+Add to `wire_cell_phlex/Executor.cpp` a `#include "wire_cell_phlex/Data.hpp"` to ensure
 the header compiles as part of the shared library.
 
 **Human exercise:**
@@ -159,7 +159,7 @@ analogous to larwirecell's `IArtEventVisitor` converters.
 - A `drain()` method lets the PHLEX side retrieve results after `wcmain()`
 - The WCT `operator()` serves from the buffer (source) or accumulates into it (sink)
 
-`wire_cell_phlex/BoundarySource.h`:
+`wire_cell_phlex/BoundarySource.hpp`:
 ```cpp
 #pragma once
 #include <WireCellIface/IQueuedOutNode.h>
@@ -203,7 +203,7 @@ private:
 }
 ```
 
-`wire_cell_phlex/BoundarySink.h`:
+`wire_cell_phlex/BoundarySink.hpp`:
 ```cpp
 template <typename WctSinkIface, typename DataPtr>
 class BoundarySink : public WctSinkIface,
@@ -267,12 +267,12 @@ PHLEX executor:
 Start with Pgrapher for initial development; switch to TbbFlow if WCT-internal
 parallelism is needed.
 
-`wire_cell_phlex/Executor.h`:
+`wire_cell_phlex/Executor.hpp`:
 ```cpp
 #pragma once
-#include "wire_cell_phlex/Data.h"
-#include "wire_cell_phlex/BoundarySource.h"
-#include "wire_cell_phlex/BoundarySink.h"
+#include "wire_cell_phlex/Data.hpp"
+#include "wire_cell_phlex/BoundarySource.hpp"
+#include "wire_cell_phlex/BoundarySink.hpp"
 #include <WireCellApps/Main.h>
 #include <phlex/configuration.hpp>
 
@@ -376,7 +376,7 @@ together in a Jsonnet workflow config.
 `frame_filter.cpp`:
 ```cpp
 #include "phlex/module.hpp"
-#include "wire_cell_phlex/Executor.h"
+#include "wire_cell_phlex/Executor.hpp"
 
 PHLEX_REGISTER_ALGORITHMS(m, config) {
   m.make<wcphlex::FrameFilter>(config)
@@ -395,7 +395,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config) {
 `frame_source.cpp`:
 ```cpp
 #include "phlex/source.hpp"
-#include "wire_cell_phlex/Data.h"
+#include "wire_cell_phlex/Data.hpp"
 // ... create a minimal synthetic IFrame per event
 
 PHLEX_REGISTER_PROVIDERS(m, config) {
@@ -477,7 +477,7 @@ function(
 `depo_to_frame.cpp`:
 ```cpp
 #include "phlex/module.hpp"
-#include "wire_cell_phlex/Executor.h"
+#include "wire_cell_phlex/Executor.hpp"
 
 PHLEX_REGISTER_ALGORITHMS(m, config) {
   m.make<wcphlex::DepoSetToFrame>(config)

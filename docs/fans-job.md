@@ -173,7 +173,7 @@ physics-empty.  The test validates topology and data flow only.
 
 | File | Description |
 |---|---|
-| `wire_cell_phlex/Executor.h` | Added `FrameFaninSinkFile` class |
+| `wire_cell_phlex/Executor.hpp` | Added `FrameFaninSinkFile` class |
 | `wire_cell_phlex/Executor.cpp` | Added `FrameFaninSinkFile` implementation |
 | `modules/frame_fanin_sink_file.cpp` | PHLEX 4-input observer module |
 | `cfg/frame-fanin-file-sink.jsonnet` | WCT: 4×FrameBoundarySource → FrameFanin → FrameFileSink |

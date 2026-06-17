@@ -1,7 +1,7 @@
 # Executor Design
 
 This document describes the `wcphlex::Executor` class hierarchy in
-`wire_cell_phlex/Executor.{h,cpp}` and gives a step-by-step guide for
+`wire_cell_phlex/Executor.{hpp,cpp}` and gives a step-by-step guide for
 adding new subclasses.
 
 ## Overview
@@ -262,7 +262,7 @@ function(source_name, sink_name, app_name, apa_ident="0")
 Create `modules/frame_to_deposet.cpp`:
 
 ```cpp
-#include "wire_cell_phlex/Executor.h"
+#include "wire_cell_phlex/Executor.hpp"
 // ... phlex includes ...
 
 PHLEX_FRAMEWORK_REGISTER_MODULE(wcp_frame_to_deposet)
