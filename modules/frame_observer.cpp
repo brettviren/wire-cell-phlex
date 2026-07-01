@@ -40,5 +40,5 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
                   assert(f.ptr && "observed Frame must be non-null");
               },
               concurrency::serial)
-      .input_family(product_query{.creator = from, .layer = layer, .suffix = "frame"});
+      .input_family(product_selector{.creator = from, .layer = layer, .suffix = "frame"});
 }

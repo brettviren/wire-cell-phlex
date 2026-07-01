@@ -43,5 +43,5 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
                          "WireSchema must contain at least one wire");
               },
               concurrency::serial)
-      .input_family(product_query{.creator = "input", .layer = layer, .suffix = "wire_schema"});
+      .input_family(product_selector{.creator = "input", .layer = layer, .suffix = "wire_schema"});
 }

@@ -4,8 +4,12 @@
 // dune/wct/job/sim-sigproc.jsonnet config.
 //
 // Tests that the factored detector-abstraction layer correctly generates a
-// working PDHD APA0 simulation + signal processing pipeline via the new
-// wct/dets/pdhd/detector.jsonnet detector description.
+// working PDHD APA @FACTORED_APA@ simulation + signal processing pipeline via
+// the new wct/dets/pdhd/detector.jsonnet detector description.
+//
+// The APA index is substituted by CMake (configure_file), which generates one
+// variant per APA.  APA 0 uses the np04hd "bad APA" best-fit field response;
+// the other APAs use the nominal response (see dets/pdhd/detector.jsonnet).
 //
 // File paths are substituted by CMake configure_file().
 // Requires WIRECELL_PATH to include:
@@ -17,7 +21,7 @@ local build = import "dune/phlex/job/sim-sigproc.jsonnet";
 build(
     params      = { detname: "pdhd" },
     depo_file   = "@WCP_TEST_DATA_DIR@/muon-depos.npz",
-    output_file = "@WCP_OUTPUT_DIR@/pdhd-sim-sigproc-frames.npz",
-    anode_index = 0,
+    output_file = "@WCP_OUTPUT_DIR@/pdhd-sim-sigproc-apa@FACTORED_APA@-frames.npz",
+    anode_index = @FACTORED_APA@,
     nevents     = 1,
 )

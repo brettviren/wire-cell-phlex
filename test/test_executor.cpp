@@ -70,7 +70,7 @@ int main()
 
     // Build the executor config as a boost::json::object.
     // (phlex::configuration is not used here: its header pulls in
-    //  product_query.hpp which uses std::forward_like, absent in GCC 12.)
+    //  product_selector.hpp which uses std::forward_like, absent in GCC 12.)
     boost::json::object config{
         {"wct_config",  cfg_path},
         {"wct_plugins", boost::json::array{"WireCellPgraph"}},

@@ -62,8 +62,8 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
               },
               concurrency::serial)
       .input_family(
-          product_query{.creator = from_0, .layer = layer, .suffix = "frame"},
-          product_query{.creator = from_1, .layer = layer, .suffix = "frame"},
-          product_query{.creator = from_2, .layer = layer, .suffix = "frame"},
-          product_query{.creator = from_3, .layer = layer, .suffix = "frame"});
+          product_selector{.creator = from_0, .layer = layer, .suffix = "frame"},
+          product_selector{.creator = from_1, .layer = layer, .suffix = "frame"},
+          product_selector{.creator = from_2, .layer = layer, .suffix = "frame"},
+          product_selector{.creator = from_3, .layer = layer, .suffix = "frame"});
 }

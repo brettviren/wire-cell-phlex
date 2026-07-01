@@ -33,7 +33,7 @@
 #include <iostream>
 #include <string>
 
-using phlex::experimental::make_type_id;
+using phlex::detail::make_type_id;
 
 // ---- helpers ----------------------------------------------------------------
 

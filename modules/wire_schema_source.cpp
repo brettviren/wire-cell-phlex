@@ -46,5 +46,5 @@ PHLEX_REGISTER_PROVIDERS(m, config)
               [filename](data_cell_index const&) -> wcphlex::WireSchema {
                   return wcphlex::WireSchema{WireCell::WireSchema::load(filename.c_str())};
               })
-      .output_product({.creator = "input", .layer = layer, .suffix = "wire_schema"});
+      .output_product("input", "wire_schema", experimental::identifier{layer});
 }

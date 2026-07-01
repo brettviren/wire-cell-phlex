@@ -47,7 +47,7 @@
 //
 // Config interface: boost::json::object (not phlex::configuration) so this
 // header compiles under GCC 12, which lacks std::forward_like used in
-// phlex/core/product_query.hpp.  PHLEX MODULE files (Step 5+) build a
+// phlex/core/product_selector.hpp.  PHLEX MODULE files (Step 5+) build a
 // boost::json::object from phlex::configuration before constructing an Executor.
 //
 // Expected JSON keys:

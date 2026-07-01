@@ -50,5 +50,5 @@ PHLEX_REGISTER_PROVIDERS(m, config)
               [src](data_cell_index const&) -> wcphlex::DepoSet {
                   return (*src)();
               })
-      .output_product({.creator = "input", .layer = layer, .suffix = "deposet"});
+      .output_product("input", "deposet", experimental::identifier{layer});
 }

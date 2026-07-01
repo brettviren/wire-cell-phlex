@@ -76,9 +76,9 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
                     },
                     concurrency::serial)
           .input_family(
-              product_query{.creator = "input", .layer = ws_layer,
+              product_selector{.creator = "input", .layer = ws_layer,
                             .suffix  = experimental::identifier{"wire_schema"}},
-              product_query{.creator = from, .layer = layer,
+              product_selector{.creator = from, .layer = layer,
                             .suffix  = experimental::identifier{suffix}})
           .output_product_suffixes("frame");
     } else {
@@ -88,7 +88,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
                         return (*ff)(input);
                     },
                     concurrency::serial)
-          .input_family(product_query{.creator = from, .layer = layer,
+          .input_family(product_selector{.creator = from, .layer = layer,
                                       .suffix  = experimental::identifier{suffix}})
           .output_product_suffixes("frame");
     }

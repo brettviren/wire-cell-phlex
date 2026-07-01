@@ -50,5 +50,5 @@ PHLEX_REGISTER_PROVIDERS(m, config)
               [src](data_cell_index const&) -> wcphlex::Frame {
                   return (*src)();
               })
-      .output_product({.creator = "input", .layer = layer, .suffix = "frame"});
+      .output_product("input", "frame", experimental::identifier{layer});
 }

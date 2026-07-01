@@ -147,6 +147,7 @@ local transform = {
     type: "DepoTransform",
     name: service_prefix + "transform_" + a.name,
     data: {
+        rng:                wc.tn(rng),
         anode:              wc.tn(anode),
         pirs:               [wc.tn(p) for p in pirs],
         dft:                wc.tn(dft),

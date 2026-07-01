@@ -46,6 +46,6 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
                     return (*d2f)(input);
                 },
                 concurrency::serial)
-      .input_family(product_query{.creator = "input", .layer = layer, .suffix = "deposet"})
+      .input_family(product_selector{.creator = "input", .layer = layer, .suffix = "deposet"})
       .output_product_suffixes("frame");
 }
