@@ -615,10 +615,13 @@ foreach(_mod IN ITEMS
   )
 endforeach()
 
-# WCT Jsonnet configs (searched via WIRECELL_PATH)
+# WCT Jsonnet configs (searched via WIRECELL_PATH), including the generated
+# per-node config-schema factories under cfg/schema/*.libjsonnet.
 install(DIRECTORY cfg/
   DESTINATION "${CMAKE_INSTALL_DATADIR}/wire-cell-phlex/cfg"
-  FILES_MATCHING PATTERN "*.jsonnet"
+  FILES_MATCHING
+    PATTERN "*.jsonnet"
+    PATTERN "*.libjsonnet"
 )
 
 # CMake package config (so find_package(wire_cell_phlex) works downstream)
