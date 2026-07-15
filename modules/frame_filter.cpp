@@ -49,11 +49,16 @@
 #include "wire_cell_phlex/Executor.hpp"
 
 #include "modules/executor_config.hpp"
+#include "boost_config/discovery.hpp"
 #include "phlex/module.hpp"
 
 #include <memory>
 
 using namespace phlex;
+
+// Advertise this node's config schema for CLI discovery (boost-config):
+//   scan the plugin's dynamic symbols for the boost_config_factories__ prefix.
+BOOST_CONFIG_EXPORT(FrameFilterConfig, wcphlex::FrameFilterConfig)
 
 PHLEX_REGISTER_ALGORITHMS(m, config)
 {
