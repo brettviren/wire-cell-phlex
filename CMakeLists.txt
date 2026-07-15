@@ -44,6 +44,10 @@ find_package(TBB REQUIRED)
 find_package(phlex REQUIRED)
 find_package(WireCell REQUIRED)
 find_package(Boost REQUIRED COMPONENTS json)
+# Header-only config-schema helpers (Documented<T>, boost::json (de)serialization,
+# Jsonnet factory).  Public: wire_cell_phlex/Config.hpp is included by the public
+# Executor.hpp.
+find_package(boost_config REQUIRED)
 
 add_compile_options(-Wall -Wpedantic -Werror)
 
@@ -75,6 +79,7 @@ target_link_libraries(wire_cell_phlex
     WireCell::Util
     phlex::core
     Boost::json
+    boost_config::boost_config
 )
 
 # ---------------------------------------------------------------------------

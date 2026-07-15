@@ -69,6 +69,7 @@
 //                 Only meaningful when wct_log_sink is also set.
 
 #include "wire_cell_phlex/Data.hpp"
+#include "wire_cell_phlex/Config.hpp"
 #include "wire_cell_phlex/BoundarySource.hpp"
 #include "wire_cell_phlex/BoundarySink.hpp"
 #include "wire_cell_phlex/FacadeWireSchema.hpp"
@@ -100,7 +101,10 @@ namespace wcphlex {
 // initialize() is deferred to the first ensure_initialized() call in operator().
 class Executor {
 public:
-    explicit Executor(boost::json::object const& config);
+    // Constructed from a parsed ExecutorConfig.  Concrete subclasses parse
+    // their own *Config (which carries an `executor` field) from the
+    // boost::json::object PHLEX supplies and pass that field here.
+    explicit Executor(ExecutorConfig const& config);
     virtual ~Executor() = default;
 
     Executor(Executor const&)            = delete;
@@ -167,6 +171,9 @@ private:
 // ---------------------------------------------------------------------------
 class FrameFilter : public Executor {
 public:
+    explicit FrameFilter(FrameFilterConfig const& config);
+    // PHLEX-facing entry: parses FrameFilterConfig from the JSON object and
+    // delegates to the config constructor above.
     explicit FrameFilter(boost::json::object const& config);
 
     // Process one Frame through the persistent WCT sub-graph.

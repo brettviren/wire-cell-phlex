@@ -63,7 +63,10 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
     auto const use_ws       = config.get<bool>("use_wire_schema", false);
     auto const ws_layer     = config.get<std::string>("wire_schema_layer", std::string{"job"});
 
-    auto ff = std::make_shared<wcphlex::FrameFilter>(to_executor_config(config));
+    // Uniform node config shape: { "executor": {...}, "use_wire_schema": bool }.
+    auto exec_obj = to_executor_config(config);
+    exec_obj["use_wire_schema"] = use_ws;
+    auto ff = std::make_shared<wcphlex::FrameFilter>(exec_obj);
 
     if (use_ws) {
         // Geometry-aware path: consume WireSchema from job layer + Frame from

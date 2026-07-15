@@ -68,12 +68,16 @@ int main()
     // Keep old name for backward compat with FrameFilter tests below.
     std::string const& cfg_path = frame_cfg_path;
 
-    // Build the executor config as a boost::json::object.
+    // Build the executor config as a boost::json::object.  Every Executor node
+    // config is uniform: the ExecutorConfig fields live under the "executor"
+    // key (see wire_cell_phlex/Config.hpp).
     // (phlex::configuration is not used here: its header pulls in
     //  product_selector.hpp which uses std::forward_like, absent in GCC 12.)
     boost::json::object config{
-        {"wct_config",  cfg_path},
-        {"wct_plugins", boost::json::array{"WireCellPgraph"}},
+        {"executor", boost::json::object{
+            {"wct_config",  cfg_path},
+            {"wct_plugins", boost::json::array{"WireCellPgraph"}},
+        }},
     };
 
     // --- Test 1: construction -----------------------------------------------
@@ -108,8 +112,10 @@ int main()
     // =========================================================================
 
     boost::json::object ds_config{
-        {"wct_config",  deposet_cfg_path},
-        {"wct_plugins", boost::json::array{"WireCellPgraph"}},
+        {"executor", boost::json::object{
+            {"wct_config",  deposet_cfg_path},
+            {"wct_plugins", boost::json::array{"WireCellPgraph"}},
+        }},
     };
 
     // --- Test 4: DepoSetFilter construction ---------------------------------

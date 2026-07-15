@@ -13,7 +13,14 @@
 
 // modules/executor_config.h
 //
-// Helper: convert phlex::configuration → boost::json::object for Executor.
+// Helper: convert phlex::configuration → the boost::json::object an Executor
+// node expects.
+//
+// Every Executor node's config is uniform in shape: a single "executor" key
+// holding the ExecutorConfig sub-object (see wire_cell_phlex/Config.hpp).  This
+// helper builds exactly that wrapper.  Nodes that add their own fields (e.g.
+// FrameFilter's use_wire_schema) set them alongside "executor" in the module
+// after calling this.
 //
 // Executor (and its subclasses) accept boost::json::object rather than
 // phlex::configuration, because Executor.h must remain compilable under
@@ -25,34 +32,27 @@
 
 #include <boost/json.hpp>
 
+// Build the { "executor": {...} } wrapper object for an Executor node.
 inline boost::json::object to_executor_config(phlex::configuration const& cfg)
 {
-    boost::json::object obj;
+    boost::json::object ex;
 
-    obj["wct_config"] = cfg.get<std::string>("wct_config");
+    ex["wct_config"] = cfg.get<std::string>("wct_config");
 
     if (auto v = cfg.get_if_present<std::string>("wct_app")) {
-        obj["wct_app"] = *v;
+        ex["wct_app"] = *v;
     }
 
     if (auto v = cfg.get_if_present<std::vector<std::string>>("wct_plugins")) {
         boost::json::array arr;
         for (auto const& s : *v) { arr.push_back(boost::json::value{boost::json::string{s}}); }
-        obj["wct_plugins"] = std::move(arr);
+        ex["wct_plugins"] = std::move(arr);
     }
 
     // Pass module_label through so the Executor can derive unique WCT
     // component instance names for each PHLEX module instance.
     if (auto v = cfg.get_if_present<std::string>("module_label")) {
-        obj["module_label"] = *v;
-    }
-
-    // Optional: when set, the FrameFilter will use the geometry-aware
-    // operator()(WireSchema const&, Frame const&) overload.  The value is the
-    // name suffix used for the FacadeWireSchema WCT component (matches the
-    // "scope" key in the Jsonnet config).  Not needed for plain frame filters.
-    if (auto v = cfg.get_if_present<bool>("use_wire_schema")) {
-        obj["use_wire_schema"] = *v;
+        ex["module_label"] = *v;
     }
 
     if (auto tla = cfg.get_if_present<phlex::configuration>("wct_tla")) {
@@ -60,18 +60,20 @@ inline boost::json::object to_executor_config(phlex::configuration const& cfg)
         for (auto const& k : tla->keys()) {
             tla_obj[k] = tla->get<std::string>(k);
         }
-        obj["wct_tla"] = std::move(tla_obj);
+        ex["wct_tla"] = std::move(tla_obj);
     }
 
     // Optional: WCT log sink ("stdout", "stderr", or a file path).
     if (auto v = cfg.get_if_present<std::string>("wct_log_sink")) {
-        obj["wct_log_sink"] = *v;
+        ex["wct_log_sink"] = *v;
     }
 
     // Optional: WCT log level ("warn", "info", "debug", etc.).
     if (auto v = cfg.get_if_present<std::string>("wct_log_level")) {
-        obj["wct_log_level"] = *v;
+        ex["wct_log_level"] = *v;
     }
 
+    boost::json::object obj;
+    obj["executor"] = std::move(ex);
     return obj;
 }

@@ -30,6 +30,7 @@
 //     FacadeWireSchema::configure() reads during initialize().
 
 #include "wire_cell_phlex/Executor.hpp"
+#include "wire_cell_phlex/Config_json.hpp"
 #include "wire_cell_phlex/Data.hpp"
 #include "wire_cell_phlex/BoundarySource.hpp"
 #include "wire_cell_phlex/BoundarySink.hpp"
@@ -87,15 +88,17 @@ namespace wcphlex {
 // Executor base — common config parsing
 // ---------------------------------------------------------------------------
 
-Executor::Executor(boost::json::object const& config)
+Executor::Executor(ExecutorConfig const& config)
 {
-    // Required: Jsonnet config file path.
-    m_wcmain.add_config(std::string{config.at("wct_config").as_string()});
-
-    // Optional: WCT app type (stored; subclass builds "type:name" for add_app).
-    if (config.contains("wct_app")) {
-        m_app_type = std::string{config.at("wct_app").as_string()};
+    // Required: Jsonnet config file path.  (Absent -> empty default here.)
+    const std::string wct_config = config.wct_config;
+    if (wct_config.empty()) {
+        throw std::runtime_error("Executor: required config field 'wct_config' is missing or empty");
     }
+    m_wcmain.add_config(wct_config);
+
+    // WCT app type (stored; subclass builds "type:name" for add_app).
+    m_app_type = config.wct_app;
 
     // Always register wire_cell_phlex as a WCT plugin so WIRECELL_FACTORY
     // registrations (BoundarySource, BoundarySink) are findable by the WCT
@@ -104,36 +107,29 @@ Executor::Executor(boost::json::object const& config)
     // make_<ClassName>_factory symbols).
     m_wcmain.add_plugin("wire_cell_phlex");
 
-    // Optional: additional WCT plugins (e.g. "WireCellPgraph").
-    if (config.contains("wct_plugins")) {
-        for (auto const& v : config.at("wct_plugins").as_array()) {
-            m_wcmain.add_plugin(std::string{v.as_string()});
-        }
+    // Additional WCT plugins (e.g. "WireCellPgraph").
+    for (auto const& p : config.wct_plugins.value) {
+        m_wcmain.add_plugin(p);
     }
 
-    // Optional: user-supplied Jsonnet TLAs.
-    if (config.contains("wct_tla")) {
-        for (auto const& [k, v] : config.at("wct_tla").as_object()) {
-            m_wcmain.tla_var(std::string{k}, std::string{v.as_string()});
-        }
+    // User-supplied Jsonnet TLAs.
+    for (auto const& [k, v] : config.wct_tla.value) {
+        m_wcmain.tla_var(k, v);
     }
+
     // Scope prefix for WCT component instance names.  PHLEX injects
-    // "module_label" into every module config; use it when present so
+    // "module_label" into every module config; use it when non-empty so
     // that two executor instances loaded under different PHLEX module keys
-    // create uniquely-named WCT components in the global factory.
-    if (config.contains("module_label")) {
-        m_scope = std::string{config.at("module_label").as_string()};
+    // create uniquely-named WCT components in the global factory.  Empty
+    // keeps the default m_scope ("wcphlex").
+    const std::string label = config.module_label;
+    if (!label.empty()) {
+        m_scope = label;
     }
 
-    // Optional: WCT log sink ("stdout", "stderr", or a file path).
-    if (config.contains("wct_log_sink")) {
-        m_log_sink = std::string{config.at("wct_log_sink").as_string()};
-    }
-
-    // Optional: WCT log level ("warn", "info", "debug", etc.).
-    if (config.contains("wct_log_level")) {
-        m_log_level = std::string{config.at("wct_log_level").as_string()};
-    }
+    // WCT log sink ("stdout", "stderr", or a file path) and level.
+    m_log_sink = config.wct_log_sink;
+    m_log_level = config.wct_log_level;
 
     // Compute app instance name and register it.  All subclasses use the same
     // pattern: m_scope + "_pgrapher".  Subclass constructors only need to add
@@ -186,8 +182,8 @@ void Executor::run_graph()
 // FrameFilter
 // ---------------------------------------------------------------------------
 
-FrameFilter::FrameFilter(boost::json::object const& config)
-    : Executor(config)
+FrameFilter::FrameFilter(FrameFilterConfig const& config)
+    : Executor(config.executor)
 {
     // Derive unique WCT component instance names from m_scope so that two
     // FrameFilter instances loaded under different PHLEX module labels do not
@@ -202,11 +198,14 @@ FrameFilter::FrameFilter(boost::json::object const& config)
     // the Jsonnet config can use it as the FacadeWireSchema instance name and scope.
     // This must match the scope passed to FacadeWireSchema::register_store() in
     // the geometry-aware operator() overload.
-    if (config.contains("use_wire_schema") &&
-        config.at("use_wire_schema").as_bool()) {
+    if (config.use_wire_schema) {
         m_wcmain.tla_var("wire_schema_name", m_scope);
     }
 }
+
+FrameFilter::FrameFilter(boost::json::object const& config)
+    : FrameFilter(parse_node_config<FrameFilterConfig>(config))
+{}
 
 void FrameFilter::initialize_ports()
 {
@@ -243,7 +242,7 @@ Frame FrameFilter::operator()(WireSchema const& ws, Frame const& input)
 // ---------------------------------------------------------------------------
 
 DepoSetToFrame::DepoSetToFrame(boost::json::object const& config)
-    : Executor(config)
+    : Executor(parse_node_config<DepoSetToFrameConfig>(config).executor)
 {
     m_src_name = m_scope + "_deposet_source";
     m_snk_name = m_scope + "_frame_sink";
@@ -276,7 +275,7 @@ Frame DepoSetToFrame::operator()(DepoSet const& input)
 // ---------------------------------------------------------------------------
 
 DepoSetSourceFile::DepoSetSourceFile(boost::json::object const& config)
-    : Executor(config)
+    : Executor(parse_node_config<DepoSetSourceFileConfig>(config).executor)
 {
     m_snk_name = m_scope + "_deposet_sink";
 
@@ -305,7 +304,7 @@ DepoSet DepoSetSourceFile::operator()()
 // ---------------------------------------------------------------------------
 
 DepoSetSinkFile::DepoSetSinkFile(boost::json::object const& config)
-    : Executor(config)
+    : Executor(parse_node_config<DepoSetSinkFileConfig>(config).executor)
 {
     m_src_name = m_scope + "_deposet_source";
 
@@ -339,7 +338,7 @@ void DepoSetSinkFile::operator()(DepoSet const& input)
 // ---------------------------------------------------------------------------
 
 DepoSetFilter::DepoSetFilter(boost::json::object const& config)
-    : Executor(config)
+    : Executor(parse_node_config<DepoSetFilterConfig>(config).executor)
 {
     m_src_name = m_scope + "_deposet_source";
     m_snk_name = m_scope + "_deposet_sink";
@@ -372,7 +371,7 @@ DepoSet DepoSetFilter::operator()(DepoSet const& input)
 // ---------------------------------------------------------------------------
 
 FrameSourceFile::FrameSourceFile(boost::json::object const& config)
-    : Executor(config)
+    : Executor(parse_node_config<FrameSourceFileConfig>(config).executor)
 {
     m_snk_name = m_scope + "_frame_sink";
 
@@ -401,7 +400,7 @@ Frame FrameSourceFile::operator()()
 // ---------------------------------------------------------------------------
 
 FrameSinkFile::FrameSinkFile(boost::json::object const& config)
-    : Executor(config)
+    : Executor(parse_node_config<FrameSinkFileConfig>(config).executor)
 {
     m_src_name = m_scope + "_frame_source";
 
@@ -435,7 +434,7 @@ void FrameSinkFile::operator()(Frame const& input)
 // ---------------------------------------------------------------------------
 
 FrameFaninSinkFile::FrameFaninSinkFile(boost::json::object const& config)
-    : Executor(config)
+    : Executor(parse_node_config<FrameFaninSinkFileConfig>(config).executor)
 {
     for (int n = 0; n < k_multiplicity; ++n) {
         m_src_names[n] = m_scope + "_frame_source_" + std::to_string(n);
