@@ -1,6 +1,0 @@
-// framefilterconfig.libjsonnet
-// @brief Construct a FrameFilterConfig object
-// @param executor (ExecutorConfig)
-// @param use_wire_schema (bool) When true, inject the wire_schema_name TLA (= module scope) for the geometry-aware FacadeWireSchema path.
-local ExecutorConfig = import "executorconfig.libjsonnet";
-function (executor=ExecutorConfig(wct_config="", wct_app="Pgrapher", wct_plugins=[], wct_tla={}, module_label="", wct_log_sink="", wct_log_level=""), use_wire_schema=false) { executor: executor, use_wire_schema: use_wire_schema }

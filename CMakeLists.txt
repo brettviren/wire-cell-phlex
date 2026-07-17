@@ -223,6 +223,29 @@ target_link_libraries(wcp_frame_fanin_sink_file PRIVATE
 target_compile_options(wcp_frame_fanin_sink_file PRIVATE -UNDEBUG)
 
 # ---------------------------------------------------------------------------
+# Config-schema Jsonnet factories
+#
+# Generate <module>.libjsonnet from the config schemas the executor plugins
+# advertise (via BOOST_CONFIG_EXPORT).  Built into build/wire_cell_phlex/ and
+# installed to <prefix>/share/jsonnet/wire_cell_phlex/.  Provided by the
+# boost_config CMake package; the files are re-derived from the C++ structs on
+# every build, so they cannot drift.
+# ---------------------------------------------------------------------------
+boost_config_add_libjsonnet(
+  PACKAGE wire_cell_phlex
+  ALL
+  PLUGINS
+    wcp_frame_filter
+    wcp_deposet_to_frame
+    wcp_deposet_source_file
+    wcp_deposet_sink_file
+    wcp_deposet_filter
+    wcp_frame_source_file
+    wcp_frame_sink_file
+    wcp_frame_fanin_sink_file
+)
+
+# ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
 enable_testing()
@@ -615,13 +638,10 @@ foreach(_mod IN ITEMS
   )
 endforeach()
 
-# WCT Jsonnet configs (searched via WIRECELL_PATH), including the generated
-# per-node config-schema factories under cfg/schema/*.libjsonnet.
+# WCT Jsonnet configs (searched via WIRECELL_PATH)
 install(DIRECTORY cfg/
   DESTINATION "${CMAKE_INSTALL_DATADIR}/wire-cell-phlex/cfg"
-  FILES_MATCHING
-    PATTERN "*.jsonnet"
-    PATTERN "*.libjsonnet"
+  FILES_MATCHING PATTERN "*.jsonnet"
 )
 
 # CMake package config (so find_package(wire_cell_phlex) works downstream)

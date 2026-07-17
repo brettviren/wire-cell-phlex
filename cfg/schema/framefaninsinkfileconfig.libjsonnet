@@ -1,5 +1,0 @@
-// framefaninsinkfileconfig.libjsonnet
-// @brief Construct a FrameFaninSinkFileConfig object
-// @param executor (ExecutorConfig)
-local ExecutorConfig = import "executorconfig.libjsonnet";
-function (executor=ExecutorConfig(wct_config="", wct_app="Pgrapher", wct_plugins=[], wct_tla={}, module_label="", wct_log_sink="", wct_log_level="")) { executor: executor }
