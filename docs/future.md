@@ -16,7 +16,7 @@ support directly.
 
 ## Geometry service evolution
 
-The current `wcp_wire_schema_source` / `FacadeWireSchema` pattern bridges a WCT
+The current `wcph_wire_schema_source` / `FacadeWireSchema` pattern bridges a WCT
 wire-geometry file into PHLEX's job-layer product system.  In the future, PHLEX
 is expected to provide a first-class geometry service at the framework level.  When
 that arrives, `FacadeWireSchema` should be extended or replaced:
@@ -28,7 +28,7 @@ that arrives, `FacadeWireSchema` should be extended or replaced:
   provide a useful regression harness for this transition.
 
 **Resolved:** The original concern that `wire_schema_source` re-created a new
-`WireSchema` object on every call is addressed: `wcp_wire_schema_source` uses
+`WireSchema` object on every call is addressed: `wcph_wire_schema_source` uses
 PHLEX's job-layer `provide()`, which is called only once per job.  The
 `FacadeWireSchema` bridge (Step 9) addresses the configure-time service lifecycle
 mismatch described below.
@@ -135,8 +135,8 @@ PDHD source.
 
 1. Diagnose and fix the `apa_ident=3` + drifted-depos crash in `OmnibusSigProc`
    (examine `och.wire + m_pad_nwires` vs `m_fft_nwires` for APA 3's channel map).
-2. Run each per-APA sim+sigproc as two sequential PHLEX steps: `wcp_deposet_to_frame`
-   (DepoTransform only) followed by `wcp_frame_filter` (OmnibusSigProc only),
+2. Run each per-APA sim+sigproc as two sequential PHLEX steps: `wcph_deposet_to_frame`
+   (DepoTransform only) followed by `wcph_frame_filter` (OmnibusSigProc only),
    with each `frame_filter` using `concurrency::serial`.
 3. Build a monolithic multi-APA WCT graph inside a single PHLEX module.
 
@@ -145,13 +145,13 @@ The `pdhd-apa-sim-sigproc.jsonnet` config is retained for single-APA use
 
 ## Multi-APA fan: generalizing to N APAs
 
-The `FrameFaninSinkFile` executor and `wcp_frame_fanin_sink_file` PHLEX module
+The `FrameFaninSinkFile` executor and `wcph_frame_fanin_sink_file` PHLEX module
 are fixed at 4 inputs (compile-time).  PHLEX's `input_family()` uses a
 `static_assert` to match the lambda parameter count at compile time.
 
 For FDHD (200 APAs), a runtime-N approach is required.  Options:
 
-1. **Template-generated modules**: generate `wcp_frame_fanin_sink_file_N` for
+1. **Template-generated modules**: generate `wcph_frame_fanin_sink_file_N` for
    N ∈ {2, 4, 8, 16, ...} at compile time via a CMake template or macro.
 2. **PHLEX runtime fan-in API**: if PHLEX adds a dynamic `input_family()` (a
    `join_node` whose arity is determined at construction time), one module can

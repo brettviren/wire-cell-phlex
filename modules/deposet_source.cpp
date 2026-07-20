@@ -15,7 +15,7 @@
 //
 // For each data cell in the configured layer, creates an empty SimpleDepoSet
 // whose ident equals data_cell_index::number().  This feeds a downstream
-// wcp_deposet_to_frame module.
+// wcph_deposet_to_frame module.
 //
 // Expected config keys:
 //   output_layer  (string, required): PHLEX layer name for the output DepoSet product.
@@ -34,7 +34,7 @@ PHLEX_REGISTER_PROVIDERS(m, config)
 {
     auto const layer = config.get<std::string>("output_layer");
 
-    m.provide("wcp_provide_deposet",
+    m.provide("wcph_provide_deposet",
               [](data_cell_index const& id) -> wcphlex::DepoSet {
                   auto ds = std::make_shared<WireCell::Aux::SimpleDepoSet>(
                       static_cast<int>(id.number()),

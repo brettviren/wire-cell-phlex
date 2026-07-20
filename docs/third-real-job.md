@@ -17,7 +17,7 @@ Reads simulated frames from disk, applies signal processing, writes output frame
 
 ```
 ┌──────────────────────┐    ┌──────────────────────────┐    ┌──────────────────────┐
-│ wcp_frame_source_    │    │ wcp_frame_filter          │    │ wcp_frame_sink_file  │
+│ wcph_frame_source_    │    │ wcph_frame_filter          │    │ wcph_frame_sink_file  │
 │ file                 │───▶│ (OmnibusSigProc)          │───▶│ (FrameFileSink)      │
 │ reads sim-frames.npz │    │                           │    │ writes sp-frames.npz │
 └──────────────────────┘    └──────────────────────────┘    └──────────────────────┘
@@ -25,9 +25,9 @@ Reads simulated frames from disk, applies signal processing, writes output frame
 
 | PHLEX module | WCT sub-graph | Jsonnet config |
 |---|---|---|
-| `wcp_frame_source_file` | `FrameFileSource → FrameBoundarySink` | `frame-file-source.jsonnet` |
-| `wcp_frame_filter` | `FrameBoundarySource → OmnibusSigProc → FrameBoundarySink` | `frame-sigproc.jsonnet` |
-| `wcp_frame_sink_file` | `FrameBoundarySource → FrameFileSink` | `frame-file-sink.jsonnet` |
+| `wcph_frame_source_file` | `FrameFileSource → FrameBoundarySink` | `frame-file-source.jsonnet` |
+| `wcph_frame_filter` | `FrameBoundarySource → OmnibusSigProc → FrameBoundarySink` | `frame-sigproc.jsonnet` |
+| `wcph_frame_sink_file` | `FrameBoundarySource → FrameFileSink` | `frame-file-sink.jsonnet` |
 
 ## Variant B — combined drift+sim+sigproc
 
@@ -35,7 +35,7 @@ Reads depo sets from disk, drifts + simulates + signal-processes in one executor
 
 ```
 ┌──────────────────────┐    ┌─────────────────────────────────────────┐    ┌──────────────────────┐
-│ wcp_deposet_source_  │    │ wcp_deposet_to_frame                    │    │ wcp_frame_sink_file  │
+│ wcph_deposet_source_  │    │ wcph_deposet_to_frame                    │    │ wcph_frame_sink_file  │
 │ file                 │───▶│ (Drifter+DepoTransform+OmnibusSigProc)  │───▶│ (FrameFileSink)      │
 │ reads muon-depos.npz │    │                                         │    │ writes sp-frames.npz │
 └──────────────────────┘    └─────────────────────────────────────────┘    └──────────────────────┘
@@ -43,9 +43,9 @@ Reads depo sets from disk, drifts + simulates + signal-processes in one executor
 
 | PHLEX module | WCT sub-graph | Jsonnet config |
 |---|---|---|
-| `wcp_deposet_source_file` | `DepoFileSource → DepoSetBoundarySink` | `deposet-file-source.jsonnet` |
-| `wcp_deposet_to_frame` | `DepoSetBoundarySource → DepoSetDrifter → DepoTransform → OmnibusSigProc → FrameBoundarySink` | `deposet-sim-sigproc.jsonnet` |
-| `wcp_frame_sink_file` | `FrameBoundarySource → FrameFileSink` | `frame-file-sink.jsonnet` |
+| `wcph_deposet_source_file` | `DepoFileSource → DepoSetBoundarySink` | `deposet-file-source.jsonnet` |
+| `wcph_deposet_to_frame` | `DepoSetBoundarySource → DepoSetDrifter → DepoTransform → OmnibusSigProc → FrameBoundarySink` | `deposet-sim-sigproc.jsonnet` |
+| `wcph_frame_sink_file` | `FrameBoundarySource → FrameFileSink` | `frame-file-sink.jsonnet` |
 
 ## New executor: FrameSourceFile (file → IFrame)
 
@@ -121,19 +121,19 @@ Note: `elecresponse` expects an `IWaveform` type-name (not an array).
 
 | Workflow | Module | Plugins |
 |---|---|---|
-| Variant A | `wcp_frame_source_file` | `WireCellPgraph`, `WireCellSio` |
-| Variant A | `wcp_frame_filter` (sigproc) | `WireCellPgraph`, `WireCellGen`, `WireCellSigProc`, `WireCellAux` |
-| Variant A | `wcp_frame_sink_file` | `WireCellPgraph`, `WireCellSio` |
-| Variant B | `wcp_deposet_source_file` | `WireCellPgraph`, `WireCellSio` |
-| Variant B | `wcp_deposet_to_frame` (sim+sigproc) | `WireCellPgraph`, `WireCellGen`, `WireCellSigProc`, `WireCellAux` |
-| Variant B | `wcp_frame_sink_file` | `WireCellPgraph`, `WireCellSio` |
+| Variant A | `wcph_frame_source_file` | `WireCellPgraph`, `WireCellSio` |
+| Variant A | `wcph_frame_filter` (sigproc) | `WireCellPgraph`, `WireCellGen`, `WireCellSigProc`, `WireCellAux` |
+| Variant A | `wcph_frame_sink_file` | `WireCellPgraph`, `WireCellSio` |
+| Variant B | `wcph_deposet_source_file` | `WireCellPgraph`, `WireCellSio` |
+| Variant B | `wcph_deposet_to_frame` (sim+sigproc) | `WireCellPgraph`, `WireCellGen`, `WireCellSigProc`, `WireCellAux` |
+| Variant B | `wcph_frame_sink_file` | `WireCellPgraph`, `WireCellSio` |
 
 Note: `WireSchemaFile` is in `WireCellGen`, not `WireCellAux`.  Any executor
 that uses `WireSchemaFile` must include `WireCellGen` in `wct_plugins`.
 
 ## Configuration reference
 
-### `wcp_frame_source_file`
+### `wcph_frame_source_file`
 
 | Key | Type | Default | Description |
 |---|---|---|---|

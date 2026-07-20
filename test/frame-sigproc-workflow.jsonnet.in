@@ -1,9 +1,9 @@
 {
   // PHLEX integration test workflow: Variant A — standalone signal processing.
   //
-  // Reads sim-frames.npz (produced by phlex_deposet_sim) via wcp_frame_source_file,
-  // runs OmnibusSigProc via wcp_frame_filter (frame-sigproc.jsonnet), and writes
-  // the signal-processed frames to sp-frames-a.npz via wcp_frame_sink_file.
+  // Reads sim-frames.npz (produced by phlex_deposet_sim) via wcph_frame_source_file,
+  // runs OmnibusSigProc via wcph_frame_filter (frame-sigproc.jsonnet), and writes
+  // the signal-processed frames to sp-frames-a.npz via wcph_frame_sink_file.
   //
   // total: 1 matches the single frame in sim-frames.npz.
   //
@@ -24,7 +24,7 @@
   },
   sources: {
     frame_source: {
-      cpp: 'wcp_frame_source_file',
+      cpp: 'wcph_frame_source_file',
       wct_config: 'frame-file-source.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       output_layer: 'event',
@@ -33,14 +33,14 @@
   },
   modules: {
     frame_sigproc: {
-      cpp: 'wcp_frame_filter',
+      cpp: 'wcph_frame_filter',
       wct_config: 'frame-sigproc.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
       input_layer: 'event',
       input_from: 'input',
     },
     frame_sink: {
-      cpp: 'wcp_frame_sink_file',
+      cpp: 'wcph_frame_sink_file',
       wct_config: 'frame-file-sink.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       input_layer: 'event',

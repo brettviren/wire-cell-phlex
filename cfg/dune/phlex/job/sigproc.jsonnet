@@ -53,7 +53,7 @@ local with_log = {
 
     modules: {
         frame_sigproc: {
-            cpp:         "wcp_frame_filter",
+            cpp:         "wcph_frame_filter",
             wct_config:  "dune/wct/job/sigproc.jsonnet",
             wct_plugins: ["WireCellPgraph", "WireCellGen", "WireCellSigProc", "WireCellAux"],
             input_layer: "event",

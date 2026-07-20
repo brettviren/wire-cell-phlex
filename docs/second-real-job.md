@@ -13,7 +13,7 @@ depositions into digitised readout frames.  The result is a 3-node pipeline:
 
 ```
 ┌───────────────────────┐    ┌───────────────────────────────┐    ┌──────────────────────┐
-│ wcp_deposet_source_   │    │ wcp_deposet_to_frame          │    │ wcp_frame_sink_file  │
+│ wcph_deposet_source_   │    │ wcph_deposet_to_frame          │    │ wcph_frame_sink_file  │
 │ file                  │───▶│ (Drifter + DepoTransform)     │───▶│ (FrameFileSink)      │
 │ reads muon-depos.npz  │    │                               │    │ writes sim-frames.npz│
 └───────────────────────┘    └───────────────────────────────┘    └──────────────────────┘
@@ -35,7 +35,7 @@ ctest --test-dir build -R phlex_deposet_sim
 The integration test writes `build/sim-frames.npz` — a WCT "frame file" containing
 Numpy arrays of simulated wire-readout frames.
 
-## WCT sub-graph inside `wcp_deposet_to_frame`
+## WCT sub-graph inside `wcph_deposet_to_frame`
 
 ```
 DepoSetBoundarySource ─▶ DepoSetDrifter ─▶ DepoTransform ─▶ FrameBoundarySink
@@ -47,9 +47,9 @@ DepoSetBoundarySource ─▶ DepoSetDrifter ─▶ DepoTransform ─▶ FrameBou
 
 | PHLEX module | WCT sub-graph | Jsonnet config |
 |---|---|---|
-| `wcp_deposet_source_file` | `DepoFileSource → DepoSetBoundarySink` | `deposet-file-source.jsonnet` |
-| `wcp_deposet_to_frame` | `DepoSetBoundarySource → DepoSetDrifter → DepoTransform → FrameBoundarySink` | `deposet-drift-sim.jsonnet` |
-| `wcp_frame_sink_file` | `FrameBoundarySource → FrameFileSink` | `frame-file-sink.jsonnet` |
+| `wcph_deposet_source_file` | `DepoFileSource → DepoSetBoundarySink` | `deposet-file-source.jsonnet` |
+| `wcph_deposet_to_frame` | `DepoSetBoundarySource → DepoSetDrifter → DepoTransform → FrameBoundarySink` | `deposet-drift-sim.jsonnet` |
+| `wcph_frame_sink_file` | `FrameBoundarySource → FrameFileSink` | `frame-file-sink.jsonnet` |
 
 ## New executor: FrameSinkFile (IFrame → file)
 
@@ -73,7 +73,7 @@ would double-finalize and crash with a `boost::iostreams::chain::pop()` assertio
 
 ## Configuration reference
 
-### `wcp_frame_sink_file`
+### `wcph_frame_sink_file`
 
 | Key | Type | Default | Description |
 |---|---|---|---|
@@ -83,7 +83,7 @@ would double-finalize and crash with a `boost::iostreams::chain::pop()` assertio
 | `wct_plugins` | string[] | `[]` | Must include `WireCellPgraph`, `WireCellSio` |
 | `wct_tla` | object | `{}` | Extra Jsonnet TLAs; use `{ outname: "path/to/frames.npz" }` |
 
-### `wcp_deposet_to_frame` (with `deposet-drift-sim.jsonnet`)
+### `wcph_deposet_to_frame` (with `deposet-drift-sim.jsonnet`)
 
 | Key | Type | Default | Description |
 |---|---|---|---|
@@ -131,9 +131,9 @@ one per input depo set (1 frame from `muon-depos.npz`).
 
 | Module | Plugins |
 |---|---|
-| `wcp_deposet_source_file` | `WireCellPgraph`, `WireCellSio` |
-| `wcp_deposet_to_frame` (drift+sim) | `WireCellPgraph`, `WireCellGen`, `WireCellSigProc`, `WireCellAux` |
-| `wcp_frame_sink_file` | `WireCellPgraph`, `WireCellSio` |
+| `wcph_deposet_source_file` | `WireCellPgraph`, `WireCellSio` |
+| `wcph_deposet_to_frame` (drift+sim) | `WireCellPgraph`, `WireCellGen`, `WireCellSigProc`, `WireCellAux` |
+| `wcph_frame_sink_file` | `WireCellPgraph`, `WireCellSio` |
 
 ## Jsonnet array concatenation note
 
@@ -153,8 +153,8 @@ To run a different set of WCT simulation components:
      {type:"FrameBoundarySink",     name:sink_name,   ...},
      {type:"Pgrapher", name:app_name, data:{edges:[...]}} ]
    ```
-2. Use `wcp_deposet_to_frame` in the PHLEX workflow with `wct_config: "my-sim.jsonnet"`.
-3. Pipe the output to `wcp_frame_sink_file` with `input_from: '<module_label>'`.
+2. Use `wcph_deposet_to_frame` in the PHLEX workflow with `wct_config: "my-sim.jsonnet"`.
+3. Pipe the output to `wcph_frame_sink_file` with `input_from: '<module_label>'`.
 
 Replace `AnodePlane` faces, `FieldResponse` data file, and electronics parameters to
 match your detector geometry.

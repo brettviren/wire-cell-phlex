@@ -1,7 +1,7 @@
 {
   // PHLEX multi-instance test (Step 7).
   //
-  // Two independent wcp_frame_filter instances ("sigproc_a", "sigproc_b") each
+  // Two independent wcph_frame_filter instances ("sigproc_a", "sigproc_b") each
   // process a separate input stream.  Their outputs are consumed by a two-frame
   // observer that asserts both frames are non-null and distinct.
   //
@@ -20,33 +20,33 @@
   },
   sources: {
     source_a: {
-      cpp: 'wcp_frame_source',
+      cpp: 'wcph_frame_source',
       output_layer: 'event',
       output_suffix: 'frame_a',
     },
     source_b: {
-      cpp: 'wcp_frame_source',
+      cpp: 'wcph_frame_source',
       output_layer: 'event',
       output_suffix: 'frame_b',
     },
   },
   modules: {
     sigproc_a: {
-      cpp: 'wcp_frame_filter',
+      cpp: 'wcph_frame_filter',
       wct_config: 'frame-passthrough.jsonnet',
       wct_plugins: ['WireCellPgraph'],
       input_layer: 'event',
       input_suffix: 'frame_a',
     },
     sigproc_b: {
-      cpp: 'wcp_frame_filter',
+      cpp: 'wcph_frame_filter',
       wct_config: 'frame-passthrough.jsonnet',
       wct_plugins: ['WireCellPgraph'],
       input_layer: 'event',
       input_suffix: 'frame_b',
     },
     verify: {
-      cpp: 'wcp_two_frame_observer',
+      cpp: 'wcph_two_frame_observer',
       input_layer: 'event',
       input_from_a: 'sigproc_a',
       input_from_b: 'sigproc_b',

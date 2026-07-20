@@ -1,9 +1,9 @@
 {
   // PHLEX integration test workflow: Variant B — combined sim + signal processing.
   //
-  // Reads muon-depos.npz via wcp_deposet_source_file, runs drift + DepoTransform
-  // + OmnibusSigProc in a single wcp_deposet_to_frame executor, and writes the
-  // signal-processed frames to sp-frames-b.npz via wcp_frame_sink_file.
+  // Reads muon-depos.npz via wcph_deposet_source_file, runs drift + DepoTransform
+  // + OmnibusSigProc in a single wcph_deposet_to_frame executor, and writes the
+  // signal-processed frames to sp-frames-b.npz via wcph_frame_sink_file.
   //
   // total: 1 matches the single depo set in muon-depos.npz.
   //
@@ -23,7 +23,7 @@
   },
   sources: {
     deposet_source: {
-      cpp: 'wcp_deposet_source_file',
+      cpp: 'wcph_deposet_source_file',
       wct_config: 'deposet-file-source.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       output_layer: 'event',
@@ -32,13 +32,13 @@
   },
   modules: {
     frame_sim_sigproc: {
-      cpp: 'wcp_deposet_to_frame',
+      cpp: 'wcph_deposet_to_frame',
       wct_config: 'deposet-sim-sigproc.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
       input_layer: 'event',
     },
     frame_sink: {
-      cpp: 'wcp_frame_sink_file',
+      cpp: 'wcph_frame_sink_file',
       wct_config: 'frame-file-sink.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       input_layer: 'event',

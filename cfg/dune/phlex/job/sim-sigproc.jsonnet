@@ -54,7 +54,7 @@ local ai_str = "%d" % anode_index;  // PHLEX wct_tla requires string values
         // The wct_config is the detector-agnostic combined sim+sigproc job
         // function; the detector and anode are selected via wct_tla strings.
         frame_sim_sigproc: {
-            cpp:         "wcp_deposet_to_frame",
+            cpp:         "wcph_deposet_to_frame",
             wct_config:  "dune/wct/job/sim-sigproc.jsonnet",
             wct_plugins: ["WireCellPgraph", "WireCellGen", "WireCellSigProc", "WireCellAux"],
             input_layer: "event",

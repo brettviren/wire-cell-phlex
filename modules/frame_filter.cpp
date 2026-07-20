@@ -77,7 +77,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
         // Geometry-aware path: consume WireSchema from job layer + Frame from
         // event layer.  The two-argument operator() deposits the store in
         // FacadeWireSchema's static registry before the first initialize().
-        m.transform("wct_frame_filter",
+        m.transform("wcph_frame_filter",
                     [ff](wcphlex::WireSchema const& ws,
                          wcphlex::Frame const& input) -> wcphlex::Frame {
                         return (*ff)(ws, input);
@@ -91,7 +91,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
           .output_product_suffixes("frame");
     } else {
         // Plain path: no geometry product consumed.
-        m.transform("wct_frame_filter",
+        m.transform("wcph_frame_filter",
                     [ff](wcphlex::Frame const& input) -> wcphlex::Frame {
                         return (*ff)(input);
                     },

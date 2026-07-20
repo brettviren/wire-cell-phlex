@@ -60,7 +60,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
 
     auto snk = std::make_shared<wcphlex::FrameFaninSinkFile>(to_executor_config(config));
 
-    m.observe("wct_frame_fanin_sink_file",
+    m.observe("wcph_frame_fanin_sink_file",
               [snk](wcphlex::Frame const& f0, wcphlex::Frame const& f1,
                     wcphlex::Frame const& f2, wcphlex::Frame const& f3) {
                   (*snk)(f0, f1, f2, f3);

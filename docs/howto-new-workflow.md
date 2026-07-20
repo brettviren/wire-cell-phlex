@@ -105,8 +105,8 @@ Place the file under `cfg/` so it is found via `WIRECELL_PATH`.
 
 ## Step 2: Write the PHLEX workflow config
 
-A minimal workflow uses `wcp_frame_source` to produce synthetic frames, your new
-`wcp_frame_filter` instance to process them, and `wcp_frame_observer` to validate:
+A minimal workflow uses `wcph_frame_source` to produce synthetic frames, your new
+`wcph_frame_filter` instance to process them, and `wcph_frame_observer` to validate:
 
 ```jsonnet
 // test/my-workflow.jsonnet
@@ -119,19 +119,19 @@ A minimal workflow uses `wcp_frame_source` to produce synthetic frames, your new
     },
     sources: {
         frame_source: {
-            cpp: 'wcp_frame_source',
+            cpp: 'wcph_frame_source',
             output_layer: 'event',
         },
     },
     modules: {
         sigproc: {
-            cpp: 'wcp_frame_filter',
+            cpp: 'wcph_frame_filter',
             wct_config: 'my-signal-processing.jsonnet',
             wct_plugins: ['WireCellPgraph', 'WireCellSigProc'],  // add needed plugins
             input_layer: 'event',
         },
         verify: {
-            cpp: 'wcp_frame_observer',
+            cpp: 'wcph_frame_observer',
             input_layer: 'event',
             input_from: 'sigproc',
         },
@@ -141,7 +141,7 @@ A minimal workflow uses `wcp_frame_source` to produce synthetic frames, your new
 
 Key points:
 - The `cpp` value is the MODULE library name without the `lib` prefix and `.so`
-  suffix (e.g. `wcp_frame_filter` → `libwcp_frame_filter.so`).
+  suffix (e.g. `wcph_frame_filter` → `libwcph_frame_filter.so`).
 - `wct_plugins` lists WCT plugin libraries needed by the sub-graph.  Always include
   `WireCellPgraph` when using Pgrapher.
 - `input_layer` / `output_layer` name the PHLEX data layer (not a WCT concept).
@@ -175,13 +175,13 @@ distinct (prefix `sigproc_a_` vs `sigproc_b_`).
 ```jsonnet
 modules: {
     sigproc_a: {
-        cpp: 'wcp_frame_filter',
+        cpp: 'wcph_frame_filter',
         wct_config: 'my-signal-processing.jsonnet',
         input_layer: 'event',
         input_suffix: 'frame_a',   // reads the "frame_a" product
     },
     sigproc_b: {
-        cpp: 'wcp_frame_filter',
+        cpp: 'wcph_frame_filter',
         wct_config: 'my-signal-processing.jsonnet',
         input_layer: 'event',
         input_suffix: 'frame_b',   // reads the "frame_b" product
@@ -210,11 +210,11 @@ bridged into WCT's configure-time service pattern via `FacadeWireSchema`.
 
 ### How it works
 
-1. `wcp_wire_schema_source` (job-layer provider) loads a wire geometry file once per
+1. `wcph_wire_schema_source` (job-layer provider) loads a wire geometry file once per
    job using `WireCell::WireSchema::load()`, which searches `WIRECELL_PATH`.  It
    produces a `wcphlex::WireSchema` product at the job layer.
 
-2. `wcp_frame_filter` with `use_wire_schema: true` consumes both the job-layer
+2. `wcph_frame_filter` with `use_wire_schema: true` consumes both the job-layer
    `wcphlex::WireSchema` and an event-layer `wcphlex::Frame`.  On the first event it:
    - Calls `FacadeWireSchema::register_store(scope, ws.store)` to deposit the store
      in a static map keyed by the module's scope (= module_label).
@@ -233,22 +233,22 @@ bridged into WCT's configure-time service pattern via `FacadeWireSchema`.
               layers: { event: { parent: 'job', total: 5 } } },
     sources: {
         geo: {
-            cpp: 'wcp_wire_schema_source',
+            cpp: 'wcph_wire_schema_source',
             output_layer: 'job',
             wire_schema_file: 'microboone-celltree-wires-v2.1.json.bz2',
         },
-        frame_source: { cpp: 'wcp_frame_source', output_layer: 'event' },
+        frame_source: { cpp: 'wcph_frame_source', output_layer: 'event' },
     },
     modules: {
         sigproc: {
-            cpp: 'wcp_frame_filter',
+            cpp: 'wcph_frame_filter',
             wct_config: 'my-config-with-facade.jsonnet',
             wct_plugins: ['WireCellPgraph'],
             input_layer: 'event',
             use_wire_schema: true,       // consume job-layer WireSchema
         },
         verify: {
-            cpp: 'wcp_frame_observer',
+            cpp: 'wcph_frame_observer',
             input_layer: 'event',
             input_from: 'sigproc',
         },
@@ -301,7 +301,7 @@ to the WCT Jsonnet via `wct_tla`:
 
 ```jsonnet
 sigproc: {
-    cpp: 'wcp_frame_filter',
+    cpp: 'wcph_frame_filter',
     wct_config: 'my-config.jsonnet',
     wct_tla: {
         detector: 'uboone',

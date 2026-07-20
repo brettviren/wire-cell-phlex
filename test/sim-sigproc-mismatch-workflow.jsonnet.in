@@ -41,7 +41,7 @@
   },
   sources: {
     deposet_source: {
-      cpp: 'wcp_deposet_source_file',
+      cpp: 'wcph_deposet_source_file',
       wct_config: 'deposet-file-source.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       output_layer: 'event',
@@ -50,14 +50,14 @@
   },
   modules: {
     frame_sim: {
-      cpp: 'wcp_deposet_to_frame',
+      cpp: 'wcph_deposet_to_frame',
       wct_config: 'deposet-drift-sim.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
       input_layer: 'event',
       wct_tla: { service_prefix: 'sim_' },
     },
     frame_sigproc: {
-      cpp: 'wcp_frame_filter',
+      cpp: 'wcph_frame_filter',
       wct_config: 'frame-sigproc.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
       input_layer: 'event',
@@ -65,7 +65,7 @@
       wct_tla: { service_prefix: 'sp_' },
     },
     frame_sink: {
-      cpp: 'wcp_frame_sink_file',
+      cpp: 'wcph_frame_sink_file',
       wct_config: 'frame-file-sink.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       input_layer: 'event',

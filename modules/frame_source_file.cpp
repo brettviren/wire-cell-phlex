@@ -51,7 +51,7 @@ PHLEX_REGISTER_PROVIDERS(m, config)
 
     auto src = std::make_shared<wcphlex::FrameSourceFile>(to_executor_config(config));
 
-    m.provide("wct_frame_source_file",
+    m.provide("wcph_frame_source_file",
               [src](data_cell_index const&) -> wcphlex::Frame {
                   return (*src)();
               })

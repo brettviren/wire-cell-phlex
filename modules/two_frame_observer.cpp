@@ -15,7 +15,7 @@
 // upstream modules and asserts both are non-null and distinct from each other.
 //
 // Used in the multi-instance workflow (Step 7) to verify that two independent
-// wcp_frame_filter instances produce separate, valid output streams.
+// wcph_frame_filter instances produce separate, valid output streams.
 //
 // Expected config keys:
 //   input_layer   (string, required): PHLEX layer for both Frame products.
@@ -38,7 +38,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
     auto const from_a = config.get<std::string>("input_from_a");
     auto const from_b = config.get<std::string>("input_from_b");
 
-    m.observe("wcp_observe_two_frames",
+    m.observe("wcph_observe_two_frames",
               [](wcphlex::Frame const& fa, wcphlex::Frame const& fb) {
                   assert(fa.ptr && "first observed Frame must be non-null");
                   assert(fb.ptr && "second observed Frame must be non-null");

@@ -10,8 +10,8 @@ shared or kept independent.
 
 ## Background: the PHLEX node context
 
-Each PHLEX algorithm module (e.g. `wcp_deposet_to_frame`,
-`wcp_frame_filter`) owns exactly one `wcphlex::Executor` instance and
+Each PHLEX algorithm module (e.g. `wcph_deposet_to_frame`,
+`wcph_frame_filter`) owns exactly one `wcphlex::Executor` instance and
 therefore exactly one `WireCell::Main` instance.  PHLEX assigns every
 module a unique **module label** (the key used in the workflow Jsonnet,
 e.g. `frame_sim`, `frame_sigproc`).  The label is injected into the
@@ -187,12 +187,12 @@ finds existing instances in the global factory and re-configures them.
 ```jsonnet
 // sim-sigproc-workflow.jsonnet
 frame_sim: {
-    cpp: 'wcp_deposet_to_frame',
+    cpp: 'wcph_deposet_to_frame',
     wct_config: 'deposet-drift-sim.jsonnet',
     // service_prefix not set → default "" → AnodePlane:apa0, FieldResponse:fr, ...
 },
 frame_sigproc: {
-    cpp: 'wcp_frame_filter',
+    cpp: 'wcph_frame_filter',
     wct_config: 'frame-sigproc.jsonnet',
     // service_prefix not set → same bare names → factory returns same instances
 },
@@ -220,13 +220,13 @@ sets coexist with no configure() cross-talk.
 ```jsonnet
 // sim-sigproc-mismatch-workflow.jsonnet
 frame_sim: {
-    cpp: 'wcp_deposet_to_frame',
+    cpp: 'wcph_deposet_to_frame',
     wct_config: 'deposet-drift-sim.jsonnet',
     wct_tla: { service_prefix: 'sim_' },
     // → AnodePlane:sim_apa0, FieldResponse:sim_fr, ColdElecResponse:sim_elec, ...
 },
 frame_sigproc: {
-    cpp: 'wcp_frame_filter',
+    cpp: 'wcph_frame_filter',
     wct_config: 'frame-sigproc.jsonnet',
     wct_tla: { service_prefix: 'sp_' },
     // → AnodePlane:sp_apa0, FieldResponse:sp_fr, ColdElecResponse:sp_elec, ...

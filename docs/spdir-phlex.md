@@ -105,7 +105,7 @@ When the config keys above are absent, environment variables are used:
 | `WCPY` | Path to `wcpy` executable |
 | `WCSONNET` | Path to `wcsonnet` executable |
 | `WIRECELL_PATH` | Colon-separated dirs for WCT Jsonnet and data files |
-| `PHLEX_PLUGIN_PATH` | Colon-separated dirs for `wcp_*.so` plugin libraries |
+| `PHLEX_PLUGIN_PATH` | Colon-separated dirs for `wcph_*.so` plugin libraries |
 
 If none of these are set, the script auto-detects paths (see *Environment
 auto-detection* below).
@@ -224,7 +224,7 @@ When `WIRECELL_PATH` is not set explicitly, the script constructs it from:
 Both 3 and 4 are included when both are found, so `wirecell.jsonnet` and
 detector data files are available regardless of which directory holds each.
 
-`PHLEX_PLUGIN_PATH` is built from `wire-cell-phlex/build/` (for `wcp_*.so`
+`PHLEX_PLUGIN_PATH` is built from `wire-cell-phlex/build/` (for `wcph_*.so`
 plugins) and the `lib/` directory alongside the `phlex` binary.
 
 ---

@@ -1,8 +1,8 @@
 {
   // PHLEX job-layer geometry test (Step 8).
   //
-  // wcp_wire_schema_source loads a WCT wire geometry file once at the job layer.
-  // wcp_wire_schema_observer validates the result: non-null store, non-empty wires.
+  // wcph_wire_schema_source loads a WCT wire geometry file once at the job layer.
+  // wcph_wire_schema_observer validates the result: non-null store, non-empty wires.
   //
   // Key design points exercised:
   //   - Job-layer source: runs once per job (not per event).
@@ -18,14 +18,14 @@
   },
   sources: {
     geo: {
-      cpp: 'wcp_wire_schema_source',
+      cpp: 'wcph_wire_schema_source',
       output_layer: 'job',
       wire_schema_file: 'microboone-celltree-wires-v2.1.json.bz2',
     },
   },
   modules: {
     verify: {
-      cpp: 'wcp_wire_schema_observer',
+      cpp: 'wcph_wire_schema_observer',
       input_layer: 'job',
     },
   },

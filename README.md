@@ -41,28 +41,28 @@ wire-cell-phlex/
 
 | Module (`cpp` key) | Output product | Config keys |
 |--------------------|---------------|-------------|
-| `wcp_frame_source` | `wcphlex::Frame` at event layer | `output_layer`, `output_suffix` (default `"frame"`) |
-| `wcp_frame_source_file` | `wcphlex::Frame` at event layer (from file) | `output_layer`, `wct_config`, `wct_plugins`, `wct_tla` (with `inname`) |
-| `wcp_deposet_source` | `wcphlex::DepoSet` at event layer (synthetic) | `output_layer` |
-| `wcp_deposet_source_file` | `wcphlex::DepoSet` at event layer (from file) | `output_layer`, `wct_config`, `wct_plugins`, `wct_tla` (with `inname`) |
-| `wcp_wire_schema_source` | `wcphlex::WireSchema` at job layer | `output_layer`, `wire_schema_file` |
+| `wcph_frame_source` | `wcphlex::Frame` at event layer | `output_layer`, `output_suffix` (default `"frame"`) |
+| `wcph_frame_source_file` | `wcphlex::Frame` at event layer (from file) | `output_layer`, `wct_config`, `wct_plugins`, `wct_tla` (with `inname`) |
+| `wcph_deposet_source` | `wcphlex::DepoSet` at event layer (synthetic) | `output_layer` |
+| `wcph_deposet_source_file` | `wcphlex::DepoSet` at event layer (from file) | `output_layer`, `wct_config`, `wct_plugins`, `wct_tla` (with `inname`) |
+| `wcph_wire_schema_source` | `wcphlex::WireSchema` at job layer | `output_layer`, `wire_schema_file` |
 
 ### Transforms / observers
 
 | Module (`cpp` key) | Description | Key config keys |
 |--------------------|-------------|-----------------|
-| `wcp_frame_filter` | Runs any WCT IFrame→IFrame graph | `wct_config`, `input_layer`, `input_suffix`, `use_wire_schema`, `wire_schema_layer` |
-| `wcp_deposet_to_frame` | Runs any WCT IDepoSet→IFrame graph | `wct_config`, `input_layer` |
-| `wcp_deposet_filter` | Runs any WCT IDepoSet→IDepoSet graph | `wct_config`, `input_layer` |
-| `wcp_frame_observer` | Asserts output Frame non-null | `input_layer`, `input_from` |
-| `wcp_two_frame_observer` | Asserts two Frames non-null + distinct | `input_layer`, `input_from_a`, `input_from_b` |
-| `wcp_deposet_observer` | Asserts DepoSet non-null | `input_layer`, `input_from` |
-| `wcp_deposet_sink_file` | Writes DepoSets to file via WCT DepoFileSink | `wct_config`, `input_layer`, `input_from`, `wct_plugins`, `wct_tla` (with `outname`) |
-| `wcp_frame_sink_file` | Writes Frames to file via WCT FrameFileSink | `wct_config`, `input_layer`, `input_from`, `wct_plugins`, `wct_tla` (with `outname`) |
-| `wcp_frame_fanin_sink_file` | Receives 4 Frames, merges via WCT FrameFanin, writes to file | `wct_config`, `input_layer`, `input_from_0..3`, `wct_plugins`, `wct_tla` (with `outname`) |
-| `wcp_wire_schema_observer` | Asserts WireSchema loaded + non-empty | `input_layer` |
+| `wcph_frame_filter` | Runs any WCT IFrame→IFrame graph | `wct_config`, `input_layer`, `input_suffix`, `use_wire_schema`, `wire_schema_layer` |
+| `wcph_deposet_to_frame` | Runs any WCT IDepoSet→IFrame graph | `wct_config`, `input_layer` |
+| `wcph_deposet_filter` | Runs any WCT IDepoSet→IDepoSet graph | `wct_config`, `input_layer` |
+| `wcph_frame_observer` | Asserts output Frame non-null | `input_layer`, `input_from` |
+| `wcph_two_frame_observer` | Asserts two Frames non-null + distinct | `input_layer`, `input_from_a`, `input_from_b` |
+| `wcph_deposet_observer` | Asserts DepoSet non-null | `input_layer`, `input_from` |
+| `wcph_deposet_sink_file` | Writes DepoSets to file via WCT DepoFileSink | `wct_config`, `input_layer`, `input_from`, `wct_plugins`, `wct_tla` (with `outname`) |
+| `wcph_frame_sink_file` | Writes Frames to file via WCT FrameFileSink | `wct_config`, `input_layer`, `input_from`, `wct_plugins`, `wct_tla` (with `outname`) |
+| `wcph_frame_fanin_sink_file` | Receives 4 Frames, merges via WCT FrameFanin, writes to file | `wct_config`, `input_layer`, `input_from_0..3`, `wct_plugins`, `wct_tla` (with `outname`) |
+| `wcph_wire_schema_observer` | Asserts WireSchema loaded + non-empty | `input_layer` |
 
-### Common executor config keys (`wcp_frame_filter`, `wcp_deposet_to_frame`)
+### Common executor config keys (`wcph_frame_filter`, `wcph_deposet_to_frame`)
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|

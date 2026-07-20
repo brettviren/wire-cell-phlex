@@ -265,7 +265,7 @@ Create `modules/frame_to_deposet.cpp`:
 #include "wire_cell_phlex/Executor.hpp"
 // ... phlex includes ...
 
-PHLEX_FRAMEWORK_REGISTER_MODULE(wcp_frame_to_deposet)
+PHLEX_FRAMEWORK_REGISTER_MODULE(wcph_frame_to_deposet)
 {
     // Declare inputs/outputs:
     auto frame   = input<wcphlex::Frame>(config.get<std::string>("input_layer"),

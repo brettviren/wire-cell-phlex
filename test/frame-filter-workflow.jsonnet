@@ -1,8 +1,8 @@
 {
   // PHLEX integration test workflow: frame source → WCT frame passthrough → done.
   //
-  // wcp_frame_source produces 3 synthetic frames (ident = cell number 1..3).
-  // wcp_frame_filter wraps FrameFilter backed by frame-passthrough.jsonnet,
+  // wcph_frame_source produces 3 synthetic frames (ident = cell number 1..3).
+  // wcph_frame_filter wraps FrameFilter backed by frame-passthrough.jsonnet,
   // which routes each frame through a trivial WCT Pgraph (src → sink).
   //
   // Requires WIRECELL_PATH to include wire-cell-phlex/cfg/ so that WCT can
@@ -19,13 +19,13 @@
   },
   sources: {
     frame_source: {
-      cpp: 'wcp_frame_source',
+      cpp: 'wcph_frame_source',
       output_layer: 'event',
     },
   },
   modules: {
     frame_filter: {
-      cpp: 'wcp_frame_filter',
+      cpp: 'wcph_frame_filter',
       wct_config: 'frame-passthrough.jsonnet',
       wct_plugins: ['WireCellPgraph'],
       input_layer: 'event',

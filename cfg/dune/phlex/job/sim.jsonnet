@@ -53,7 +53,7 @@ local with_log = {
 
     modules: {
         frame_sim: {
-            cpp:         "wcp_deposet_to_frame",
+            cpp:         "wcph_deposet_to_frame",
             wct_config:  "dune/wct/job/sim.jsonnet",
             wct_plugins: ["WireCellPgraph", "WireCellGen", "WireCellSigProc", "WireCellAux"],
             input_layer: "event",

@@ -13,9 +13,9 @@
 //   app_name    — instance name for the Pgrapher
 
 function(
-    source_name = "wcp_deposet_source",
-    sink_name   = "wcp_frame_sink",
-    app_name    = "wcp_pgrapher",
+    source_name = "wcph_deposet_source",
+    sink_name   = "wcph_frame_sink",
+    app_name    = "wcph_pgrapher",
 )
 [
     { type: "DepoSetBoundarySource", name: source_name, data: {} },

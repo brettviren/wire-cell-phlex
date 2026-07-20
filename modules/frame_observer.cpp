@@ -13,7 +13,7 @@
 //
 // PHLEX observe module: asserts that each received wcphlex::Frame is non-null.
 // Useful as an end-cap in test workflows to confirm that a processing module
-// (e.g. wcp_frame_filter) produced a valid output Frame for every event.
+// (e.g. wcph_frame_filter) produced a valid output Frame for every event.
 //
 // Expected config keys:
 //   input_layer  (string, required): PHLEX layer of the Frame product to consume.
@@ -35,7 +35,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
     auto const layer     = config.get<std::string>("input_layer");
     auto const from      = config.get<std::string>("input_from");
 
-    m.observe("wcp_observe_frame",
+    m.observe("wcph_observe_frame",
               [](wcphlex::Frame const& f) {
                   assert(f.ptr && "observed Frame must be non-null");
               },

@@ -13,7 +13,7 @@
 //
 // PHLEX observe module: asserts that each received wcphlex::DepoSet is non-null.
 // Useful as an end-cap in test workflows to confirm that a processing module
-// (e.g. wcp_deposet_filter) produced a valid output DepoSet for every event.
+// (e.g. wcph_deposet_filter) produced a valid output DepoSet for every event.
 //
 // Expected config keys:
 //   input_layer  (string, required): PHLEX layer of the DepoSet product to consume.
@@ -35,7 +35,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
     auto const layer = config.get<std::string>("input_layer");
     auto const from  = config.get<std::string>("input_from");
 
-    m.observe("wcp_observe_deposet",
+    m.observe("wcph_observe_deposet",
               [](wcphlex::DepoSet const& ds) {
                   assert(ds.ptr && "observed DepoSet must be non-null");
               },

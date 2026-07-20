@@ -49,7 +49,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
 
     auto snk = std::make_shared<wcphlex::DepoSetSinkFile>(to_executor_config(config));
 
-    m.observe("wct_deposet_sink_file",
+    m.observe("wcph_deposet_sink_file",
               [snk](wcphlex::DepoSet const& ds) {
                   (*snk)(ds);
               },

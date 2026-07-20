@@ -9,13 +9,13 @@ This push exercises both PHLEX-level fan capabilities and the new
 ## Pipeline topology
 
 ```
-                      ┌── wcp_deposet_to_frame (sim_0, APA 0) ──┐
+                      ┌── wcph_deposet_to_frame (sim_0, APA 0) ──┐
                       │   DepoTransform (PDHD APA 0 geometry)   │
-┌──────────────────┐  ├── wcp_deposet_to_frame (sim_1, APA 1) ──┤  ┌──────────────────────────┐
-│ wcp_deposet_     │  │   DepoTransform (PDHD APA 1 geometry)   │  │ wcp_frame_fanin_sink_file│
-│ source_file      │──├── wcp_deposet_to_frame (sim_2, APA 2) ──┼──│ 4×FrameBoundarySource    │
+┌──────────────────┐  ├── wcph_deposet_to_frame (sim_1, APA 1) ──┤  ┌──────────────────────────┐
+│ wcph_deposet_     │  │   DepoTransform (PDHD APA 1 geometry)   │  │ wcph_frame_fanin_sink_file│
+│ source_file      │──├── wcph_deposet_to_frame (sim_2, APA 2) ──┼──│ 4×FrameBoundarySource    │
 │ DepoFileSource + │  │   DepoTransform (PDHD APA 2 geometry)   │  │ → FrameFanin(mult=4)     │
-│ Drifter          │  └── wcp_deposet_to_frame (sim_3, APA 3) ──┘  │ → FrameFileSink          │
+│ Drifter          │  └── wcph_deposet_to_frame (sim_3, APA 3) ──┘  │ → FrameFileSink          │
 │ (all 4 APAs)     │                                                └──────────────────────────┘
 └──────────────────┘
   PHLEX fan-out                                             PHLEX + WCT fan-in
@@ -25,20 +25,20 @@ This push exercises both PHLEX-level fan capabilities and the new
 ## Fan-out mechanism (PHLEX-level)
 
 The source produces a `DepoSet` with `creator="input"`.  All four
-`wcp_deposet_to_frame` instances have no explicit `input_from` override
+`wcph_deposet_to_frame` instances have no explicit `input_from` override
 (they all consume from `creator="input"`).  PHLEX's `edge_maker` creates four
 TBB edges from the single source output port; TBB broadcasts the same message
 to all four consumers automatically.
 
 ## Fan-in mechanism (PHLEX-level + WCT-level)
 
-**PHLEX fan-in**: The `wcp_frame_fanin_sink_file` module uses
+**PHLEX fan-in**: The `wcph_frame_fanin_sink_file` module uses
 `input_family(q0, q1, q2, q3)` with four `product_query` arguments.  PHLEX
 creates a `multilayer_join_node<4>` (TBB `join_node` with tag-matching) that
 fires only when all four Frames for the same event have arrived, regardless of
-which order the four `wcp_deposet_to_frame` instances complete.
+which order the four `wcph_deposet_to_frame` instances complete.
 
-**WCT fan-in**: Inside `wcp_frame_fanin_sink_file`, the WCT sub-graph
+**WCT fan-in**: Inside `wcph_frame_fanin_sink_file`, the WCT sub-graph
 `frame-fanin-file-sink.jsonnet` has four `FrameBoundarySource` nodes (one per
 APA), each feeding one input port of `FrameFanin(multiplicity=4)`.  WCT's
 `FrameFanin` performs the non-trivial merge: concatenates traces from all four
@@ -186,9 +186,9 @@ physics-empty.  The test validates topology and data flow only.
 
 | Module | Description |
 |---|---|
-| `wcp_frame_fanin_sink_file` | 4-input observer: receives 4 Frames, fills 4 FrameBoundarySources, runs FrameFanin → FrameFileSink |
+| `wcph_frame_fanin_sink_file` | 4-input observer: receives 4 Frames, fills 4 FrameBoundarySources, runs FrameFanin → FrameFileSink |
 
-### `wcp_frame_fanin_sink_file` config keys
+### `wcph_frame_fanin_sink_file` config keys
 
 | Key | Type | Default | Description |
 |---|---|---|---|

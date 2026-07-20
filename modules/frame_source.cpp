@@ -15,7 +15,7 @@
 //
 // For each data cell in the configured layer, creates a SimpleFrame whose ident
 // equals data_cell_index::number().  This is the PHLEX-side entry point that
-// feeds frames into a downstream wcp_frame_filter module.
+// feeds frames into a downstream wcph_frame_filter module.
 //
 // Expected config keys:
 //   output_layer   (string, required): PHLEX layer name for the output Frame product.
@@ -38,7 +38,7 @@ PHLEX_REGISTER_PROVIDERS(m, config)
     auto const layer  = config.get<std::string>("output_layer");
     auto const suffix = config.get<std::string>("output_suffix", std::string{"frame"});
 
-    m.provide("wcp_provide_frame",
+    m.provide("wcph_provide_frame",
               [](data_cell_index const& id) -> wcphlex::Frame {
                   auto frame = std::make_shared<WireCell::Aux::SimpleFrame>(
                       static_cast<int>(id.number()));

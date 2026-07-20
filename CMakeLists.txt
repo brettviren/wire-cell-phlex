@@ -87,140 +87,140 @@ target_link_libraries(wire_cell_phlex
 #
 # Each MODULE is a dlopen-only shared library loaded by the phlex binary.
 # PHLEX prepends 'lib' and appends '.so' to the 'cpp' field in the workflow
-# JSON, so add_library(wcp_frame_source MODULE ...) → libwcp_frame_source.so,
-# matching  cpp: 'wcp_frame_source'  in the workflow.
+# JSON, so add_library(wcph_frame_source MODULE ...) → libwcph_frame_source.so,
+# matching  cpp: 'wcph_frame_source'  in the workflow.
 #
 # These modules must be compiled with GCC 15 (required by phlex headers).
 # ---------------------------------------------------------------------------
-add_library(wcp_frame_source MODULE modules/frame_source.cpp)
-target_link_libraries(wcp_frame_source PRIVATE
+add_library(wcph_frame_source MODULE modules/frame_source.cpp)
+target_link_libraries(wcph_frame_source PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_frame_source PRIVATE -UNDEBUG)
+target_compile_options(wcph_frame_source PRIVATE -UNDEBUG)
 
-add_library(wcp_frame_filter MODULE modules/frame_filter.cpp)
-target_link_libraries(wcp_frame_filter PRIVATE
+add_library(wcph_frame_filter MODULE modules/frame_filter.cpp)
+target_link_libraries(wcph_frame_filter PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_frame_filter PRIVATE -UNDEBUG)
+target_compile_options(wcph_frame_filter PRIVATE -UNDEBUG)
 
 # Step 5 (continued): single-frame observer for end-cap validation.
-add_library(wcp_frame_observer MODULE modules/frame_observer.cpp)
-target_link_libraries(wcp_frame_observer PRIVATE
+add_library(wcph_frame_observer MODULE modules/frame_observer.cpp)
+target_link_libraries(wcph_frame_observer PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_frame_observer PRIVATE -UNDEBUG)
+target_compile_options(wcph_frame_observer PRIVATE -UNDEBUG)
 
 # Step 7: two-frame observer for multi-instance validation.
-add_library(wcp_two_frame_observer MODULE modules/two_frame_observer.cpp)
-target_link_libraries(wcp_two_frame_observer PRIVATE
+add_library(wcph_two_frame_observer MODULE modules/two_frame_observer.cpp)
+target_link_libraries(wcph_two_frame_observer PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_two_frame_observer PRIVATE -UNDEBUG)
+target_compile_options(wcph_two_frame_observer PRIVATE -UNDEBUG)
 
 # Step 8: job-layer wire geometry source and observer.
-add_library(wcp_wire_schema_source MODULE modules/wire_schema_source.cpp)
-target_link_libraries(wcp_wire_schema_source PRIVATE
+add_library(wcph_wire_schema_source MODULE modules/wire_schema_source.cpp)
+target_link_libraries(wcph_wire_schema_source PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_wire_schema_source PRIVATE -UNDEBUG)
+target_compile_options(wcph_wire_schema_source PRIVATE -UNDEBUG)
 
-add_library(wcp_wire_schema_observer MODULE modules/wire_schema_observer.cpp)
-target_link_libraries(wcp_wire_schema_observer PRIVATE
+add_library(wcph_wire_schema_observer MODULE modules/wire_schema_observer.cpp)
+target_link_libraries(wcph_wire_schema_observer PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_wire_schema_observer PRIVATE -UNDEBUG)
+target_compile_options(wcph_wire_schema_observer PRIVATE -UNDEBUG)
 
 # Step 6: IDepoSet → IFrame executor module.
-add_library(wcp_deposet_source MODULE modules/deposet_source.cpp)
-target_link_libraries(wcp_deposet_source PRIVATE
+add_library(wcph_deposet_source MODULE modules/deposet_source.cpp)
+target_link_libraries(wcph_deposet_source PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_deposet_source PRIVATE -UNDEBUG)
+target_compile_options(wcph_deposet_source PRIVATE -UNDEBUG)
 
-add_library(wcp_deposet_to_frame MODULE modules/deposet_to_frame.cpp)
-target_link_libraries(wcp_deposet_to_frame PRIVATE
+add_library(wcph_deposet_to_frame MODULE modules/deposet_to_frame.cpp)
+target_link_libraries(wcph_deposet_to_frame PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_deposet_to_frame PRIVATE -UNDEBUG)
+target_compile_options(wcph_deposet_to_frame PRIVATE -UNDEBUG)
 
 # Step A: IDepoSet → IDepoSet filter module.
-add_library(wcp_deposet_filter MODULE modules/deposet_filter.cpp)
-target_link_libraries(wcp_deposet_filter PRIVATE
+add_library(wcph_deposet_filter MODULE modules/deposet_filter.cpp)
+target_link_libraries(wcph_deposet_filter PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_deposet_filter PRIVATE -UNDEBUG)
+target_compile_options(wcph_deposet_filter PRIVATE -UNDEBUG)
 
 # Step B: DepoSet observer module.
-add_library(wcp_deposet_observer MODULE modules/deposet_observer.cpp)
-target_link_libraries(wcp_deposet_observer PRIVATE
+add_library(wcph_deposet_observer MODULE modules/deposet_observer.cpp)
+target_link_libraries(wcph_deposet_observer PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_deposet_observer PRIVATE -UNDEBUG)
+target_compile_options(wcph_deposet_observer PRIVATE -UNDEBUG)
 
 # Steps C+D: File-based DepoSet source and sink modules.
-add_library(wcp_deposet_source_file MODULE modules/deposet_source_file.cpp)
-target_link_libraries(wcp_deposet_source_file PRIVATE
+add_library(wcph_deposet_source_file MODULE modules/deposet_source_file.cpp)
+target_link_libraries(wcph_deposet_source_file PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_deposet_source_file PRIVATE -UNDEBUG)
+target_compile_options(wcph_deposet_source_file PRIVATE -UNDEBUG)
 
-add_library(wcp_deposet_sink_file MODULE modules/deposet_sink_file.cpp)
-target_link_libraries(wcp_deposet_sink_file PRIVATE
+add_library(wcph_deposet_sink_file MODULE modules/deposet_sink_file.cpp)
+target_link_libraries(wcph_deposet_sink_file PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_deposet_sink_file PRIVATE -UNDEBUG)
+target_compile_options(wcph_deposet_sink_file PRIVATE -UNDEBUG)
 
 # Third real job: file → IFrame source module.
-add_library(wcp_frame_source_file MODULE modules/frame_source_file.cpp)
-target_link_libraries(wcp_frame_source_file PRIVATE
+add_library(wcph_frame_source_file MODULE modules/frame_source_file.cpp)
+target_link_libraries(wcph_frame_source_file PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_frame_source_file PRIVATE -UNDEBUG)
+target_compile_options(wcph_frame_source_file PRIVATE -UNDEBUG)
 
 # Second real job: IFrame → file sink module.
-add_library(wcp_frame_sink_file MODULE modules/frame_sink_file.cpp)
-target_link_libraries(wcp_frame_sink_file PRIVATE
+add_library(wcph_frame_sink_file MODULE modules/frame_sink_file.cpp)
+target_link_libraries(wcph_frame_sink_file PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_frame_sink_file PRIVATE -UNDEBUG)
+target_compile_options(wcph_frame_sink_file PRIVATE -UNDEBUG)
 
 # Fans job: 4×IFrame fan-in → merge via FrameFanin → file.
-add_library(wcp_frame_fanin_sink_file MODULE modules/frame_fanin_sink_file.cpp)
-target_link_libraries(wcp_frame_fanin_sink_file PRIVATE
+add_library(wcph_frame_fanin_sink_file MODULE modules/frame_fanin_sink_file.cpp)
+target_link_libraries(wcph_frame_fanin_sink_file PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcp_frame_fanin_sink_file PRIVATE -UNDEBUG)
+target_compile_options(wcph_frame_fanin_sink_file PRIVATE -UNDEBUG)
 
 # ---------------------------------------------------------------------------
 # Config-schema Jsonnet factories
@@ -235,14 +235,14 @@ boost_config_add_libjsonnet(
   PACKAGE wire_cell_phlex
   ALL
   PLUGINS
-    wcp_frame_filter
-    wcp_deposet_to_frame
-    wcp_deposet_source_file
-    wcp_deposet_sink_file
-    wcp_deposet_filter
-    wcp_frame_source_file
-    wcp_frame_sink_file
-    wcp_frame_fanin_sink_file
+    wcph_frame_filter
+    wcph_deposet_to_frame
+    wcph_deposet_source_file
+    wcph_deposet_sink_file
+    wcph_deposet_filter
+    wcph_frame_source_file
+    wcph_frame_sink_file
+    wcph_frame_fanin_sink_file
 )
 
 # ---------------------------------------------------------------------------
@@ -617,21 +617,21 @@ install(DIRECTORY wire_cell_phlex/
 
 # PHLEX MODULE libraries (dlopen only — no EXPORT needed)
 foreach(_mod IN ITEMS
-    wcp_frame_source
-    wcp_frame_filter
-    wcp_frame_observer
-    wcp_two_frame_observer
-    wcp_deposet_source
-    wcp_deposet_to_frame
-    wcp_deposet_filter
-    wcp_deposet_observer
-    wcp_deposet_source_file
-    wcp_deposet_sink_file
-    wcp_frame_source_file
-    wcp_frame_sink_file
-    wcp_frame_fanin_sink_file
-    wcp_wire_schema_source
-    wcp_wire_schema_observer
+    wcph_frame_source
+    wcph_frame_filter
+    wcph_frame_observer
+    wcph_two_frame_observer
+    wcph_deposet_source
+    wcph_deposet_to_frame
+    wcph_deposet_filter
+    wcph_deposet_observer
+    wcph_deposet_source_file
+    wcph_deposet_sink_file
+    wcph_frame_source_file
+    wcph_frame_sink_file
+    wcph_frame_fanin_sink_file
+    wcph_wire_schema_source
+    wcph_wire_schema_observer
 )
   install(TARGETS ${_mod}
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"

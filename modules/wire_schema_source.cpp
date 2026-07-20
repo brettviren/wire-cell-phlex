@@ -42,7 +42,7 @@ PHLEX_REGISTER_PROVIDERS(m, config)
     auto const layer    = config.get<std::string>("output_layer");
     auto const filename = config.get<std::string>("wire_schema_file");
 
-    m.provide("wcp_provide_wire_schema",
+    m.provide("wcph_provide_wire_schema",
               [filename](data_cell_index const&) -> wcphlex::WireSchema {
                   return wcphlex::WireSchema{WireCell::WireSchema::load(filename.c_str())};
               })

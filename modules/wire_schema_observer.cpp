@@ -36,7 +36,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
 {
     auto const layer = config.get<std::string>("input_layer");
 
-    m.observe("wcp_observe_wire_schema",
+    m.observe("wcph_observe_wire_schema",
               [](wcphlex::WireSchema const& ws) {
                   assert(ws.store.db() && "WireSchema store must be loaded (non-null db)");
                   assert(!ws.store.wires().empty() &&

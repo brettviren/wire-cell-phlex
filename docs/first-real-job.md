@@ -39,7 +39,7 @@ The integration tests write their output to the build directory:
 ```
 PHLEX workflow
 ┌───────────────────────┐     ┌───────────────────────┐     ┌──────────────────────────┐
-│  wcp_deposet_source_  │     │   wcp_deposet_filter  │     │  wcp_deposet_sink_file   │
+│  wcph_deposet_source_  │     │   wcph_deposet_filter  │     │  wcph_deposet_sink_file   │
 │  file                 │────▶│   (DepoSetDrifter)    │────▶│                          │
 │  (DepoFileSource)     │     │                       │     │  (DepoFileSink)           │
 └───────────────────────┘     └───────────────────────┘     └──────────────────────────┘
@@ -50,16 +50,16 @@ Inside each PHLEX module a complete WCT sub-graph runs:
 
 | PHLEX module | WCT sub-graph | Jsonnet config |
 |---|---|---|
-| `wcp_deposet_source_file` | `DepoFileSource → DepoSetBoundarySink` | `deposet-file-source.jsonnet` |
-| `wcp_deposet_filter` | `DepoSetBoundarySource → DepoSetDrifter → DepoSetBoundarySink` | `deposet-drifter.jsonnet` |
-| `wcp_deposet_sink_file` | `DepoSetBoundarySource → DepoFileSink` | `deposet-file-sink.jsonnet` |
+| `wcph_deposet_source_file` | `DepoFileSource → DepoSetBoundarySink` | `deposet-file-source.jsonnet` |
+| `wcph_deposet_filter` | `DepoSetBoundarySource → DepoSetDrifter → DepoSetBoundarySink` | `deposet-drifter.jsonnet` |
+| `wcph_deposet_sink_file` | `DepoSetBoundarySource → DepoFileSink` | `deposet-file-sink.jsonnet` |
 
 ## 2-node identity job
 
 ```
 PHLEX workflow
 ┌───────────────────────┐     ┌──────────────────────────┐
-│  wcp_deposet_source_  │     │  wcp_deposet_sink_file   │
+│  wcph_deposet_source_  │     │  wcph_deposet_sink_file   │
 │  file                 │────▶│                          │
 │  (DepoFileSource)     │     │  (DepoFileSink)           │
 └───────────────────────┘     └──────────────────────────┘
@@ -108,7 +108,7 @@ writes the file internally.
 
 ## Configuration reference
 
-### `wcp_deposet_source_file`
+### `wcph_deposet_source_file`
 
 | Key | Type | Default | Description |
 |---|---|---|---|
@@ -117,7 +117,7 @@ writes the file internally.
 | `wct_plugins` | string[] | `[]` | Must include `WireCellPgraph`, `WireCellSio` |
 | `wct_tla` | object | `{}` | Extra Jsonnet TLAs; use `{ inname: "path/to/depos.npz" }` |
 
-### `wcp_deposet_filter`
+### `wcph_deposet_filter`
 
 | Key | Type | Default | Description |
 |---|---|---|---|
@@ -126,7 +126,7 @@ writes the file internally.
 | `wct_plugins` | string[] | `[]` | Must include `WireCellPgraph`; add `WireCellGen` for drifter |
 | `wct_tla` | object | `{}` | Extra Jsonnet TLAs forwarded to WCT config |
 
-### `wcp_deposet_sink_file`
+### `wcph_deposet_sink_file`
 
 | Key | Type | Default | Description |
 |---|---|---|---|
@@ -189,7 +189,7 @@ To run a different `IDepoSetFilter` component:
      {type:"DepoSetBoundarySink",   name:sink_name,   ...},
      {type:"Pgrapher", name:app_name, data:{edges:[...]}} ]
    ```
-2. Use `wcp_deposet_filter` in the PHLEX workflow with `wct_config: "my-filter.jsonnet"`.
+2. Use `wcph_deposet_filter` in the PHLEX workflow with `wct_config: "my-filter.jsonnet"`.
 
 For a different file-based source, replace `DepoFileSource` in
 `deposet-file-source.jsonnet` with the desired `IDepoSetSource` component.

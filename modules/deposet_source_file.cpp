@@ -51,7 +51,7 @@ PHLEX_REGISTER_PROVIDERS(m, config)
 
     auto src = std::make_shared<wcphlex::DepoSetSourceFile>(to_executor_config(config));
 
-    m.provide("wct_deposet_source_file",
+    m.provide("wcph_deposet_source_file",
               [src](data_cell_index const&) -> wcphlex::DepoSet {
                   return (*src)();
               })

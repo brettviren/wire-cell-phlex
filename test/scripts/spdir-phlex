@@ -37,14 +37,14 @@
 #
 # Environment variables needed (or set env_overrides in config):
 #   PHLEX           : path to phlex executable
-#   PHLEX_PLUGIN_PATH: colon-separated dirs containing wcp_*.so libraries
+#   PHLEX_PLUGIN_PATH: colon-separated dirs containing wcph_*.so libraries
 #   WIRECELL_PATH   : colon-separated dirs for WCT Jsonnet and data files
 #                     Must include: wire-cell-phlex/cfg and wct-data directory
 #   WCPY            : path to wcpy executable (default: wcpy)
 #
 # Alternatively override via --config (in single --config invocation):
 #   --config phlex=/path/to/phlex wirecell_path="cfg:/path/to/data"
-#   --config phlex_plugin_path="/path/to/wcp_libs:/path/to/phlex_libs"
+#   --config phlex_plugin_path="/path/to/wcph_libs:/path/to/phlex_libs"
 
 import os
 import json
@@ -93,7 +93,7 @@ WCPY  = config.get("wcpy")  or os.environ.get("WCPY", "wcpy")
 #        b) An install prefix data/share/wirecell dir (contains wirecell.jsonnet)
 #      Both are included when found so that wirecell.jsonnet and data files are all
 #      available regardless of which directory holds each.
-_wcp_cfg = os.path.join(workflow.basedir, "..", "..", "cfg")
+_wcph_cfg = os.path.join(workflow.basedir, "..", "..", "cfg")
 _wct_data_dirs = []
 
 # Check for a sibling wire-cell-data repo (peer of wire-cell-phlex/).
@@ -124,9 +124,9 @@ if os.path.exists(os.path.join(_local_share, "wirecell.jsonnet")) and \
 
 WIRECELL_PATH = (config.get("wirecell_path") or
                  os.environ.get("WIRECELL_PATH") or
-                 ":".join(filter(None, [_wcp_cfg] + _wct_data_dirs)))
+                 ":".join(filter(None, [_wcph_cfg] + _wct_data_dirs)))
 
-# PHLEX_PLUGIN_PATH must contain the wire-cell-phlex build dir (wcp_*.so) and
+# PHLEX_PLUGIN_PATH must contain the wire-cell-phlex build dir (wcph_*.so) and
 # the phlex library dir.
 _build_dir = os.path.join(workflow.basedir, "..", "..", "build")
 _phlex_bin = os.path.realpath(PHLEX)

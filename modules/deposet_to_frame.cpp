@@ -46,7 +46,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
 
     auto d2f = std::make_shared<wcphlex::DepoSetToFrame>(to_executor_config(config));
 
-    m.transform("wct_deposet_to_frame",
+    m.transform("wcph_deposet_to_frame",
                 [d2f](wcphlex::DepoSet const& input) -> wcphlex::Frame {
                     return (*d2f)(input);
                 },

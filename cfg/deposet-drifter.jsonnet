@@ -3,7 +3,7 @@
 // WCT sub-graph: DepoSetBoundarySource → DepoSetDrifter (Drifter+Random)
 //                → DepoSetBoundarySink.
 //
-// Used by wcp_deposet_filter to run the WCT drift simulation on each PHLEX event.
+// Used by wcph_deposet_filter to run the WCT drift simulation on each PHLEX event.
 //
 // Physics parameters use a fictional single-APA geometry for testing.
 // Set fluctuate: false for determinism in unit tests.

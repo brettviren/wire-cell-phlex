@@ -45,7 +45,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
 
     auto dsf = std::make_shared<wcphlex::DepoSetFilter>(to_executor_config(config));
 
-    m.transform("wct_deposet_filter",
+    m.transform("wcph_deposet_filter",
                 [dsf](wcphlex::DepoSet const& input) -> wcphlex::DepoSet {
                     return (*dsf)(input);
                 },
