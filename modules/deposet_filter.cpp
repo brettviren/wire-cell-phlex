@@ -17,21 +17,24 @@
 // is initialized once; each PHLEX event calls operator()(DepoSet) which fills
 // the DepoSetBoundarySource, runs the graph, and drains the DepoSetBoundarySink.
 //
-// Expected config keys:
-//   wct_config   (string, required):    Path to the WCT Jsonnet config file.
-//   input_layer  (string, required):    PHLEX layer for the input DepoSet product.
-//   wct_plugins  (array of strings, optional): Extra WCT plugin libraries to load.
-//   wct_app      (string, optional):    WCT IApplication type (default "Pgrapher").
-//   wct_tla      (object, optional):    String→string map of extra Jsonnet TLAs.
+// Config schema: DepoSetFilterConfig (wire_cell_phlex/Config.hpp) =
+//   { phlex: PhlexAlgorithmConfig, executor: ExecutorConfig }
+// The `phlex` block carries the generic registration data (name, concurrency,
+// input families, output suffixes); `executor` carries the WCT settings.  This
+// is the first node migrated to the generic phlex_config schema; the input
+// selectors and output suffixes come from config rather than being hard-coded.
 
 #include "wire_cell_phlex/Data.hpp"
 #include "wire_cell_phlex/Executor.hpp"
+#include "wire_cell_phlex/Config_json.hpp"   // value_to<ExecutorConfig>
 
-#include "modules/executor_config.hpp"
+#include "modules/phlex_adapt.hpp"
 #include "boost_config/discovery.hpp"
 #include "phlex/module.hpp"
 
 #include <memory>
+#include <stdexcept>
+#include <string>
 
 using namespace phlex;
 
@@ -41,15 +44,32 @@ BOOST_CONFIG_EXPORT(DepoSetFilterConfig, wcphlex::DepoSetFilterConfig)
 
 PHLEX_REGISTER_ALGORITHMS(m, config)
 {
-    auto const layer = config.get<std::string>("input_layer");
+    // Generic Phlex registration data (name / concurrency / inputs / outputs).
+    auto const pac = config.get<phlex_config::PhlexAlgorithmConfig>("phlex");
 
-    auto dsf = std::make_shared<wcphlex::DepoSetFilter>(to_executor_config(config));
+    // WCT executor config; fold in the framework-injected module_label so
+    // multi-instance WCT component names stay unique.
+    auto exec = config.get<wcphlex::ExecutorConfig>("executor");
+    if (auto const ml = config.get_if_present<std::string>("module_label")) {
+        if (std::string(exec.module_label).empty()) {
+            exec.module_label = *ml;
+        }
+    }
+    auto dsf = std::make_shared<wcphlex::DepoSetFilter>(exec);
 
-    m.transform("wcph_deposet_filter",
+    // DepoSetFilter is a 1-input / 1-output transform.
+    auto const& inputs = pac.inputs.value;
+    auto const& outputs = pac.outputs.value;
+    if (inputs.size() != 1 || outputs.size() != 1) {
+        throw std::runtime_error(
+            "wcph_deposet_filter: expected exactly 1 input selector and 1 output suffix");
+    }
+
+    m.transform(std::string(pac.name),
                 [dsf](wcphlex::DepoSet const& input) -> wcphlex::DepoSet {
                     return (*dsf)(input);
                 },
-                concurrency::serial)
-      .input_family(product_selector{.creator = "input", .layer = layer, .suffix = "deposet"})
-      .output_product_suffixes("deposet");
+                wcphlex::to_concurrency(std::string(pac.concurrency)))
+      .input_family(wcphlex::to_selector(inputs[0]))
+      .output_product_suffixes(outputs[0]);
 }

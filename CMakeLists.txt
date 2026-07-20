@@ -48,6 +48,9 @@ find_package(Boost REQUIRED COMPONENTS json)
 # Jsonnet factory).  Public: wire_cell_phlex/Config.hpp is included by the public
 # Executor.hpp.
 find_package(boost_config REQUIRED)
+# Generic Phlex node-config schemas (PhlexAlgorithmConfig, ProductSelector).
+# Public: wire_cell_phlex/Config.hpp composes PhlexAlgorithmConfig.
+find_package(phlex_config REQUIRED)
 
 add_compile_options(-Wall -Wpedantic -Werror)
 
@@ -80,6 +83,7 @@ target_link_libraries(wire_cell_phlex
     phlex::core
     Boost::json
     boost_config::boost_config
+    phlex_config::phlex_config
 )
 
 # ---------------------------------------------------------------------------

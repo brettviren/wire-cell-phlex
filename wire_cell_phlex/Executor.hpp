@@ -301,6 +301,9 @@ private:
 // ---------------------------------------------------------------------------
 class DepoSetFilter : public Executor {
 public:
+    explicit DepoSetFilter(ExecutorConfig const& config);
+    // PHLEX-facing entry: parses the executor config from the JSON object and
+    // delegates to the config constructor above.
     explicit DepoSetFilter(boost::json::object const& config);
 
     // Process one DepoSet through the persistent WCT sub-graph.

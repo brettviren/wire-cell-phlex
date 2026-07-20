@@ -337,8 +337,8 @@ void DepoSetSinkFile::operator()(DepoSet const& input)
 // DepoSetFilter
 // ---------------------------------------------------------------------------
 
-DepoSetFilter::DepoSetFilter(boost::json::object const& config)
-    : Executor(parse_node_config<DepoSetFilterConfig>(config).executor)
+DepoSetFilter::DepoSetFilter(ExecutorConfig const& config)
+    : Executor(config)
 {
     m_src_name = m_scope + "_deposet_source";
     m_snk_name = m_scope + "_deposet_sink";
@@ -346,6 +346,10 @@ DepoSetFilter::DepoSetFilter(boost::json::object const& config)
     m_wcmain.tla_var("source_name", m_src_name);
     m_wcmain.tla_var("sink_name",   m_snk_name);
 }
+
+DepoSetFilter::DepoSetFilter(boost::json::object const& config)
+    : DepoSetFilter(parse_node_config<DepoSetFilterConfig>(config).executor)
+{}
 
 void DepoSetFilter::initialize_ports()
 {

@@ -23,9 +23,16 @@
   modules: {
     deposet_filter: {
       cpp: 'wcph_deposet_filter',
-      wct_config: 'deposet-passthrough.jsonnet',
-      wct_plugins: ['WireCellPgraph'],
-      input_layer: 'event',
+      phlex: {
+        name: 'deposet_filter',
+        concurrency: 'serial',
+        inputs: [{ creator: 'input', layer: 'event', suffix: 'deposet', stage: 'CURRENT' }],
+        outputs: ['deposet'],
+      },
+      executor: {
+        wct_config: 'deposet-passthrough.jsonnet',
+        wct_plugins: ['WireCellPgraph'],
+      },
     },
     deposet_observer: {
       cpp: 'wcph_deposet_observer',
