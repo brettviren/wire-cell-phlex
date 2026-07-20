@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wire-cell-phlex config walk-through — deposet_filter</title>
+<style>
+  :root{
+    --bg:#fbfbfd; --panel:#ffffff; --ink:#1c2230; --muted:#5a6478; --line:#e4e7ee;
+    --code-bg:#f5f6f9; --code-ink:#242a38; --accent:#3355d1;
+    /* the three "worlds" + config */
+    --phlex:#3b5bdb;  --phlex-bg:#eef2ff;
+    --wct:#c26a06;    --wct-bg:#fdf3e5;
+    --intg:#0f9488;   --intg-bg:#e6f6f4;
+    --cfg:#7a3fd0;    --cfg-bg:#f3ecfd;
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1218; --panel:#161b24; --ink:#e6e9f0; --muted:#9aa4b8; --line:#262d3a;
+      --code-bg:#0c0f15; --code-ink:#d6dbe6; --accent:#7f9cff;
+      --phlex:#8aa0ff; --phlex-bg:#1a2140;
+      --wct:#e5a457;   --wct-bg:#2e2211;
+      --intg:#4fd1c1;  --intg-bg:#0f2a29;
+      --cfg:#c39cf5;   --cfg-bg:#241734;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#fbfbfd; --panel:#ffffff; --ink:#1c2230; --muted:#5a6478; --line:#e4e7ee;
+    --code-bg:#f5f6f9; --code-ink:#242a38; --accent:#3355d1;
+    --phlex:#3b5bdb; --phlex-bg:#eef2ff; --wct:#c26a06; --wct-bg:#fdf3e5;
+    --intg:#0f9488; --intg-bg:#e6f6f4; --cfg:#7a3fd0; --cfg-bg:#f3ecfd;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f1218; --panel:#161b24; --ink:#e6e9f0; --muted:#9aa4b8; --line:#262d3a;
+    --code-bg:#0c0f15; --code-ink:#d6dbe6; --accent:#7f9cff;
+    --phlex:#8aa0ff; --phlex-bg:#1a2140; --wct:#e5a457; --wct-bg:#2e2211;
+    --intg:#4fd1c1; --intg-bg:#0f2a29; --cfg:#c39cf5; --cfg-bg:#241734;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,kbd{font-family:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 20px; display:grid; grid-template-columns:250px 1fr; gap:36px}
+  @media (max-width:900px){ .wrap{grid-template-columns:1fr} nav.toc{position:static!important; height:auto!important} }
+
+  header.hero{
+    background:linear-gradient(135deg,var(--phlex-bg),var(--intg-bg));
+    border-bottom:1px solid var(--line); padding:40px 0 28px;
+  }
+  header.hero .wrap{display:block}
+  header.hero h1{margin:0 0 6px; font-size:30px; letter-spacing:-.02em}
+  header.hero p.lede{margin:0; color:var(--muted); font-size:17px; max-width:70ch}
+  .legend{display:flex; flex-wrap:wrap; gap:10px; margin-top:18px}
+  .tag{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600;
+       padding:3px 10px; border-radius:999px; border:1px solid transparent; white-space:nowrap}
+  .tag::before{content:""; width:9px; height:9px; border-radius:50%; background:currentColor; opacity:.9}
+  .tag.phlex{color:var(--phlex); background:var(--phlex-bg); border-color:var(--phlex)}
+  .tag.wct{color:var(--wct); background:var(--wct-bg); border-color:var(--wct)}
+  .tag.intg{color:var(--intg); background:var(--intg-bg); border-color:var(--intg)}
+  .tag.cfg{color:var(--cfg); background:var(--cfg-bg); border-color:var(--cfg)}
+
+  nav.toc{position:sticky; top:0; align-self:start; height:100vh; overflow:auto;
+          padding:26px 0; font-size:14px}
+  nav.toc ol{list-style:none; margin:0; padding:0}
+  nav.toc li{margin:2px 0}
+  nav.toc a{color:var(--muted); display:block; padding:3px 10px; border-left:2px solid transparent}
+  nav.toc a:hover{color:var(--ink); border-left-color:var(--line); text-decoration:none}
+  nav.toc .sub{padding-left:14px; font-size:13px}
+  nav.toc .grp{margin-top:14px; font-weight:700; color:var(--ink); font-size:12px; text-transform:uppercase; letter-spacing:.06em; padding:0 10px}
+
+  main{padding:30px 0 80px; min-width:0}
+  section{margin:0 0 40px; scroll-margin-top:14px}
+  h2{font-size:22px; margin:36px 0 10px; letter-spacing:-.01em; padding-bottom:6px; border-bottom:1px solid var(--line)}
+  h3{font-size:17px; margin:26px 0 8px}
+  p{margin:10px 0}
+  .muted{color:var(--muted)}
+  ul,ol.steps{margin:10px 0; padding-left:22px}
+  li{margin:5px 0}
+
+  /* term chip used inline */
+  .t{font-weight:600; padding:1px 6px; border-radius:5px; font-size:.92em; border:1px solid transparent}
+  .t.phlex{color:var(--phlex); background:var(--phlex-bg)}
+  .t.wct{color:var(--wct); background:var(--wct-bg)}
+  .t.intg{color:var(--intg); background:var(--intg-bg)}
+  .t.cfg{color:var(--cfg); background:var(--cfg-bg)}
+
+  /* code cards */
+  figure.code{margin:16px 0; border:1px solid var(--line); border-radius:var(--radius);
+              overflow:hidden; background:var(--panel)}
+  figure.code>figcaption{display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+              padding:8px 12px; background:var(--code-bg); border-bottom:1px solid var(--line);
+              font-size:12.5px}
+  figure.code>figcaption .path{font-family:"SF Mono",ui-monospace,monospace; color:var(--muted)}
+  figure.code>figcaption .lines{margin-left:auto; color:var(--muted); font-size:11.5px;
+              border:1px solid var(--line); border-radius:6px; padding:1px 7px}
+  figure.code.phlex{border-left:4px solid var(--phlex)}
+  figure.code.wct{border-left:4px solid var(--wct)}
+  figure.code.intg{border-left:4px solid var(--intg)}
+  figure.code.cfg{border-left:4px solid var(--cfg)}
+  figure.code pre{margin:0; padding:14px 16px; overflow-x:auto; background:var(--code-bg)}
+  figure.code code{font-size:13px; line-height:1.55; color:var(--code-ink); white-space:pre}
+  figure.code .note{padding:9px 14px; font-size:13px; color:var(--muted);
+              background:var(--panel); border-top:1px solid var(--line)}
+  figure.code .note code{background:var(--code-bg); padding:1px 5px; border-radius:4px; color:var(--code-ink)}
+  .cap{font-size:13px; color:var(--muted); margin:6px 2px 0}
+
+  /* callout */
+  .box{border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:8px;
+       padding:12px 16px; margin:16px 0; background:var(--panel)}
+  .box b{color:var(--ink)}
+  .box.key{border-left-color:var(--intg); background:var(--intg-bg)}
+
+  /* flow diagram */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:10px; margin:18px 0; align-items:center}
+  .node{border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:var(--panel); min-width:150px}
+  .node .k{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
+  .node .n{font-family:ui-monospace,monospace; font-weight:600; font-size:13.5px}
+  .node.src{border-top:3px solid var(--phlex)}
+  .node.tr{border-top:3px solid var(--intg)}
+  .node.ob{border-top:3px solid var(--phlex)}
+  .arrow{color:var(--muted); font-weight:700; display:flex; flex-direction:column; align-items:center; font-size:12px}
+  .arrow .lbl{font-family:ui-monospace,monospace; font-size:11px; color:var(--muted)}
+  .wctbox{margin:10px 0 0; border:1px dashed var(--wct); border-radius:10px; padding:10px 12px; background:var(--wct-bg)}
+  .wctbox .k{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--wct); font-weight:700}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:14px}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{color:var(--muted); font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em}
+  td code{font-size:13px; color:var(--code-ink); background:var(--code-bg); padding:1px 5px; border-radius:4px}
+  .gloss td:first-child{white-space:nowrap; font-family:ui-monospace,monospace; font-weight:600}
+  .gloss tr td:first-child{color:var(--ink)}
+
+  .pill{font-size:11px; font-weight:700; padding:1px 7px; border-radius:999px; vertical-align:middle}
+  .pill.phlex{color:var(--phlex); background:var(--phlex-bg)}
+  .pill.wct{color:var(--wct); background:var(--wct-bg)}
+  .pill.intg{color:var(--intg); background:var(--intg-bg)}
+  .pill.cfg{color:var(--cfg); background:var(--cfg-bg)}
+  hr{border:0; border-top:1px solid var(--line); margin:30px 0}
+  .foot{color:var(--muted); font-size:13px; margin-top:40px}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>wire-cell-phlex config walk-through: <code>deposet_filter</code></h1>
+    <p class="lede">One node, followed end to end — from a Jsonnet workflow, through the typed
+      config schema, into a Phlex module registration, and down into a Wire-Cell Toolkit graph.
+      Read top to bottom to see how information is <em>provided</em> in configuration and
+      <em>shared</em> across the three worlds.</p>
+    <div class="legend">
+      <span class="tag phlex">Phlex — the data-flow framework</span>
+      <span class="tag wct">WCT — the Wire-Cell Toolkit engine</span>
+      <span class="tag intg">Integration — wire-cell-phlex / phlex-config / boost-config</span>
+      <span class="tag cfg">Configuration — Jsonnet / JSON</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <div class="grp">Orientation</div>
+  <ol>
+    <li><a href="#worlds">1. Three worlds</a></li>
+    <li><a href="#topology">2. The example topology</a></li>
+    <li><a href="#files">3. The artifacts</a></li>
+  </ol>
+  <div class="grp">The flow of information</div>
+  <ol>
+    <li><a href="#config">4. Workflow configuration</a></li>
+    <li><a href="#typed">5. JSON → typed config</a></li>
+    <li><a href="#register">6. Node registration</a></li>
+    <li><a href="#executor">7. Executor &amp; WCT bridge</a></li>
+    <li><a href="#trace">8. End-to-end trace</a></li>
+  </ol>
+  <div class="grp">Reference</div>
+  <ol>
+    <li><a href="#run">9. Running it</a></li>
+    <li><a href="#tooling">10. Discovery tooling</a></li>
+    <li><a href="#glossary">11. Glossary</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="worlds">
+  <h2>1. Three worlds (and a fourth)</h2>
+  <p>This node sits at the meeting point of three codebases. Keeping them straight is most of the
+     battle, so they are colour-coded throughout this document.</p>
+  <ul>
+    <li><span class="t phlex">Phlex</span> is the data-flow framework. It loads plugins, builds a
+      graph of <span class="t phlex">nodes</span>, and drives data through it. Crucially, Phlex has
+      <b>no explicit edges</b>: it connects a producer to a consumer by <em>matching product
+      descriptors</em> (see <a href="#register">§6</a>). It also has no config schema — it just hands
+      each plugin a <span class="t cfg">boost::json::object</span>.</li>
+    <li><span class="t wct">WCT</span> (the Wire-Cell Toolkit) is the engine that does the physics.
+      It has its <em>own</em> component system, its own graph (Pgrapher), and is configured by its
+      own Jsonnet. Phlex knows nothing about it.</li>
+    <li><span class="t intg">The integration</span> is the code in this repo that makes a WCT graph
+      look like a single Phlex node:
+      <b>wire-cell-phlex</b> (the <code>Executor</code> classes + PHLEX modules),
+      <b>phlex-config</b> (the generic node-config schema), and
+      <b>boost-config</b> (turns a C++ <code>struct</code> into a documented, JSON-(de)serialisable,
+      Jsonnet-emitting schema).</li>
+    <li><span class="t cfg">Configuration</span> is the Jsonnet the user writes and the JSON it
+      compiles to — the connective tissue between all three.</li>
+  </ul>
+  <div class="box key"><b>The one big idea.</b> A user writes one <span class="t cfg">Jsonnet</span>
+    object. Phlex reads part of it to build a graph; the integration reads part of it into a typed
+    C++ <code>struct</code>; that struct configures a WCT graph. The same document is projected into
+    three worlds. This walk-through follows that projection.</div>
+</section>
+
+<section id="topology">
+  <h2>2. The example topology</h2>
+  <p>The workflow is deliberately minimal: a synthetic <span class="t phlex">source</span> of
+    <code>DepoSet</code>s feeds the <code>deposet_filter</code> <span class="t phlex">transform</span>,
+    which runs each one through a trivial WCT graph (a passthrough) and emits it; an
+    <span class="t phlex">observer</span> checks the result.</p>
+
+  <div class="flow">
+    <div class="node src"><div class="k">source · provider</div><div class="n">deposet_source</div></div>
+    <div class="arrow"><span class="lbl">input/deposet</span><span>&rarr;</span></div>
+    <div class="node tr"><div class="k">transform</div><div class="n">deposet_filter</div></div>
+    <div class="arrow"><span class="lbl">deposet_filter/deposet</span><span>&rarr;</span></div>
+    <div class="node ob"><div class="k">observer</div><div class="n">deposet_observer</div></div>
+  </div>
+  <p class="cap">Arrows are <b>not</b> declared anywhere. Each label is a product descriptor
+    <code>creator/suffix</code>; Phlex forms the arrow when a consumer's selector matches a
+    producer's output (<a href="#register">§6</a>).</p>
+
+  <div class="wctbox">
+    <div class="k">inside deposet_filter — the WCT sub-graph (deposet-passthrough.jsonnet)</div>
+    <div class="flow" style="margin:8px 0 0">
+      <div class="node" style="border-top-color:var(--wct)"><div class="k">WCT node</div><div class="n">DepoSetBoundarySource</div></div>
+      <div class="arrow"><span>&rarr;</span></div>
+      <div class="node" style="border-top-color:var(--wct)"><div class="k">WCT node</div><div class="n">DepoSetBoundarySink</div></div>
+    </div>
+    <p class="cap" style="margin-top:8px">The <span class="t intg">boundary nodes</span> are the
+      airlock: Phlex fills the source and drains the sink each event, so the <em>same</em> WCT graph
+      is re-driven per event.</p>
+  </div>
+</section>
+
+<section id="files">
+  <h2>3. The artifacts</h2>
+  <p>Everything needed to run this lives in this directory:</p>
+  <table>
+    <tr><th>file</th><th>role</th></tr>
+    <tr><td><code>deposet-filter.jsonnet</code></td><td><span class="pill cfg">config</span> the Phlex workflow, authored with the <code>phlex.libsonnet</code> DSL</td></tr>
+    <tr><td><code>deposet-passthrough.jsonnet</code></td><td><span class="pill wct">wct</span> the WCT sub-graph the filter runs (a copy of <code>cfg/deposet-passthrough.jsonnet</code>)</td></tr>
+    <tr><td><code>run.sh</code></td><td>runs it with <code>phlexed</code></td></tr>
+    <tr><td><code>index.html</code></td><td>this document</td></tr>
+  </table>
+</section>
+
+<hr>
+
+<section id="config">
+  <h2>4. Workflow configuration <span class="pill cfg">config</span></h2>
+  <p>Phlex consumes one top-level object with three keys: <code>driver</code> (emits the data-cell
+    hierarchy), <code>sources</code>, and <code>modules</code>. We author it with the
+    <code>phlex.libsonnet</code> DSL, which exists because Phlex forms edges from
+    <em>descriptors</em>: the DSL lets a consumer reference a producer's output symbolically instead
+    of copy-pasting <code>creator/layer/suffix</code> triples.</p>
+
+  <figure class="code cfg">
+    <figcaption><span class="path">docs/walk-through/deposet-filter/deposet-filter.jsonnet</span>
+      <span class="lines">whole file</span></figcaption>
+<pre><code>local phlex = import 'phlex/phlex.libsonnet';
+
+// A Phlex provider stamps its products with creator "input" (a convention),
+// which is what a consumer selects — src.output('deposet') encodes exactly that.
+local src = phlex.source('deposet_source', 'wcph_deposet_source',
+                         layer='event', outputs=['deposet']);
+
+local filt = phlex.node('deposet_filter', 'wcph_deposet_filter', layer='event',
+                        inputs=[src.output('deposet')],
+                        outputs=['deposet'],
+                        config={
+                          executor: {
+                            wct_config: 'deposet-passthrough.jsonnet',
+                            wct_plugins: ['WireCellPgraph'],
+                          },
+                        });
+
+phlex.workflow(
+  phlex.generate_layers({ event: { parent: 'job', total: 3, starting_number: 1 } }),
+  nodes=[filt], sources=[src],
+) + {
+  modules+: {                      // a not-yet-migrated node, still on legacy keys
+    deposet_observer: { cpp: 'wcph_deposet_observer',
+                        input_layer: 'event', input_from: 'deposet_filter' },
+  },
+}</code></pre>
+  </figure>
+
+  <p>Two calls carry the wiring. <code>src.output('deposet')</code> returns a selector
+    <code>{creator:'input', layer:'event', suffix:'deposet'}</code> — note the creator is
+    <code>input</code>, not the source's label, because that is the convention Phlex providers use
+    (see the source in <a href="#register">§6</a>). Passing it as the filter's <code>inputs</code>
+    is the entire act of "connecting" the two.</p>
+
+  <p>The DSL is small and lives in the <span class="t intg">phlex-config</span> package:</p>
+  <figure class="code intg">
+    <figcaption><span class="path">devel/phlex-config/jsonnet/phlex/phlex.libsonnet</span>
+      <span class="lines">L33–46, 57–63, 71</span></figcaption>
+<pre><code>node(label, cpp, layer='event', inputs=[], outputs=[],
+     concurrency='serial', config={}, name=null):: {
+  block:: {
+    cpp: cpp,
+    phlex: { name: if name == null then label else name,
+             concurrency: concurrency, inputs: inputs, outputs: outputs },
+  } + config,
+  output(suffix):: lib.selector(label, layer, suffix),   // transform: creator = label
+},
+source(label, cpp, layer='event', outputs=[], config={}, creator='input'):: {
+  block:: { cpp: cpp, output_layer: layer } + ...,
+  output(suffix):: lib.selector(creator, layer, suffix), // provider: creator = "input"
+},</code></pre>
+    <div class="note">A <code>node</code>'s <code>output()</code> reports <code>creator = label</code>
+      (a transform's products are created by the module); a <code>source</code>'s reports
+      <code>creator = "input"</code>. This asymmetry mirrors how the C++ actually stamps creators.</div>
+  </figure>
+
+  <h3>What Phlex actually receives</h3>
+  <p>Compiling the Jsonnet yields the JSON below. Everything from here on is a reading of
+    <em>this</em> object. Note the two shapes in a module entry: <code>cpp</code> (framework key —
+    which <code>lib&lt;cpp&gt;.so</code> to load) sits beside <code>phlex</code> and
+    <code>executor</code> (opaque to Phlex; handed to our module).</p>
+  <figure class="code cfg">
+    <figcaption><span class="path">jsonnet -J … deposet-filter.jsonnet</span><span class="lines">output</span></figcaption>
+<pre><code>{
+  "driver":  { "cpp": "generate_layers",
+               "layers": { "event": { "parent": "job", "total": 3, "starting_number": 1 } } },
+  "sources": { "deposet_source": { "cpp": "wcph_deposet_source",
+                                   "output_layer": "event", "output_suffix": "deposet" } },
+  "modules": {
+    "deposet_filter": {
+      "cpp": "wcph_deposet_filter",
+      "phlex":    { "name": "deposet_filter", "concurrency": "serial",
+                    "inputs": [ { "creator": "input", "layer": "event",
+                                  "suffix": "deposet", "stage": "CURRENT" } ],
+                    "outputs": [ "deposet" ] },
+      "executor": { "wct_config": "deposet-passthrough.jsonnet",
+                    "wct_plugins": [ "WireCellPgraph" ] }
+    },
+    "deposet_observer": { "cpp": "wcph_deposet_observer",
+                          "input_from": "deposet_filter", "input_layer": "event" }
+  }
+}</code></pre>
+  </figure>
+  <div class="box"><b>Framework keys vs. opaque keys.</b> Phlex itself only consumes <code>cpp</code>
+    (the plugin library basename) and injects <code>module_label</code> = the map key
+    (<code>"deposet_filter"</code>). <em>Every other key</em> in a module block — <code>phlex</code>,
+    <code>executor</code>, the legacy <code>input_*</code> — is passed verbatim to our module's
+    registration function. That is the seam we build on.</div>
+</section>
+
+<section id="typed">
+  <h2>5. JSON → typed config <span class="pill intg">integration</span></h2>
+  <p>The <code>phlex</code> and <code>executor</code> sub-objects are described by plain C++
+    aggregates. <span class="t intg">boost-config</span>'s <code>Documented&lt;T&gt;</code> attaches a
+    docstring to each field while staying transparent to use, and gives the struct
+    <code>boost::json</code> (de)serialisation and a Jsonnet factory for free.</p>
+
+  <figure class="code intg">
+    <figcaption><span class="path">devel/phlex-config/phlex_config/ProductSelector.hpp</span><span class="lines">L26–35</span></figcaption>
+<pre><code>struct ProductSelector {
+    Documented&lt;std::string&gt; creator{"", "Producing algorithm/module label. Empty matches any."};
+    Documented&lt;std::string&gt; layer{"event", "Data layer the product lives in (required)."};
+    Documented&lt;std::string&gt; suffix{"", "Product suffix/label within a creator. Empty matches any."};
+    Documented&lt;std::string&gt; stage{"CURRENT", "Processing stage."};
+};
+BOOST_CONFIG_JSON(ProductSelector)   // emits the boost::json tag_invoke hooks</code></pre>
+    <div class="note">This mirrors Phlex's own <code>product_selector</code> field-for-field, so the
+      same JSON round-trips into either.</div>
+  </figure>
+
+  <figure class="code intg">
+    <figcaption><span class="path">devel/phlex-config/phlex_config/PhlexAlgorithmConfig.hpp</span><span class="lines">L38–47</span></figcaption>
+<pre><code>struct PhlexAlgorithmConfig {
+    Documented&lt;std::string&gt;                  name{"", "Node name; the algorithm half of the creator."};
+    Documented&lt;std::string&gt;                  concurrency{"serial", "'serial' | 'unlimited' | integer."};
+    Documented&lt;std::vector&lt;ProductSelector&gt;&gt; inputs{{}, "One input family per callable input."};
+    Documented&lt;std::vector&lt;std::string&gt;&gt;     outputs{{}, "One product suffix per returned value."};
+};
+BOOST_CONFIG_JSON(PhlexAlgorithmConfig)</code></pre>
+    <div class="note"><code>PhlexAlgorithmConfig</code> is <em>generic</em> — it captures the parts of
+      a node registration that are data (name/concurrency/inputs/outputs), independent of any
+      algorithm. It lives in phlex-config and has no dependency on WCT.</div>
+  </figure>
+
+  <p>The node's full config composes the generic part with the algorithm-specific part
+    (<code>ExecutorConfig</code>) by <b>aggregation</b> — the same pattern used for every WCT node:</p>
+  <figure class="code intg">
+    <figcaption><span class="path">devel/wire-cell-phlex/wire_cell_phlex/Config.hpp</span><span class="lines">L49–56, 87–90</span></figcaption>
+<pre><code>struct ExecutorConfig {
+    Documented&lt;std::string&gt;                            wct_config{"", "Path to the WCT Jsonnet config (required)."};
+    Documented&lt;std::string&gt;                            wct_app{"Pgrapher", "WCT IApplication type."};
+    Documented&lt;std::vector&lt;std::string&gt;&gt;               wct_plugins{{}, "Extra WCT plugin libraries."};
+    Documented&lt;std::map&lt;std::string,std::string&gt;&gt;      wct_tla{{}, "Extra Jsonnet top-level args."};
+    Documented&lt;std::string&gt;                            module_label{"", "Scope for WCT component names."};
+    // ... wct_log_sink, wct_log_level ...
+};
+
+struct DepoSetFilterConfig {
+    PhlexAlgorithmConfig phlex;      // the generic registration data  (the "phlex" JSON block)
+    ExecutorConfig       executor;   // the WCT-specific settings       (the "executor" JSON block)
+};</code></pre>
+  </figure>
+  <div class="box"><b>Why the field names matter.</b> The C++ member names <em>are</em> the JSON keys
+    (via <code>boost::pfr</code> reflection). <code>cfg.phlex.inputs[0].creator</code> is the JSON path
+    <code>modules.deposet_filter.phlex.inputs[0].creator</code>. And parsing is strict: an unknown key
+    throws (<code>reject_unknown</code>), which is why <code>cpp</code>/<code>module_label</code> are
+    read separately rather than parsed into the struct.</div>
+</section>
+
+<section id="register">
+  <h2>6. Node registration <span class="pill phlex">phlex</span> <span class="pill intg">integration</span></h2>
+  <p>A PHLEX plugin is a shared library that defines one entry point. The
+    <code>PHLEX_REGISTER_ALGORITHMS</code> macro expands to that entry point and opens a function body
+    receiving the graph handle <code>m</code> and the module's <code>config</code>. Here is the whole
+    body for the filter:</p>
+
+  <figure class="code intg">
+    <figcaption><span class="path">devel/wire-cell-phlex/modules/deposet_filter.cpp</span><span class="lines">L45–75</span></figcaption>
+<pre><code>PHLEX_REGISTER_ALGORITHMS(m, config)
+{
+    // (1) generic registration data — the "phlex" block, parsed via value_to.
+    auto const pac = config.get&lt;phlex_config::PhlexAlgorithmConfig&gt;("phlex");
+
+    // (2) algorithm config — the "executor" block; fold in the framework's
+    //     module_label so multi-instance WCT component names stay unique.
+    auto exec = config.get&lt;wcphlex::ExecutorConfig&gt;("executor");
+    if (auto const ml = config.get_if_present&lt;std::string&gt;("module_label"))
+        if (std::string(exec.module_label).empty()) exec.module_label = *ml;
+    auto dsf = std::make_shared&lt;wcphlex::DepoSetFilter&gt;(exec);   // constructs the WCT bridge (§7)
+
+    // (3) register the node: name / concurrency / input family / output suffix
+    //     all come from config — nothing is hard-coded.
+    m.transform(std::string(pac.name),
+                [dsf](wcphlex::DepoSet const&amp; input) -&gt; wcphlex::DepoSet { return (*dsf)(input); },
+                wcphlex::to_concurrency(std::string(pac.concurrency)))
+      .input_family(wcphlex::to_selector(inputs[0]))
+      .output_product_suffixes(outputs[0]);
+}</code></pre>
+    <div class="note">Compare the old body: it hard-coded
+      <code>.input_family(product_selector{.creator="input", .layer=layer, .suffix="deposet"})</code>
+      and <code>concurrency::serial</code>. Now those are <em>data</em>, read from
+      <code>pac</code>.</div>
+  </figure>
+
+  <p><code>config.get&lt;T&gt;("phlex")</code> works because <code>PhlexAlgorithmConfig</code> carries its
+    <code>boost::json</code> hooks (the <code>BOOST_CONFIG_JSON</code> from §5); Phlex's
+    <code>get&lt;T&gt;</code> is just <code>value_to&lt;T&gt;</code> under the hood. The bridge from the
+    generic schema types to Phlex's concrete registration types is one small header:</p>
+
+  <figure class="code intg">
+    <figcaption><span class="path">devel/wire-cell-phlex/modules/phlex_adapt.hpp</span><span class="lines">L29–58</span></figcaption>
+<pre><code>inline phlex::concurrency to_concurrency(std::string const&amp; s) {
+    if (s == "serial")    return phlex::concurrency::serial;
+    if (s == "unlimited") return phlex::concurrency::unlimited;
+    return phlex::concurrency{static_cast&lt;std::size_t&gt;(std::stoul(s))};
+}
+inline phlex::product_selector to_selector(phlex_config::ProductSelector const&amp; ps) {
+    phlex::product_selector sel{ .creator = std::string(ps.creator), .layer = std::string(ps.layer) };
+    if (const std::string suffix = ps.suffix; !suffix.empty())
+        sel.suffix = phlex::experimental::identifier{suffix};   // type is filled by input_family()
+    return sel;
+}</code></pre>
+  </figure>
+
+  <h3>How edges actually form</h3>
+  <p>The node has no wires. Instead:</p>
+  <ol class="steps">
+    <li>The filter's output product gets <b>creator = <code>{module_label, node-name}</code></b> —
+      here <code>{deposet_filter, deposet_filter}</code> — and suffix <code>deposet</code>
+      (from <code>output_product_suffixes</code>).</li>
+    <li>The source explicitly stamps its product with creator <code>"input"</code>:</li>
+  </ol>
+  <figure class="code intg">
+    <figcaption><span class="path">devel/wire-cell-phlex/modules/deposet_source.cpp</span><span class="lines">L37–44</span></figcaption>
+<pre><code>m.provide("wcph_provide_deposet",
+          [](data_cell_index const&amp; id) -&gt; wcphlex::DepoSet { /* make a DepoSet */ })
+  .output_product("input", "deposet", experimental::identifier{layer});
+//               └ creator  └ suffix   └ layer</code></pre>
+  </figure>
+  <ol class="steps" start="3">
+    <li>At graph finalisation, Phlex matches the filter's <code>input_family</code> selector
+      <code>{creator:'input', suffix:'deposet', layer:'event'}</code> against the source's output
+      <code>{creator:'input', suffix:'deposet', layer:'event'}</code> → <b>edge formed</b>. (Exactly
+      one match is required; zero → tries providers/sources, else hard error; more than one →
+      throws.)</li>
+    <li>Likewise the observer's <code>input_from:'deposet_filter'</code> selector matches the filter's
+      output creator on its <em>module_label</em> half.</li>
+  </ol>
+  <div class="box key"><b>Vocabulary trap.</b> "creator" is a pair — <code>{plugin=module_label,
+    algorithm=node-name}</code> — and matching succeeds on <em>either</em> half. That is why the
+    node-name passed to <code>m.transform</code> is largely cosmetic (nobody selects by it here) and
+    why the <code>wcph_</code>-prefixed node names were a naming, not a functional, concern.</div>
+</section>
+
+<section id="executor">
+  <h2>7. Executor &amp; the WCT bridge <span class="pill intg">integration</span> <span class="pill wct">wct</span></h2>
+  <p>Step (2) above built a <code>DepoSetFilter</code>. That object is where the integration meets
+    WCT. Its base, <code>Executor</code>, turns an <code>ExecutorConfig</code> into a configured (but
+    not yet initialised) <code>WireCell::Main</code>:</p>
+
+  <figure class="code intg">
+    <figcaption><span class="path">devel/wire-cell-phlex/wire_cell_phlex/Executor.cpp</span><span class="lines">L91–139</span></figcaption>
+<pre><code>Executor::Executor(ExecutorConfig const&amp; config)
+{
+    m_wcmain.add_config(std::string(config.wct_config));   // the WCT Jsonnet file (deposet-passthrough)
+    m_app_type = config.wct_app;                            // "Pgrapher"
+    m_wcmain.add_plugin("wire_cell_phlex");                 // provides the Boundary nodes
+    for (auto const&amp; p : config.wct_plugins.value) m_wcmain.add_plugin(p);   // "WireCellPgraph"
+    for (auto const&amp; [k, v] : config.wct_tla.value) m_wcmain.tla_var(k, v);  // extra WCT TLAs
+    if (!std::string(config.module_label).empty()) m_scope = config.module_label;  // unique naming
+    // ...
+    m_app_name = m_scope + "_pgrapher";
+    m_wcmain.tla_var("app_name", m_app_name);               // feed the WCT Jsonnet's app_name TLA
+    m_wcmain.add_app(m_app_type + ":" + m_app_name);
+}</code></pre>
+    <div class="note"><span class="t wct">TLA</span> = Jsonnet "top-level argument". The WCT config
+      is a Jsonnet <em>function</em>; <code>tla_var(k,v)</code> binds its parameters. This is how the
+      integration injects the per-instance node names into the WCT graph.</div>
+  </figure>
+
+  <p>The concrete subclass adds the boundary-node names, derived from the scope so two instances never
+    collide in WCT's global factory:</p>
+  <figure class="code intg">
+    <figcaption><span class="path">devel/wire-cell-phlex/wire_cell_phlex/Executor.cpp</span><span class="lines">L340–372</span></figcaption>
+<pre><code>DepoSetFilter::DepoSetFilter(ExecutorConfig const&amp; config) : Executor(config) {
+    m_src_name = m_scope + "_deposet_source";
+    m_snk_name = m_scope + "_deposet_sink";
+    m_wcmain.tla_var("source_name", m_src_name);   // → the WCT config's source_name TLA
+    m_wcmain.tla_var("sink_name",   m_snk_name);
+}
+void DepoSetFilter::initialize_ports() {           // called once, after m_wcmain.initialize()
+    m_source = find_boundary&lt;IDepoSetSource, BoundarySource&lt;IDepoSetSource&gt;&gt;("DepoSetBoundarySource", m_src_name);
+    m_sink   = find_boundary&lt;IDepoSetSink,   BoundarySink&lt;IDepoSetSink&gt;&gt;    ("DepoSetBoundarySink",   m_snk_name);
+}
+DepoSet DepoSetFilter::operator()(DepoSet const&amp; input) {
+    ensure_initialized();          // first call: builds the WCT graph, finds the ports
+    m_source-&gt;fill(input.ptr);      // hand this event's DepoSet to the WCT source
+    run_graph();                    // m_wcmain() — run the Pgrapher until quiescent
+    return DepoSet{m_sink-&gt;drain()}; // take the result back out
+}</code></pre>
+  </figure>
+
+  <p>The WCT side is a normal WCT Jsonnet — a <em>function</em> of the TLAs the Executor binds. Its
+    only unusual ingredients are the two boundary nodes (provided by the <code>wire_cell_phlex</code>
+    plugin) wired through a Pgrapher:</p>
+  <figure class="code wct">
+    <figcaption><span class="path">docs/walk-through/deposet-filter/deposet-passthrough.jsonnet</span><span class="lines">L11–43</span></figcaption>
+<pre><code>function(source_name = "wcphlex_deposet_source",
+         sink_name   = "wcphlex_deposet_sink",
+         app_name    = "wcphlex_pgrapher")   // ← bound by tla_var() above
+[
+    { type: "DepoSetBoundarySource", name: source_name, data: {} },
+    { type: "DepoSetBoundarySink",   name: sink_name,   data: {} },
+    { type: "Pgrapher", name: app_name, data: { edges: [
+        { tail: { node: "DepoSetBoundarySource:" + source_name, port: 0 },
+          head: { node: "DepoSetBoundarySink:"   + sink_name,   port: 0 } },
+    ] } },
+]</code></pre>
+  </figure>
+
+  <p>The boundary nodes are the airlock between the two worlds — a queue with WCT's node interface on
+    one face and a <code>fill</code>/<code>drain</code> API on the other:</p>
+  <figure class="code intg">
+    <figcaption><span class="path">devel/wire-cell-phlex/wire_cell_phlex/BoundarySource.hpp</span><span class="lines">L60–80</span></figcaption>
+<pre><code>void fill(output_pointer data) { m_queue.push(std::move(data)); /* reset EOS */ }
+// as a WCT ISourceNode, operator()(out) dequeues one item (or sends EOS when empty):
+//   queue non-empty → out = front(); pop(); return true
+</code></pre>
+    <div class="note">Because <code>fill</code>/<code>drain</code> bracket each <code>run_graph()</code>,
+      the <em>same</em> WCT graph is re-driven event after event — the deferred-init pattern that lets
+      geometry (arriving as a Phlex product) be registered before WCT's first
+      <code>initialize()</code>.</div>
+  </figure>
+</section>
+
+<section id="trace">
+  <h2>8. End-to-end trace</h2>
+  <p>One <code>DepoSet</code>, all the way through:</p>
+  <table>
+    <tr><th>#</th><th>world</th><th>what happens</th></tr>
+    <tr><td>1</td><td><span class="pill phlex">phlex</span></td><td>The <code>generate_layers</code> driver emits an <code>event</code> data cell (3 of them, per <code>total:3</code>).</td></tr>
+    <tr><td>2</td><td><span class="pill phlex">phlex</span></td><td>The source provides a <code>DepoSet</code> product for that cell: creator <code>input</code>, suffix <code>deposet</code>, layer <code>event</code>.</td></tr>
+    <tr><td>3</td><td><span class="pill phlex">phlex</span></td><td>Phlex's matcher (built once at finalisation) routes it to <code>deposet_filter</code>'s input port — the edge inferred in <a href="#register">§6</a>.</td></tr>
+    <tr><td>4</td><td><span class="pill intg">intg</span></td><td><code>DepoSetFilter::operator()</code> runs: on the first call <code>ensure_initialized()</code> builds the WCT graph and finds the boundary ports; then <code>m_source-&gt;fill(deposet)</code>.</td></tr>
+    <tr><td>5</td><td><span class="pill wct">wct</span></td><td><code>run_graph()</code> drives the Pgrapher: <code>DepoSetBoundarySource</code> dequeues the deposet → (passthrough) → <code>DepoSetBoundarySink</code> enqueues the result.</td></tr>
+    <tr><td>6</td><td><span class="pill intg">intg</span></td><td><code>m_sink-&gt;drain()</code> returns the result; <code>operator()</code> returns a <code>DepoSet</code>.</td></tr>
+    <tr><td>7</td><td><span class="pill phlex">phlex</span></td><td>Phlex publishes it as a product with creator <code>{deposet_filter, deposet_filter}</code>, suffix <code>deposet</code>.</td></tr>
+    <tr><td>8</td><td><span class="pill phlex">phlex</span></td><td>The observer's selector (<code>input_from: deposet_filter</code>) matches it; the observer runs its assertion.</td></tr>
+  </table>
+</section>
+
+<hr>
+
+<section id="run">
+  <h2>9. Running it</h2>
+  <p>Plain <code>phlex -c</code> resolves <em>no</em> Jsonnet import search path, so a DSL-authored
+    workflow is run with <code>phlexed</code> (phlex + a subset of jsonnet's CLI flags). It is
+    unofficial — used in demos and top-level tests, never baked into a package test.</p>
+  <figure class="code">
+    <figcaption><span class="path">docs/walk-through/deposet-filter/run.sh</span><span class="lines">core</span></figcaption>
+<pre><code>export PHLEX_PLUGIN_PATH="$build:$view/lib"     # wcph_*.so plugins + phlex framework plugins
+export WIRECELL_PATH="$here"                     # so WCT finds deposet-passthrough.jsonnet
+phlexed -J "$install/share/jsonnet" -c deposet-filter.jsonnet
+#       └ lets  import "phlex/phlex.libsonnet"  resolve</code></pre>
+  </figure>
+  <p class="muted">Expected: <code>Using configuration file: …deposet-filter.jsonnet</code> then a clean
+    exit — three events flow through with no assertion failures.</p>
+</section>
+
+<section id="tooling">
+  <h2>10. Discovery tooling <span class="pill intg">integration</span></h2>
+  <p>Because each config struct is a boost-config schema, two things come for free. Each plugin can
+    <em>advertise</em> its schema for a CLI to discover, and the schema emits a documented Jsonnet
+    factory.</p>
+  <figure class="code intg">
+    <figcaption><span class="path">devel/wire-cell-phlex/modules/deposet_filter.cpp</span><span class="lines">L43</span></figcaption>
+<pre><code>BOOST_CONFIG_EXPORT(DepoSetFilterConfig, wcphlex::DepoSetFilterConfig)
+// → exports a dlsym-able  boost_config_factories__DepoSetFilterConfig()  symbol</code></pre>
+  </figure>
+  <p>The build regenerates <code>&lt;module&gt;.libjsonnet</code> factories from the C++ structs
+    (into <code>build/wire_cell_phlex/</code>, installed to
+    <code>share/jsonnet/wire_cell_phlex/</code>), so they can never drift. The
+    <code>deposetfilterconfig.libjsonnet</code> factory produces exactly the nested
+    <code>{phlex:…, executor:…}</code> shape this workflow uses — <b>schema and wire format are the
+    same object</b>.</p>
+</section>
+
+<section id="glossary">
+  <h2>11. Glossary</h2>
+
+  <h3><span class="tag phlex">Phlex</span></h3>
+  <table class="gloss">
+    <tr><td>data cell</td><td>A position in the data-layer hierarchy (a tree rooted at <code>job</code>; here <code>job/event</code>). The driver emits cells; products live in cells.</td></tr>
+    <tr><td>layer</td><td>A named level of that tree (<code>job</code>, <code>event</code>, …). User-defined, not a fixed enum. Part of every product descriptor.</td></tr>
+    <tr><td>product</td><td>A typed datum a node produces/consumes, identified by <code>{creator, suffix, type}</code> within a layer.</td></tr>
+    <tr><td>creator</td><td>Who produced a product: the pair <code>{plugin = module_label, algorithm = node-name}</code>. Matching hits on either half.</td></tr>
+    <tr><td>module_label</td><td>The key of a module in the workflow's <code>modules</code> map. Phlex injects it into the config; it becomes the plugin half of the creator.</td></tr>
+    <tr><td>node-name</td><td>The string passed to <code>m.transform("…")</code> etc.; the algorithm half of the creator.</td></tr>
+    <tr><td>product_selector</td><td><code>{creator, layer, suffix, stage, type}</code> — a consumer's query for an input. The connective currency of the graph.</td></tr>
+    <tr><td>family</td><td>The set of products matching a selector across all cells of a layer — "creator/suffix ∈ layer". Hence <code>input_family</code>.</td></tr>
+    <tr><td>transform / observer / provider</td><td>Node taxa: transform (≥1 in, ≥1 out), observer (in, returns void), provider/source (injects products, e.g. creator <code>input</code>).</td></tr>
+    <tr><td>driver</td><td>Emits the data-cell hierarchy that drives the graph (here the stock <code>generate_layers</code>).</td></tr>
+    <tr><td><code>cpp</code></td><td>Framework key: the plugin shared-library basename → <code>lib&lt;cpp&gt;.so</code>, loaded from <code>PHLEX_PLUGIN_PATH</code>.</td></tr>
+    <tr><td>PHLEX_REGISTER_ALGORITHMS</td><td>Macro defining a plugin's entry point; its body registers one or more nodes. Plural because one plugin may register several.</td></tr>
+  </table>
+
+  <h3><span class="tag wct">Wire-Cell Toolkit</span></h3>
+  <table class="gloss">
+    <tr><td>WireCell::Main</td><td>The WCT job object: accumulates config/plugins/TLAs, then <code>initialize()</code>s and runs a graph. One per Executor instance.</td></tr>
+    <tr><td>component / NamedFactory</td><td>A WCT object identified by <code>type:name</code> in a global factory. The passthrough config creates three.</td></tr>
+    <tr><td>Pgrapher</td><td>A WCT <code>IApplication</code> that runs a graph of components given explicit <code>edges</code>. Our <code>wct_app</code>.</td></tr>
+    <tr><td>TLA</td><td>Top-Level Argument: a parameter of the WCT config <em>function</em>, bound by <code>tla_var(k,v)</code>. How the Executor injects node names.</td></tr>
+    <tr><td>IDepoSet</td><td>The WCT interface for a set of energy depositions — the datum flowing through this example.</td></tr>
+    <tr><td>edges</td><td>WCT graphs <em>do</em> have explicit edges (in the Pgrapher config) — unlike Phlex. Do not conflate the two graphs.</td></tr>
+  </table>
+
+  <h3><span class="tag intg">Integration</span> &nbsp;<span class="tag cfg">Config</span></h3>
+  <table class="gloss">
+    <tr><td>Executor</td><td>Base class wrapping a <code>WireCell::Main</code>; subclasses (e.g. <code>DepoSetFilter</code>) add boundary nodes and an <code>operator()</code>.</td></tr>
+    <tr><td>boundary node</td><td><code>DepoSetBoundarySource</code>/<code>Sink</code>: a queue with a WCT node face and a <code>fill</code>/<code>drain</code> face — the airlock between Phlex data and the WCT graph.</td></tr>
+    <tr><td>scope</td><td><code>m_scope</code> = the module_label (default <code>wcphlex</code>); prefixes all WCT component names so instances don't collide.</td></tr>
+    <tr><td>Documented&lt;T&gt;</td><td>boost-config wrapper: a value plus a compile-time docstring; transparent to use, JSON-(de)serialisable, Jsonnet-emitting.</td></tr>
+    <tr><td>PhlexAlgorithmConfig</td><td>Generic node registration data: <code>name</code>, <code>concurrency</code>, <code>inputs</code> (families), <code>outputs</code> (suffixes). The <code>phlex</code> block.</td></tr>
+    <tr><td>ProductSelector</td><td>Schema mirror of Phlex's <code>product_selector</code>; how a config author names an input family.</td></tr>
+    <tr><td>ExecutorConfig</td><td>The WCT-specific settings: <code>wct_config</code>, <code>wct_plugins</code>, <code>wct_tla</code>, <code>module_label</code>, … The <code>executor</code> block.</td></tr>
+    <tr><td><code>wct_config</code></td><td>Path to the WCT Jsonnet sub-graph the Executor runs (here <code>deposet-passthrough.jsonnet</code>), resolved via <code>WIRECELL_PATH</code>.</td></tr>
+    <tr><td>phlex.libsonnet</td><td>The DSL: <code>node</code>/<code>source</code>/<code>selector</code>/<code>workflow</code> — authors the workflow object with consistent descriptors.</td></tr>
+    <tr><td>phlexed</td><td>Unofficial <code>phlex</code> + a subset of jsonnet CLI flags (<code>-J</code>), so DSL imports resolve. Top-level use only.</td></tr>
+    <tr><td>wcph_</td><td>The standardized prefix for Phlex-level plugin/node names (wc = Wire-Cell, ph = Phlex) — distinct from WCT's <code>wct_</code> and the older "Wire-Cell Prototype" <code>wcp</code>.</td></tr>
+  </table>
+</section>
+
+<p class="foot">Walk-through for the <code>deposet_filter</code> node · wire-cell-phlex · generated as
+  design documentation. Line numbers reference the repo at the time of writing; open the cited files
+  alongside this page.</p>
+
+</main>
+</div>
+</body>
+</html>
