@@ -73,4 +73,16 @@ namespace wcphlex {
         WireCell::WireSchema::Store store;
     };
 
+    // Generic pointer-carrying wrapper, parameterised by the WCT interface type.
+    // Data<IFrame> is structurally identical to Frame above; because PHLEX
+    // distinguishes products by typeid (the type_id exact_ field, see the note
+    // atop this file), Data<IFrame> and Data<IDepoSet> are distinct product
+    // types.  The named structs above can become aliases of these, and the
+    // templated executors (FunctionExecutor<In,Out>) use Data<IType> directly.
+    // (WireSchema is excluded: it carries a Store, not an IType::pointer.)
+    template <class IType>
+    struct Data {
+        typename IType::pointer ptr;
+    };
+
 } // namespace wcphlex

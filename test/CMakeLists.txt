@@ -31,3 +31,13 @@ target_compile_definitions(test_executor PRIVATE
   WCP_CFG_DIR="${CMAKE_SOURCE_DIR}/cfg"
 )
 add_test(NAME executor COMMAND test_executor)
+
+# Idea-2 spike (ddm-7dk.3): templated FunctionExecutor<In,Out> + generic
+# mid-level-interface boundary nodes.
+add_executable(test_function_executor test_function_executor.cpp)
+target_link_libraries(test_function_executor PRIVATE wire_cell_phlex
+  ${WIRECELL_RUNTIME_LIBS})
+target_compile_definitions(test_function_executor PRIVATE
+  WCP_CFG_DIR="${CMAKE_SOURCE_DIR}/cfg"
+)
+add_test(NAME function_executor COMMAND test_function_executor)

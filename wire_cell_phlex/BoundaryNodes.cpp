@@ -23,6 +23,8 @@
 #include "wire_cell_phlex/BoundarySource.hpp"
 #include "wire_cell_phlex/BoundarySink.hpp"
 
+#include <WireCellIface/ISourceNode.h>
+#include <WireCellIface/ISinkNode.h>
 #include <WireCellIface/IFrameSource.h>
 #include <WireCellIface/IFrameSink.h>
 #include <WireCellIface/IDepoSetSource.h>
@@ -41,6 +43,21 @@ WIRECELL_FACTORY(FrameBoundarySource,
 WIRECELL_FACTORY(FrameBoundarySink,
                  wcphlex::BoundarySink<WireCell::IFrameSink>,
                  WireCell::IFrameSink,
+                 WireCell::IConfigurable)
+
+// --- Generic (mid-level-interface) Frame boundary nodes (Idea-2 spike) ------
+// Same behavior, but the WCT interface is the templated ISourceNode<IFrame> /
+// ISinkNode<IFrame> rather than the concrete IFrameSource / IFrameSink.  This
+// is what FunctionExecutor<IFrame,IFrame> finds; it proves the generic
+// mid-level interface wires through Pgraph (which matches by data type).
+WIRECELL_FACTORY(GenericFrameBoundarySource,
+                 wcphlex::BoundarySource<WireCell::ISourceNode<WireCell::IFrame>>,
+                 WireCell::ISourceNode<WireCell::IFrame>,
+                 WireCell::IConfigurable)
+
+WIRECELL_FACTORY(GenericFrameBoundarySink,
+                 wcphlex::BoundarySink<WireCell::ISinkNode<WireCell::IFrame>>,
+                 WireCell::ISinkNode<WireCell::IFrame>,
                  WireCell::IConfigurable)
 
 // --- DepoSet boundary nodes -------------------------------------------------
