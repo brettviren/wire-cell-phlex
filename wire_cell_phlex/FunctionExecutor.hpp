@@ -29,12 +29,12 @@
 #include "wire_cell_phlex/Data.hpp"
 #include "wire_cell_phlex/BoundarySource.hpp"
 #include "wire_cell_phlex/BoundarySink.hpp"
+#include "wire_cell_phlex/find_boundary.hpp"
 
 #include <WireCellIface/ISourceNode.h>
 #include <WireCellIface/ISinkNode.h>
-#include <WireCellUtil/NamedFactory.h>
 
-#include <stdexcept>
+#include <memory>
 #include <string>
 
 namespace wcphlex {
@@ -90,26 +90,10 @@ private:
             DT::snk_class, m_snk_name);
     }
 
-    template <typename Iface, typename Concrete>
-    static Concrete* find_boundary(std::string const& classname, std::string const& instname)
-    {
-        auto iface = WireCell::Factory::find_maybe<Iface>(classname, instname);
-        if (!iface) {
-            throw std::runtime_error("FunctionExecutor: WCT factory has no instance " +
-                                     classname + ":" + instname);
-        }
-        auto* raw = dynamic_cast<Concrete*>(iface.get());
-        if (!raw) {
-            throw std::runtime_error("FunctionExecutor: dynamic_cast failed for " +
-                                     classname + ":" + instname);
-        }
-        return raw;
-    }
-
     std::string m_src_name;
     std::string m_snk_name;
-    BoundarySource<typename ST::source_iface>* m_source{nullptr};
-    BoundarySink<typename DT::sink_iface>* m_sink{nullptr};
+    std::shared_ptr<BoundarySource<typename ST::source_iface>> m_source;
+    std::shared_ptr<BoundarySink<typename DT::sink_iface>> m_sink;
 };
 
 } // namespace wcphlex
