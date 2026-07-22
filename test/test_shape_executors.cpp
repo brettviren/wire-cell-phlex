@@ -23,6 +23,7 @@
 
 #include <iostream>
 #include <tuple>
+#include <vector>
 #include <type_traits>
 
 using namespace wcphlex;
@@ -42,15 +43,15 @@ static_assert(std::is_same_v<
     decltype(std::declval<SourceExecutor<IFrame>&>()()),
     Data<IFrame>>);
 
+// dynamic-multiplicity fans deal in std::vector<Data<...>>
 static_assert(std::is_same_v<
-    decltype(std::declval<FaninExecutor<IFrame, IFrame, 4>&>()(
-        std::declval<Data<IFrame>>(), std::declval<Data<IFrame>>(),
-        std::declval<Data<IFrame>>(), std::declval<Data<IFrame>>())),
+    decltype(std::declval<FaninExecutor<IFrame, IFrame>&>()(
+        std::declval<std::vector<Data<IFrame>>>())),
     Data<IFrame>>);
 
 static_assert(std::is_same_v<
-    decltype(std::declval<FanoutExecutor<IFrame, IFrame, 3>&>()(std::declval<Data<IFrame>>())),
-    std::tuple<Data<IFrame>, Data<IFrame>, Data<IFrame>>>);
+    decltype(std::declval<FanoutExecutor<IFrame, IFrame>&>()(std::declval<Data<IFrame>>())),
+    std::vector<Data<IFrame>>>);
 
 // heterogeneous join: IFrame + IDepoSet -> IFrame
 static_assert(std::is_same_v<
@@ -73,8 +74,8 @@ int main()
     odr_use(&FunctionExecutor<IFrame, IFrame>::operator());
     odr_use(&SinkExecutor<IFrame>::operator());
     odr_use(&SourceExecutor<IFrame>::operator());
-    odr_use(&FaninExecutor<IFrame, IFrame, 4>::operator());
-    odr_use(&FanoutExecutor<IFrame, IFrame, 3>::operator());
+    odr_use(&FaninExecutor<IFrame, IFrame>::operator());
+    odr_use(&FanoutExecutor<IFrame, IFrame>::operator());
     odr_use(&JoinExecutor<type_list<IFrame, IDepoSet>, IFrame>::operator());
     odr_use(&SplitExecutor<IFrame, type_list<IFrame, IDepoSet>>::operator());
 

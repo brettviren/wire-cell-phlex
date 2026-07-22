@@ -24,10 +24,16 @@
 //   FunctionExecutor<In,Out>          1 (In)                   1 (Out)
 //   SinkExecutor<In>                  1 (In)                   0   (real WCT sink)
 //   SourceExecutor<Out>               0   (real WCT source)    1 (Out)
-//   FaninExecutor<In,Out,N>           N (In, homogeneous)      1 (Out)
-//   FanoutExecutor<In,Out,N>          1 (In)                   N (Out, homogeneous)
-//   JoinExecutor<tuple<Ins...>,Out>   N (Ins..., heterogeneous)1 (Out)
-//   SplitExecutor<In,tuple<Outs...>>  1 (In)                   N (Outs..., heterog.)
+//   FaninExecutor<In,Out>             N (In, DYNAMIC mult.)    1 (Out)
+//   FanoutExecutor<In,Out>            1 (In)                   N (Out, DYNAMIC mult.)
+//   JoinExecutor<type_list<Ins...>,Out> N (Ins..., heterog.)   1 (Out)
+//   SplitExecutor<In,type_list<Outs...>> 1 (In)                N (Outs..., heterog.)
+//
+// Fans differ from Join/Split: WCT fans size their port count from
+// configuration at run time (e.g. FrameFanin overriding input_types()), so a
+// fan's multiplicity is a runtime value, not a template parameter.  The Phlex
+// side therefore deals in a std::vector<Data<IType>> (homogeneous), bridged to
+// the WCT std::vector<IType::pointer> by a plain iteration.
 //
 // The base does everything shape-independent: it holds the boundary node
 // handles, injects their instance names as WCT TLAs (source_name_<i> /
@@ -49,9 +55,11 @@
 #include <atomic>
 #include <cstddef>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 namespace wcphlex {
 
@@ -89,20 +97,16 @@ struct port_traits<WireCell::IDepoSet> {
 template <class... Ts>
 struct type_list {};
 
-namespace detail {
-template <class T, std::size_t>
-using repeat_elem = T;   // yields T regardless of the index
-template <class T, class Seq>
-struct repeat_list_impl;
-template <class T, std::size_t... I>
-struct repeat_list_impl<T, std::index_sequence<I...>> {
-    using type = type_list<repeat_elem<T, I>...>;
-};
-} // namespace detail
-
-// repeat_list<T,N> == type_list<T, T, ... (N times)>
-template <class T, std::size_t N>
-using repeat_list = typename detail::repeat_list_impl<T, std::make_index_sequence<N>>::type;
+// Per-port WCT instance names, scoped so instances of different modules never
+// collide in the global WCT factory.  Shared by every shape.
+inline std::string port_source_name(std::string const& scope, std::size_t i)
+{
+    return scope + "_source_" + std::to_string(i);
+}
+inline std::string port_sink_name(std::string const& scope, std::size_t j)
+{
+    return scope + "_sink_" + std::to_string(j);
+}
 
 // ---------------------------------------------------------------------------
 // PortedExecutor<type_list<Ins...>, type_list<Outs...>> — the workhorse base.
@@ -138,10 +142,8 @@ protected:
         find_sinks(std::make_index_sequence<n_out>{});
     }
 
-    // Per-port WCT instance names, scoped so instances of different modules
-    // never collide in the global WCT factory.
-    std::string src_name(std::size_t i) const { return m_scope + "_source_" + std::to_string(i); }
-    std::string snk_name(std::size_t j) const { return m_scope + "_sink_" + std::to_string(j); }
+    std::string src_name(std::size_t i) const { return port_source_name(m_scope, i); }
+    std::string snk_name(std::size_t j) const { return port_sink_name(m_scope, j); }
 
     std::tuple<std::shared_ptr<BoundarySource<typename port_traits<Ins>::source_iface>>...> m_sources;
     std::tuple<std::shared_ptr<BoundarySink<typename port_traits<Outs>::sink_iface>>...> m_sinks;
@@ -229,15 +231,104 @@ public:
     std::tuple<Data<Outs>...> operator()(Data<In> const& in) { return this->run(in); }
 };
 
-// N -> 1 (homogeneous inputs) : a fan-in — a Join whose N inputs share a type.
-template <class In, class Out, std::size_t N>
-using FaninExecutor = JoinExecutor<repeat_list<In, N>, Out>;
+// N -> 1 (homogeneous, DYNAMIC multiplicity) : a fan-in.  The port count is a
+// runtime value (from configuration), so — unlike Join — it is NOT a template
+// parameter and the port types are not a type_list.  The Phlex side deals in a
+// std::vector<Data<In>>; the WCT side is a plain iteration into the per-port
+// boundary sources.
+template <class In, class Out>
+class FaninExecutor : public Executor {
+public:
+    FaninExecutor(ExecutorConfig const& config, std::size_t multiplicity)
+        : Executor(config)
+        , m_mult(multiplicity)
+    {
+        for (std::size_t i = 0; i < m_mult; ++i) {
+            m_wcmain.tla_var("source_name_" + std::to_string(i), port_source_name(m_scope, i));
+        }
+        m_wcmain.tla_var("sink_name_0", port_sink_name(m_scope, 0));
+    }
 
-// 1 -> N (homogeneous outputs) : a fan-out — a Split whose N outputs share a type.
-// (Returns std::tuple<Data<Out>...>; a std::array<Data<Out>,N> convenience form
-//  could be layered on if a caller prefers it.)
-template <class In, class Out, std::size_t N>
-using FanoutExecutor = SplitExecutor<In, repeat_list<Out, N>>;
+    Data<Out> operator()(std::vector<Data<In>> const& ins)
+    {
+        ensure_initialized();
+        if (ins.size() != m_sources.size()) {
+            throw std::runtime_error("FaninExecutor: input vector size " +
+                                     std::to_string(ins.size()) + " != multiplicity " +
+                                     std::to_string(m_sources.size()));
+        }
+        for (std::size_t i = 0; i < m_sources.size(); ++i) {
+            m_sources[i]->fill(ins[i].ptr);
+        }
+        run_graph();
+        return Data<Out>{m_sink->drain()};
+    }
+
+private:
+    void initialize_ports() override
+    {
+        m_sources.resize(m_mult);
+        for (std::size_t i = 0; i < m_mult; ++i) {
+            m_sources[i] = find_boundary<typename port_traits<In>::source_iface,
+                                         BoundarySource<typename port_traits<In>::source_iface>>(
+                port_traits<In>::src_class, port_source_name(m_scope, i));
+        }
+        m_sink = find_boundary<typename port_traits<Out>::sink_iface,
+                               BoundarySink<typename port_traits<Out>::sink_iface>>(
+            port_traits<Out>::snk_class, port_sink_name(m_scope, 0));
+    }
+
+    std::size_t m_mult;
+    std::vector<std::shared_ptr<BoundarySource<typename port_traits<In>::source_iface>>> m_sources;
+    std::shared_ptr<BoundarySink<typename port_traits<Out>::sink_iface>> m_sink;
+};
+
+// 1 -> N (homogeneous, DYNAMIC multiplicity) : a fan-out.  Mirror of FaninExecutor;
+// the Phlex side deals in a std::vector<Data<Out>>.
+template <class In, class Out>
+class FanoutExecutor : public Executor {
+public:
+    FanoutExecutor(ExecutorConfig const& config, std::size_t multiplicity)
+        : Executor(config)
+        , m_mult(multiplicity)
+    {
+        m_wcmain.tla_var("source_name_0", port_source_name(m_scope, 0));
+        for (std::size_t j = 0; j < m_mult; ++j) {
+            m_wcmain.tla_var("sink_name_" + std::to_string(j), port_sink_name(m_scope, j));
+        }
+    }
+
+    std::vector<Data<Out>> operator()(Data<In> const& in)
+    {
+        ensure_initialized();
+        m_source->fill(in.ptr);
+        run_graph();
+        std::vector<Data<Out>> outs;
+        outs.reserve(m_sinks.size());
+        for (auto const& snk : m_sinks) {
+            outs.push_back(Data<Out>{snk->drain()});
+        }
+        return outs;
+    }
+
+private:
+    void initialize_ports() override
+    {
+        m_source = find_boundary<typename port_traits<In>::source_iface,
+                                 BoundarySource<typename port_traits<In>::source_iface>>(
+            port_traits<In>::src_class, port_source_name(m_scope, 0));
+        m_sinks.resize(m_mult);
+        for (std::size_t j = 0; j < m_mult; ++j) {
+            m_sinks[j] = find_boundary<typename port_traits<Out>::sink_iface,
+                                       BoundarySink<typename port_traits<Out>::sink_iface>>(
+                port_traits<Out>::snk_class, port_sink_name(m_scope, j));
+        }
+    }
+
+    std::size_t m_mult;
+    std::shared_ptr<BoundarySource<typename port_traits<In>::source_iface>> m_source;
+    std::vector<std::shared_ptr<BoundarySink<typename port_traits<Out>::sink_iface>>> m_sinks;
+};
 
 // 0 -> 1 : a source (the WCT graph contains a real source, e.g. a file reader).
 // Its execution protocol differs: the first call runs the graph to completion
