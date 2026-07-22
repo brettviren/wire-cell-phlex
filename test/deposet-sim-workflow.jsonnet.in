@@ -36,6 +36,7 @@
       wct_config: 'deposet-drift-sim.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
       input_layer: 'event',
+      input_from: 'input',
     },
     frame_sink: {
       cpp: 'wcph_frame_sink_file',

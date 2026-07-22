@@ -1,6 +1,6 @@
 // cfg/deposet-drift-sim.jsonnet
 //
-// WCT sub-graph: DepoSetBoundarySource → DepoSetDrifter → DepoTransform → FrameBoundarySink
+// WCT sub-graph: GenericDepoSetBoundarySource → DepoSetDrifter → DepoTransform → GenericFrameBoundarySink
 //
 // Implements a full drift + electronics simulation pipeline using PDSP APA 0
 // geometry parameters.  Used by the DepoSetToFrame executor.
@@ -9,18 +9,19 @@
 //   protodune-wires-larsoft-v4.json.bz2   — wire geometry (WireCellAux)
 //   dune-garfield-1d565.json.bz2          — field response (WireCellSigProc)
 //
-// TLA parameters:
-//   source_name (string): instance name for DepoSetBoundarySource
-//   sink_name   (string): instance name for FrameBoundarySink
-//   app_name    (string): instance name for Pgrapher
+// TLA parameters (injected by FunctionExecutor<IDepoSet,IFrame> — indexed per
+// port; single-port shapes use index 0):
+//   source_name_0 (string): instance name for GenericDepoSetBoundarySource
+//   sink_name_0   (string): instance name for GenericFrameBoundarySink
+//   app_name      (string): instance name for Pgrapher
 //
 // Required WCT plugins: WireCellPgraph, WireCellGen, WireCellSigProc, WireCellAux
 
 local wc = import "wirecell.jsonnet";
 
 function(
-    source_name    = "wcphlex_deposet_source",
-    sink_name      = "wcphlex_frame_sink",
+    source_name_0  = "wcphlex_deposet_source",
+    sink_name_0    = "wcphlex_frame_sink",
     app_name       = "wcphlex_pgrapher",
     service_prefix = "",   // prefix for all service component names;
                            // "" (default) = bare names, shared with any other island
@@ -250,14 +251,14 @@ local digitizer = {
 // ---------------------------------------------------------------------------
 
 local src = {
-    type: "DepoSetBoundarySource",
-    name: source_name,
+    type: "GenericDepoSetBoundarySource",
+    name: source_name_0,
     data: {},
 };
 
 local snk = {
-    type: "FrameBoundarySink",
-    name: sink_name,
+    type: "GenericFrameBoundarySink",
+    name: sink_name_0,
     data: {},
 };
 
