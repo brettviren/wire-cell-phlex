@@ -1,6 +1,6 @@
 // cfg/frame-file-sink.jsonnet
 //
-// WCT sub-graph: FrameBoundarySource → FrameFileSink.
+// WCT sub-graph: GenericFrameBoundarySource → FrameFileSink.
 //
 // Used by the FrameSinkFile executor.  Each PHLEX event fills the boundary
 // source with one Frame and runs the graph once.  The FrameFileSink (ITerminal)
@@ -8,22 +8,22 @@
 // and close the output file.
 //
 // TLA parameters:
-//   source_name (string): instance name for the FrameBoundarySource node
+//   source_name_0 (string): instance name for the GenericFrameBoundarySource node
 //   app_name    (string): instance name for the Pgrapher application
 //   outname     (string): output file path (passed via wct_tla from module config)
 //
 // Required WCT plugins: WireCellPgraph, WireCellSio
 
 function(
-    source_name = "wcphlex_frame_source",
+    source_name_0 = "wcphlex_frame_source",
     app_name    = "wcphlex_pgrapher",
     outname     = "frames-out.npz",
 )
 [
     // Boundary source: FrameSinkFile executor fills this per PHLEX event.
     {
-        type: "FrameBoundarySource",
-        name: source_name,
+        type: "GenericFrameBoundarySource",
+        name: source_name_0,
         data: {},
     },
 
@@ -46,7 +46,7 @@ function(
         data: {
             edges: [
                 {
-                    tail: { node: "FrameBoundarySource:" + source_name, port: 0 },
+                    tail: { node: "GenericFrameBoundarySource:" + source_name_0, port: 0 },
                     head: { node: "FrameFileSink:file_sink", port: 0 },
                 },
             ],

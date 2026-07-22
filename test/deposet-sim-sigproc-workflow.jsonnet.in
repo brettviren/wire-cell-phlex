@@ -3,7 +3,7 @@
   //
   // Reads muon-depos.npz via wcph_deposet_source_file, runs drift + DepoTransform
   // + OmnibusSigProc in a single wcph_deposet_to_frame executor, and writes the
-  // signal-processed frames to sp-frames-b.npz via wcph_frame_sink_file.
+  // signal-processed frames to sp-frames-b.npz via wcph_frame_sink.
   //
   // total: 1 matches the single depo set in muon-depos.npz.
   //
@@ -39,7 +39,7 @@
       input_layer: 'event',
     },
     frame_sink: {
-      cpp: 'wcph_frame_sink_file',
+      cpp: 'wcph_frame_sink',
       wct_config: 'frame-file-sink.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       input_layer: 'event',

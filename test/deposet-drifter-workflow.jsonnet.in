@@ -36,7 +36,7 @@
       input_from: 'input',
     },
     deposet_sink: {
-      cpp: 'wcph_deposet_sink_file',
+      cpp: 'wcph_deposet_sink',
       wct_config: 'deposet-file-sink.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       input_layer: 'event',

@@ -191,13 +191,13 @@ target_link_libraries(wcph_deposet_source_file PRIVATE
 )
 target_compile_options(wcph_deposet_source_file PRIVATE -UNDEBUG)
 
-add_library(wcph_deposet_sink_file MODULE modules/deposet_sink_file.cpp)
-target_link_libraries(wcph_deposet_sink_file PRIVATE
+add_library(wcph_deposet_sink MODULE modules/deposet_sink.cpp)
+target_link_libraries(wcph_deposet_sink PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcph_deposet_sink_file PRIVATE -UNDEBUG)
+target_compile_options(wcph_deposet_sink PRIVATE -UNDEBUG)
 
 # Third real job: file → IFrame source module.
 add_library(wcph_frame_source_file MODULE modules/frame_source_file.cpp)
@@ -209,13 +209,13 @@ target_link_libraries(wcph_frame_source_file PRIVATE
 target_compile_options(wcph_frame_source_file PRIVATE -UNDEBUG)
 
 # Second real job: IFrame → file sink module.
-add_library(wcph_frame_sink_file MODULE modules/frame_sink_file.cpp)
-target_link_libraries(wcph_frame_sink_file PRIVATE
+add_library(wcph_frame_sink MODULE modules/frame_sink.cpp)
+target_link_libraries(wcph_frame_sink PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcph_frame_sink_file PRIVATE -UNDEBUG)
+target_compile_options(wcph_frame_sink PRIVATE -UNDEBUG)
 
 # Fans job: 4×IFrame fan-in → merge via FrameFanin → file.
 add_library(wcph_frame_fanin_sink_file MODULE modules/frame_fanin_sink_file.cpp)
@@ -239,13 +239,12 @@ boost_config_add_libjsonnet(
   PACKAGE wire_cell_phlex
   ALL
   PLUGINS
-    wcph_frame_filter
-    wcph_deposet_to_frame
+    # Only modules that still BOOST_CONFIG_EXPORT a schema.  The templated-shape
+    # modules (deposet_to_frame, deposet_filter, frame_filter, deposet_sink,
+    # frame_sink) deliberately export nothing — their schema will be revisited
+    # in terms of node shapes.
     wcph_deposet_source_file
-    wcph_deposet_sink_file
-    wcph_deposet_filter
     wcph_frame_source_file
-    wcph_frame_sink_file
     wcph_frame_fanin_sink_file
 )
 
@@ -638,9 +637,9 @@ foreach(_mod IN ITEMS
     wcph_deposet_filter
     wcph_deposet_observer
     wcph_deposet_source_file
-    wcph_deposet_sink_file
+    wcph_deposet_sink
     wcph_frame_source_file
-    wcph_frame_sink_file
+    wcph_frame_sink
     wcph_frame_fanin_sink_file
     wcph_wire_schema_source
     wcph_wire_schema_observer

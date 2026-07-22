@@ -2,7 +2,7 @@
   // PHLEX integration test workflow: DepoSet identity round-trip.
   //
   // Reads muon-depos.npz (1 depo set, 32825 depositions) via wcph_deposet_source_file
-  // and writes an identical copy to identity-output.npz via wcph_deposet_sink_file.
+  // and writes an identical copy to identity-output.npz via wcph_deposet_sink.
   // No processing occurs between source and sink; serves as a round-trip baseline.
   //
   // total: 1 matches the single depo set in muon-depos.npz.
@@ -28,7 +28,7 @@
   },
   modules: {
     deposet_sink: {
-      cpp: 'wcph_deposet_sink_file',
+      cpp: 'wcph_deposet_sink',
       wct_config: 'deposet-file-sink.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       input_layer: 'event',

@@ -1,6 +1,6 @@
 {
     frame(filename, input_from): {
-        cpp:         "wcph_frame_sink_file",
+        cpp:         "wcph_frame_sink",
         wct_config:  "frame-file-sink.jsonnet",
         wct_plugins: ["WireCellPgraph", "WireCellSio"],
         input_layer: "event",

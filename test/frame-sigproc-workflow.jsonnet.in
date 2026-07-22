@@ -3,7 +3,7 @@
   //
   // Reads sim-frames.npz (produced by phlex_deposet_sim) via wcph_frame_source_file,
   // runs OmnibusSigProc via wcph_frame_filter (frame-sigproc.jsonnet), and writes
-  // the signal-processed frames to sp-frames-a.npz via wcph_frame_sink_file.
+  // the signal-processed frames to sp-frames-a.npz via wcph_frame_sink.
   //
   // total: 1 matches the single frame in sim-frames.npz.
   //
@@ -40,7 +40,7 @@
       input_from: 'input',
     },
     frame_sink: {
-      cpp: 'wcph_frame_sink_file',
+      cpp: 'wcph_frame_sink',
       wct_config: 'frame-file-sink.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       input_layer: 'event',

@@ -4,7 +4,7 @@
   // Reads muon-depos.npz (1 depo set) via wcph_deposet_source_file, runs the
   // WCT drift + electronics simulation (DepoSetDrifter + DepoTransform) via
   // wcph_deposet_to_frame, and writes the resulting frames to sim-frames.npz
-  // via wcph_frame_sink_file.
+  // via wcph_frame_sink.
   //
   // total: 1 matches the single depo set in muon-depos.npz.
   //
@@ -39,7 +39,7 @@
       input_from: 'input',
     },
     frame_sink: {
-      cpp: 'wcph_frame_sink_file',
+      cpp: 'wcph_frame_sink',
       wct_config: 'frame-file-sink.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       input_layer: 'event',

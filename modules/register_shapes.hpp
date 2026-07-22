@@ -78,4 +78,26 @@ void register_function(Proxy& m, phlex::configuration const& config)
         .output_product_suffixes(out_suffix);
 }
 
+// Register a 1->0 sink node (SinkExecutor<In>).  Consumes a Data<In> and drives
+// a WCT sub-graph that terminates in a real WCT sink (e.g. a file writer); no
+// Phlex product is produced.  Node name "wcph_<in>_sink"; input creator named
+// via the required "input_from" key (an upstream module label, or "input" to
+// consume a source), input suffix defaulting to the type <stem>.
+template <class In, class Proxy>
+void register_sink(Proxy& m, phlex::configuration const& config)
+{
+    const std::string layer = config.get<std::string>("input_layer");
+    const std::string from = config.get<std::string>("input_from");
+    const std::string in_suffix = config.get<std::string>("input_suffix", type_stem<In>());
+
+    auto node = std::make_shared<SinkExecutor<In>>(executor_config_from(config));
+
+    m.observe("wcph_" + type_stem<In>() + "_sink",
+              [node](Data<In> const& in) { (*node)(in); },
+              phlex::concurrency::serial)
+        .input_family(phlex::product_selector{
+            .creator = from, .layer = layer,
+            .suffix = phlex::experimental::identifier{in_suffix}});
+}
+
 } // namespace wcphlex
