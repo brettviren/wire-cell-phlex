@@ -24,16 +24,14 @@
 // boundary through GenericDepoSetBoundarySource / GenericFrameBoundarySink.
 //
 // Config keys: wct_config (required), input_layer (required), input_from
-// (optional, default "input"), wct_plugins / wct_app / wct_tla (optional).
+// (required: "input" to consume a source, else an upstream module label),
+// wct_plugins / wct_app / wct_tla (optional).
 
 #include "wire_cell_phlex/Data.hpp"
 
 #include "modules/register_shapes.hpp"
-#include "boost_config/discovery.hpp"
 
 #include "phlex/module.hpp"
-
-BOOST_CONFIG_EXPORT(DepoSetToFrameConfig, wcphlex::DepoSetToFrameConfig)
 
 PHLEX_REGISTER_ALGORITHMS(m, config)
 {

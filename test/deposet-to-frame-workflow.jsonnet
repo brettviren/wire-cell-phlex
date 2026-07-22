@@ -26,6 +26,7 @@
       wct_config: 'deposet-to-frame.jsonnet',
       wct_plugins: ['WireCellPgraph'],
       input_layer: 'event',
+      input_from: 'input',
     },
   },
 }

@@ -54,13 +54,14 @@ inline ExecutorConfig executor_config_from(phlex::configuration const& config)
 
 // Register a 1->1 function node (FunctionExecutor<In,Out>).  Node name
 // "wcph_<in>_to_<out>"; input family suffix <in>, output suffix <out>.  The
-// input creator defaults to "input" (the source convention) and may be set to
-// an upstream module label via the "input_from" config key.
+// input creator must be named explicitly via the required "input_from" config
+// key: the literal "input" to consume a source's output, or an upstream
+// module's label to chain off it.
 template <class In, class Out, class Proxy>
 void register_function(Proxy& m, phlex::configuration const& config)
 {
     const std::string layer = config.get<std::string>("input_layer");
-    const std::string from = config.get<std::string>("input_from", std::string{"input"});
+    const std::string from = config.get<std::string>("input_from");
 
     auto node = std::make_shared<FunctionExecutor<In, Out>>(executor_config_from(config));
 
