@@ -1,6 +1,6 @@
 // cfg/pdhd-apa-sim.jsonnet
 //
-// WCT sub-graph: DepoSetBoundarySource → DepoTransform → FrameBoundarySink
+// WCT sub-graph: GenericDepoSetBoundarySource → DepoTransform → GenericFrameBoundarySink
 //
 // Like pdhd-apa-sim-sigproc.jsonnet but without OmnibusSigProc.
 // Used for debugging fan-out/fan-in topology when sigproc is not needed.
@@ -8,8 +8,8 @@
 local wc = import "wirecell.jsonnet";
 
 function(
-    source_name = "wcphlex_deposet_source",
-    sink_name   = "wcphlex_frame_sink",
+    source_name_0 = "wcphlex_deposet_source",
+    sink_name_0   = "wcphlex_frame_sink",
     app_name    = "wcphlex_pgrapher",
     apa_ident   = "0",
 )
@@ -201,14 +201,14 @@ local digitizer = {
 };
 
 local src = {
-    type: "DepoSetBoundarySource",
-    name: source_name,
+    type: "GenericDepoSetBoundarySource",
+    name: source_name_0,
     data: {},
 };
 
 local snk = {
-    type: "FrameBoundarySink",
-    name: sink_name,
+    type: "GenericFrameBoundarySink",
+    name: sink_name_0,
     data: {},
 };
 

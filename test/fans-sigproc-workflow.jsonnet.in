@@ -44,6 +44,7 @@
   modules: {
     sim_sp_0: {
       cpp: 'wcph_deposet_to_frame',
+      input_from: 'input',
       wct_config: 'pdhd-apa-sim-sigproc.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
       input_layer: 'event',
@@ -51,6 +52,7 @@
     },
     sim_sp_1: {
       cpp: 'wcph_deposet_to_frame',
+      input_from: 'input',
       wct_config: 'pdhd-apa-sim-sigproc.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
       input_layer: 'event',
@@ -58,6 +60,7 @@
     },
     sim_sp_2: {
       cpp: 'wcph_deposet_to_frame',
+      input_from: 'input',
       wct_config: 'pdhd-apa-sim-sigproc.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
       input_layer: 'event',
@@ -65,6 +68,7 @@
     },
     sim_sp_3: {
       cpp: 'wcph_deposet_to_frame',
+      input_from: 'input',
       wct_config: 'pdhd-apa-sim-sigproc.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
       input_layer: 'event',

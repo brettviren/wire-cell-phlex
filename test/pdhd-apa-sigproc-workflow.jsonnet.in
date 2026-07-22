@@ -43,6 +43,7 @@
   modules: {
     sim_sp: {
       cpp: 'wcph_deposet_to_frame',
+      input_from: 'input',
       wct_config: 'pdhd-apa-sim-sigproc.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
       input_layer: 'event',

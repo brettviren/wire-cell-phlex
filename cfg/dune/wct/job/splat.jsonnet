@@ -1,7 +1,7 @@
 // cfg/dune/wct/job/splat.jsonnet
 //
-// WCT sub-graph: DepoSetBoundarySource → DepoSetDrifter → DepoFluxSplat
-//                → Reframer → FrameBoundarySink
+// WCT sub-graph: GenericDepoSetBoundarySource → DepoSetDrifter → DepoFluxSplat
+//                → Reframer → GenericFrameBoundarySink
 //
 // Implements drift + DepoFluxSplat ("true signal") for a single anode of any
 // DUNE detector described by a DetectorDescription object (see wct/dets/).
@@ -12,8 +12,8 @@
 // per-anode configuration is taken from det.anodes[anode_index].
 //
 // TLA parameters (same signature as sim.jsonnet):
-//   source_name    (string): instance name for DepoSetBoundarySource
-//   sink_name      (string): instance name for FrameBoundarySink
+//   source_name_0    (string): instance name for GenericDepoSetBoundarySource
+//   sink_name_0      (string): instance name for GenericFrameBoundarySink
 //   app_name       (string): instance name for Pgrapher
 //   detector       (string): canonical detector name, e.g. "pdhd" or "pdvd"
 //   anode_index    (string): anode index into det.anodes[], e.g. "0"
@@ -25,8 +25,8 @@ local wc   = import "wirecell.jsonnet";
 local dets = import "dune/wct/dets.jsonnet";
 
 function(
-    source_name    = "wcphlex_deposet_source",
-    sink_name      = "wcphlex_frame_sink",
+    source_name_0    = "wcphlex_deposet_source",
+    sink_name_0      = "wcphlex_frame_sink",
     app_name       = "wcphlex_pgrapher",
     detector       = "pdhd",
     anode_index    = "0",
@@ -156,14 +156,14 @@ local reframer = {
 // ---------------------------------------------------------------------------
 
 local src = {
-    type: "DepoSetBoundarySource",
-    name: source_name,
+    type: "GenericDepoSetBoundarySource",
+    name: source_name_0,
     data: {},
 };
 
 local snk = {
-    type: "FrameBoundarySink",
-    name: sink_name,
+    type: "GenericFrameBoundarySink",
+    name: sink_name_0,
     data: {},
 };
 

@@ -1,16 +1,16 @@
 // cfg/dune/wct/job/sim-sigproc.jsonnet
 //
-// WCT sub-graph: DepoSetBoundarySource → DepoSetDrifter → DepoTransform
+// WCT sub-graph: GenericDepoSetBoundarySource → DepoSetDrifter → DepoTransform
 //                → Reframer → AddNoise → Digitizer → OmnibusSigProc
-//                → FrameBoundarySink
+//                → GenericFrameBoundarySink
 //
 // Combined drift simulation + signal processing for a single anode.
 // Service components (AnodePlane, DFT, FieldResponse, ElecResponse) are
 // shared between the simulation and signal processing stages.
 //
 // TLA parameters:
-//   source_name    (string): instance name for DepoSetBoundarySource
-//   sink_name      (string): instance name for FrameBoundarySink
+//   source_name_0    (string): instance name for GenericDepoSetBoundarySource
+//   sink_name_0      (string): instance name for GenericFrameBoundarySink
 //   app_name       (string): instance name for Pgrapher
 //   detector       (string): canonical detector name, e.g. "pdhd" or "pdvd"
 //   anode_index    (string): anode index into det.anodes[], e.g. "0"
@@ -22,8 +22,8 @@ local wc   = import "wirecell.jsonnet";
 local dets = import "dune/wct/dets.jsonnet";
 
 function(
-    source_name    = "wcphlex_deposet_source",
-    sink_name      = "wcphlex_frame_sink",
+    source_name_0    = "wcphlex_deposet_source",
+    sink_name_0      = "wcphlex_frame_sink",
     app_name       = "wcphlex_pgrapher",
     detector       = "pdhd",
     anode_index    = "0",
@@ -281,14 +281,14 @@ local sigproc = {
 // ---------------------------------------------------------------------------
 
 local src = {
-    type: "DepoSetBoundarySource",
-    name: source_name,
+    type: "GenericDepoSetBoundarySource",
+    name: source_name_0,
     data: {},
 };
 
 local snk = {
-    type: "FrameBoundarySink",
-    name: sink_name,
+    type: "GenericFrameBoundarySink",
+    name: sink_name_0,
     data: {},
 };
 

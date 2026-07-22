@@ -279,11 +279,19 @@ get_filename_component(_phlex_bin_dir "${PHLEX_EXECUTABLE}" DIRECTORY)
 get_filename_component(_phlex_lib_dir "${_phlex_bin_dir}/../lib" ABSOLUTE)
 
 # Locate the WireCell shared data directory (wire geometry files, etc.).
+# Prefer a share/wirecell that actually contains geometry/response data
+# (*.json.bz2) rather than one holding only jsonnet configs: some prefixes
+# (e.g. our install tree) ship the latter, while the Spack view's share/wirecell
+# carries the real data files.  Picking the first existing dir unconditionally
+# would select the data-less install tree and break every _with_data test.
 set(_wct_data_dir "")
 foreach(_prefix IN LISTS CMAKE_PREFIX_PATH)
   if(EXISTS "${_prefix}/share/wirecell")
-    set(_wct_data_dir "${_prefix}/share/wirecell")
-    break()
+    file(GLOB _wct_data_files "${_prefix}/share/wirecell/*.json.bz2")
+    if(_wct_data_files)
+      set(_wct_data_dir "${_prefix}/share/wirecell")
+      break()
+    endif()
   endif()
 endforeach()
 
@@ -391,9 +399,9 @@ configure_file(
 )
 
 # Sigproc variants: per-APA single-instance tests and 4-APA fan with sigproc.
-# These tests currently fail (Eigen bounds assertion in OmnibusSigProc for
-# apa_ident=3 with drifted PDSP depos).  They are written to pass once that
-# bug is fixed; no WILL_FAIL property is set.
+# (These previously failed with an Eigen bounds assertion in OmnibusSigProc for
+# apa_ident=3 with drifted PDSP depos; they now pass once the WCT shared-data
+# dir resolves correctly — see _wct_data_dir above.)
 foreach(_apa IN ITEMS 0 1 2 3)
   set(APA_IDENT "${_apa}")
   configure_file(

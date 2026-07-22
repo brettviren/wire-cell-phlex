@@ -1,6 +1,6 @@
 // cfg/pdhd-apa-sim-sigproc.jsonnet
 //
-// WCT sub-graph: DepoSetBoundarySource → DepoTransform → OmnibusSigProc → FrameBoundarySink
+// WCT sub-graph: GenericDepoSetBoundarySource → DepoTransform → OmnibusSigProc → GenericFrameBoundarySink
 //
 // Implements per-APA electronics simulation + signal processing for one PDHD APA.
 // The Drifter has already been applied upstream (in pdhd-file-drifter.jsonnet).
@@ -23,8 +23,8 @@
 //   nticks    = 6000 at 0.5 us (3 ms readout)
 //
 // TLA parameters:
-//   source_name (string): instance name for DepoSetBoundarySource
-//   sink_name   (string): instance name for FrameBoundarySink
+//   source_name_0 (string): instance name for GenericDepoSetBoundarySource
+//   sink_name_0   (string): instance name for GenericFrameBoundarySink
 //   app_name    (string): instance name for Pgrapher
 //   apa_ident   (string): APA number "0", "1", "2", or "3"
 //
@@ -34,8 +34,8 @@ local wc = import "wirecell.jsonnet";
 local spfilt = import "sp-filters.jsonnet";
 
 function(
-    source_name = "wcphlex_deposet_source",
-    sink_name   = "wcphlex_frame_sink",
+    source_name_0 = "wcphlex_deposet_source",
+    sink_name_0   = "wcphlex_frame_sink",
     app_name    = "wcphlex_pgrapher",
     apa_ident   = "0",
 )
@@ -301,14 +301,14 @@ local sigproc = {
 // ---------------------------------------------------------------------------
 
 local src = {
-    type: "DepoSetBoundarySource",
-    name: source_name,
+    type: "GenericDepoSetBoundarySource",
+    name: source_name_0,
     data: {},
 };
 
 local snk = {
-    type: "FrameBoundarySink",
-    name: sink_name,
+    type: "GenericFrameBoundarySink",
+    name: sink_name_0,
     data: {},
 };
 

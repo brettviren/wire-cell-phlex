@@ -33,6 +33,7 @@
   modules: {
     frame_sim_sigproc: {
       cpp: 'wcph_deposet_to_frame',
+      input_from: 'input',
       wct_config: 'deposet-sim-sigproc.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
       input_layer: 'event',

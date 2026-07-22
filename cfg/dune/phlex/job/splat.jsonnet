@@ -55,6 +55,7 @@ local with_log = {
     modules: {
         frame_splat: {
             cpp:         "wcph_deposet_to_frame",
+            input_from: "input",
             wct_config:  "dune/wct/job/splat.jsonnet",
             wct_plugins: ["WireCellPgraph", "WireCellGen", "WireCellSigProc", "WireCellAux"],
             input_layer: "event",
