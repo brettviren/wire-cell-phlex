@@ -33,16 +33,18 @@
   modules: {
     sigproc_a: {
       cpp: 'wcph_frame_filter',
-      wct_config: 'frame-passthrough.jsonnet',
+      wct_config: 'frame-passthrough-generic.jsonnet',
       wct_plugins: ['WireCellPgraph'],
       input_layer: 'event',
+      input_from: 'input',
       input_suffix: 'frame_a',
     },
     sigproc_b: {
       cpp: 'wcph_frame_filter',
-      wct_config: 'frame-passthrough.jsonnet',
+      wct_config: 'frame-passthrough-generic.jsonnet',
       wct_plugins: ['WireCellPgraph'],
       input_layer: 'event',
+      input_from: 'input',
       input_suffix: 'frame_b',
     },
     verify: {

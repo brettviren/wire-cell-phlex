@@ -1,6 +1,6 @@
 // cfg/dune/wct/job/sigproc.jsonnet
 //
-// WCT sub-graph: FrameBoundarySource → OmnibusSigProc → FrameBoundarySink
+// WCT sub-graph: GenericFrameBoundarySource → OmnibusSigProc → GenericFrameBoundarySink
 //
 // Implements signal processing for a single anode of any DUNE detector
 // described by a DetectorDescription object (see wct/dets/).
@@ -10,8 +10,8 @@
 // components are read from det.sp_filters (detector-tuned, C++ hard-coded names).
 //
 // TLA parameters:
-//   source_name    (string): instance name for FrameBoundarySource
-//   sink_name      (string): instance name for FrameBoundarySink
+//   source_name_0    (string): instance name for GenericFrameBoundarySource
+//   sink_name_0      (string): instance name for GenericFrameBoundarySink
 //   app_name       (string): instance name for Pgrapher
 //   detector       (string): canonical detector name, e.g. "pdhd" or "pdvd"
 //   anode_index    (string): anode index into det.anodes[], e.g. "0"
@@ -23,8 +23,8 @@ local wc   = import "wirecell.jsonnet";
 local dets = import "dune/wct/dets.jsonnet";
 
 function(
-    source_name    = "wcphlex_frame_source",
-    sink_name      = "wcphlex_frame_sink",
+    source_name_0    = "wcphlex_frame_source",
+    sink_name_0      = "wcphlex_frame_sink",
     app_name       = "wcphlex_pgrapher",
     detector       = "pdhd",
     anode_index    = "0",
@@ -192,14 +192,14 @@ local sigproc = {
 // ---------------------------------------------------------------------------
 
 local src = {
-    type: "FrameBoundarySource",
-    name: source_name,
+    type: "GenericFrameBoundarySource",
+    name: source_name_0,
     data: {},
 };
 
 local snk = {
-    type: "FrameBoundarySink",
-    name: sink_name,
+    type: "GenericFrameBoundarySink",
+    name: sink_name_0,
     data: {},
 };
 

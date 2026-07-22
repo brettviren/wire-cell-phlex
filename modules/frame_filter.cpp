@@ -11,93 +11,72 @@
 
 // modules/frame_filter.cpp
 //
-// PHLEX algorithm module: wraps wcphlex::FrameFilter as a PHLEX transform.
+// PHLEX algorithm module: IFrame -> IFrame function node.
 //
-// The FrameFilter (Executor subclass) initializes WireCell::Main ONCE on the
-// first event, then processes each PHLEX event by:
-//   1. Filling the WCT BoundarySource queue with the input Frame pointer.
-//   2. Running the WCT Pgraph sub-graph until quiescent.
-//   3. Draining the WCT BoundarySink and returning the result as a wcphlex::Frame.
+// Two paths share one library:
 //
-// The WCT sub-graph is configured by a Jsonnet file whose path is supplied via
-// the wct_config parameter.  Boundary-node names and the Pgrapher instance name
-// are injected as Jsonnet TLAs by the Executor base class.
+//   * Plain (default): a 1-in/1-out FunctionExecutor<IFrame,IFrame> registered
+//     via register_function() — data crosses the Phlex boundary through
+//     GenericFrameBoundarySource / GenericFrameBoundarySink.
 //
-// Expected config keys:
-//   wct_config      (string, required): Path to the WCT Jsonnet config file.
-//   input_layer     (string, required): PHLEX layer for the input Frame product.
-//   input_from      (string, optional, default "input"): PHLEX creator name of
-//                   the input Frame product.  "input" (the default) consumes from
-//                   a PHLEX source.  Set to the module label of an upstream module
-//                   (e.g. "frame_sim") to consume from that module's output Frame.
-//   input_suffix    (string, optional, default "frame"): suffix of input product.
-//                   Set to a distinct value when consuming one of several frame
-//                   streams in the same layer (multi-instance scenario).
-//   use_wire_schema (bool, optional, default false): when true, also consume a
-//                   wcphlex::WireSchema product from the job layer.  The geometry
-//                   is deposited in FacadeWireSchema's static registry before
-//                   WCT is initialized, enabling configure()-time IWireSchema
-//                   lookups (e.g. by AnodePlane) to succeed.
-//   wire_schema_layer (string, optional, default "job"): PHLEX layer from which
-//                   to consume the WireSchema product.  Ignored unless
-//                   use_wire_schema is true.
-//   wct_plugins     (array of strings, optional): Extra WCT plugin libraries.
-//   wct_app         (string, optional): WCT IApplication type (default "Pgrapher").
-//   wct_tla         (object, optional): String→string map of extra Jsonnet TLAs.
+//   * Auxiliary wire-schema (use_wire_schema: true): a 2-input transform on the
+//     original FrameFilter executor that also consumes a WireSchema product and
+//     deposits it in FacadeWireSchema's registry before WCT initialize(), so
+//     configure()-time IWireSchema lookups (e.g. by AnodePlane) succeed.  This
+//     is the deferred "auxiliary input" shape; it remains hand-written until
+//     the shape family grows a generic aux-input mechanism.
+//
+// Config keys: wct_config (required), input_layer (required), input_from
+// (required: "input" to consume a source, else an upstream module label),
+// input_suffix / output_suffix (optional, default "frame"),
+// use_wire_schema (bool, optional, default false),
+// wire_schema_layer (string, optional, default "job"; used only when
+// use_wire_schema is true), wct_plugins / wct_app / wct_tla (optional).
 
 #include "wire_cell_phlex/Data.hpp"
-#include "wire_cell_phlex/Executor.hpp"
+#include "wire_cell_phlex/Executor.hpp"   // FrameFilter (wire-schema path)
 
-#include "modules/executor_config.hpp"
-#include "boost_config/discovery.hpp"
+#include "modules/register_shapes.hpp"
+#include "modules/executor_config.hpp"    // to_executor_config (wire-schema path)
+
 #include "phlex/module.hpp"
 
 #include <memory>
 
 using namespace phlex;
 
-// Advertise this node's config schema for CLI discovery (boost-config):
-//   scan the plugin's dynamic symbols for the boost_config_factories__ prefix.
-BOOST_CONFIG_EXPORT(FrameFilterConfig, wcphlex::FrameFilterConfig)
-
 PHLEX_REGISTER_ALGORITHMS(m, config)
 {
-    auto const layer        = config.get<std::string>("input_layer");
-    auto const from         = config.get<std::string>("input_from", std::string{"input"});
-    auto const suffix       = config.get<std::string>("input_suffix", std::string{"frame"});
-    auto const use_ws       = config.get<bool>("use_wire_schema", false);
-    auto const ws_layer     = config.get<std::string>("wire_schema_layer", std::string{"job"});
+    if (!config.get<bool>("use_wire_schema", false)) {
+        // Plain IFrame -> IFrame transform on the templated executor.
+        wcphlex::register_function<WireCell::IFrame, WireCell::IFrame>(m, config);
+        return;
+    }
 
-    // Uniform node config shape: { "executor": {...}, "use_wire_schema": bool }.
+    // --- Auxiliary wire-schema path (deferred generic aux-input) -------------
+    auto const layer    = config.get<std::string>("input_layer");
+    auto const from     = config.get<std::string>("input_from");
+    auto const suffix   = config.get<std::string>("input_suffix", std::string{"frame"});
+    auto const ws_layer = config.get<std::string>("wire_schema_layer", std::string{"job"});
+
+    // Uniform node config shape: { "executor": {...}, "use_wire_schema": true }.
     auto exec_obj = to_executor_config(config);
-    exec_obj["use_wire_schema"] = use_ws;
+    exec_obj["use_wire_schema"] = true;
     auto ff = std::make_shared<wcphlex::FrameFilter>(exec_obj);
 
-    if (use_ws) {
-        // Geometry-aware path: consume WireSchema from job layer + Frame from
-        // event layer.  The two-argument operator() deposits the store in
-        // FacadeWireSchema's static registry before the first initialize().
-        m.transform("wcph_frame_filter",
-                    [ff](wcphlex::WireSchema const& ws,
-                         wcphlex::Frame const& input) -> wcphlex::Frame {
-                        return (*ff)(ws, input);
-                    },
-                    concurrency::serial)
-          .input_family(
-              product_selector{.creator = "input", .layer = ws_layer,
-                            .suffix  = experimental::identifier{"wire_schema"}},
-              product_selector{.creator = from, .layer = layer,
-                            .suffix  = experimental::identifier{suffix}})
-          .output_product_suffixes("frame");
-    } else {
-        // Plain path: no geometry product consumed.
-        m.transform("wcph_frame_filter",
-                    [ff](wcphlex::Frame const& input) -> wcphlex::Frame {
-                        return (*ff)(input);
-                    },
-                    concurrency::serial)
-          .input_family(product_selector{.creator = from, .layer = layer,
-                                      .suffix  = experimental::identifier{suffix}})
-          .output_product_suffixes("frame");
-    }
+    // Consume WireSchema (job layer, from a wire_schema source) + Frame.  The
+    // two-argument operator() deposits the store in FacadeWireSchema's static
+    // registry before the first initialize().
+    m.transform("wcph_frame_filter",
+                [ff](wcphlex::WireSchema const& ws,
+                     wcphlex::Frame const& input) -> wcphlex::Frame {
+                    return (*ff)(ws, input);
+                },
+                concurrency::serial)
+      .input_family(
+          product_selector{.creator = "input", .layer = ws_layer,
+                        .suffix  = experimental::identifier{"wire_schema"}},
+          product_selector{.creator = from, .layer = layer,
+                        .suffix  = experimental::identifier{suffix}})
+      .output_product_suffixes("frame");
 }

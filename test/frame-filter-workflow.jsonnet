@@ -26,9 +26,10 @@
   modules: {
     frame_filter: {
       cpp: 'wcph_frame_filter',
-      wct_config: 'frame-passthrough.jsonnet',
+      wct_config: 'frame-passthrough-generic.jsonnet',
       wct_plugins: ['WireCellPgraph'],
       input_layer: 'event',
+      input_from: 'input',
     },
   },
 }

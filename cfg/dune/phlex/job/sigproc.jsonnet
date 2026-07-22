@@ -57,6 +57,7 @@ local with_log = {
             wct_config:  "dune/wct/job/sigproc.jsonnet",
             wct_plugins: ["WireCellPgraph", "WireCellGen", "WireCellSigProc", "WireCellAux"],
             input_layer: "event",
+            input_from:  "input",
             wct_tla: {
                 detector:    params.detname,
                 anode_index: ai_str,

@@ -1,6 +1,6 @@
 // cfg/frame-sigproc.jsonnet
 //
-// WCT sub-graph: FrameBoundarySource → OmnibusSigProc → FrameBoundarySink.
+// WCT sub-graph: GenericFrameBoundarySource → OmnibusSigProc → GenericFrameBoundarySink.
 //
 // Standalone signal processing variant (Variant A of third-real-job).
 // Used by the FrameFilter executor.  Each PHLEX event fills the boundary
@@ -13,8 +13,8 @@
 //   dune-garfield-1d565.json.bz2         — field response
 //
 // TLA parameters:
-//   source_name (string): instance name for FrameBoundarySource
-//   sink_name   (string): instance name for FrameBoundarySink
+//   source_name_0 (string): instance name for GenericFrameBoundarySource
+//   sink_name_0   (string): instance name for GenericFrameBoundarySink
 //   app_name    (string): instance name for Pgrapher
 //
 // Required WCT plugins: WireCellPgraph, WireCellGen, WireCellSigProc, WireCellAux
@@ -23,8 +23,8 @@ local wc = import "wirecell.jsonnet";
 local spfilt = import "sp-filters.jsonnet";
 
 function(
-    source_name    = "wcphlex_frame_source",
-    sink_name      = "wcphlex_frame_sink",
+    source_name_0    = "wcphlex_frame_source",
+    sink_name_0      = "wcphlex_frame_sink",
     app_name       = "wcphlex_pgrapher",
     service_prefix = "",   // prefix for all service component names;
                            // "" (default) = bare names, shared with any other island
@@ -144,14 +144,14 @@ local sigproc = {
 // ---------------------------------------------------------------------------
 
 local src = {
-    type: "FrameBoundarySource",
-    name: source_name,
+    type: "GenericFrameBoundarySource",
+    name: source_name_0,
     data: {},
 };
 
 local snk = {
-    type: "FrameBoundarySink",
-    name: sink_name,
+    type: "GenericFrameBoundarySink",
+    name: sink_name_0,
     data: {},
 };
 

@@ -40,6 +40,7 @@
       wct_config: 'frame-passthrough-with-facade.jsonnet',
       wct_plugins: ['WireCellPgraph'],
       input_layer: 'event',
+      input_from: 'input',
       use_wire_schema: true,
     },
     verify: {
