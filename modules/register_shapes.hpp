@@ -33,10 +33,21 @@
 
 #include <boost/json.hpp>
 
+#include <array>
+#include <cstddef>
 #include <memory>
 #include <string>
+#include <tuple>
+#include <utility>
 
 namespace wcphlex {
+
+namespace detail {
+// Map an index to a fixed type T, for expanding a compile-time-N parameter pack
+// (Data<In> const&... / std::tuple<Data<Out>...>) in the fan helpers below.
+template <class T, std::size_t>
+using repeat = T;
+}  // namespace detail
 
 // Build the WCT ExecutorConfig for a module from its (flat) config keys,
 // folding in the framework-injected module_label so multi-instance WCT
@@ -123,6 +134,83 @@ void register_source(Proxy& m, phlex::configuration const& config)
               [node](phlex::data_cell_index const&) -> Data<Out> { return (*node)(); })
         .output_product("input", phlex::experimental::identifier{out_suffix},
                         phlex::experimental::identifier{layer});
+}
+
+// ---------------------------------------------------------------------------
+// Fans.
+//
+// Phlex 0.3.2 retrieves exactly one product per input parameter
+// (phlex/core/input_arguments.hpp), so a node's port count is its compile-time
+// function arity — a product family cannot be gathered into one std::vector
+// argument.  A fan's multiplicity is therefore a template constant N on the
+// Phlex side (N product ports), which is passed through as the runtime
+// multiplicity of the (WCT-dynamic) FaninExecutor / FanoutExecutor.
+// ---------------------------------------------------------------------------
+
+// N -> 1 homogeneous fan-in (FaninExecutor<In,Out>).  Node "wcph_<in>s_to_<out>"
+// (input type pluralised per the naming convention).  Consumes N products, one
+// per required "input_from_0" .. "input_from_<N-1>" creator (all same layer and
+// input suffix), packs them into the vector FaninExecutor expects, and produces
+// one output.
+template <class In, class Out, std::size_t N, class Proxy, std::size_t... Is>
+void register_fanin_impl(Proxy& m, phlex::configuration const& config, std::index_sequence<Is...>)
+{
+    const std::string layer = config.get<std::string>("input_layer");
+    const std::string in_suffix = config.get<std::string>("input_suffix", type_stem<In>());
+    const std::string out_suffix = config.get<std::string>("output_suffix", type_stem<Out>());
+    const std::array<std::string, N> froms{
+        config.get<std::string>("input_from_" + std::to_string(Is))...};
+
+    auto node = std::make_shared<FaninExecutor<In, Out>>(executor_config_from(config), N);
+
+    m.transform(std::string("wcph_") + type_stem<In>() + "s_to_" + type_stem<Out>(),
+                [node](detail::repeat<Data<In>, Is> const&... ins) -> Data<Out> {
+                    return (*node)(std::vector<Data<In>>{ins...});
+                },
+                phlex::concurrency::serial)
+        .input_family(phlex::product_selector{
+            .creator = froms[Is], .layer = layer,
+            .suffix = phlex::experimental::identifier{in_suffix}}...)
+        .output_product_suffixes(out_suffix);
+}
+
+template <class In, class Out, std::size_t N, class Proxy>
+void register_fanin(Proxy& m, phlex::configuration const& config)
+{
+    register_fanin_impl<In, Out, N>(m, config, std::make_index_sequence<N>{});
+}
+
+// 1 -> N homogeneous fan-out (FanoutExecutor<In,Out>).  Node "wcph_<in>_to_<out>s".
+// Consumes one product and produces N, with distinct suffixes "<out>_0" ..
+// "<out>_<N-1>" (base overridable via "output_suffix") so they coexist in one
+// layer.  The FanoutExecutor's std::vector<Data<Out>> is unpacked into the N-way
+// tuple Phlex expects for a multi-output transform.
+template <class In, class Out, std::size_t N, class Proxy, std::size_t... Is>
+void register_fanout_impl(Proxy& m, phlex::configuration const& config, std::index_sequence<Is...>)
+{
+    const std::string layer = config.get<std::string>("input_layer");
+    const std::string from = config.get<std::string>("input_from");
+    const std::string in_suffix = config.get<std::string>("input_suffix", type_stem<In>());
+    const std::string out_base = config.get<std::string>("output_suffix", type_stem<Out>());
+
+    auto node = std::make_shared<FanoutExecutor<In, Out>>(executor_config_from(config), N);
+
+    m.transform(std::string("wcph_") + type_stem<In>() + "_to_" + type_stem<Out>() + "s",
+                [node](Data<In> const& in) -> std::tuple<detail::repeat<Data<Out>, Is>...> {
+                    auto outs = (*node)(in);
+                    return std::tuple<detail::repeat<Data<Out>, Is>...>{outs[Is]...};
+                },
+                phlex::concurrency::serial)
+        .input_family(phlex::product_selector{
+            .creator = from, .layer = layer,
+            .suffix = phlex::experimental::identifier{in_suffix}})
+        .output_product_suffixes((out_base + "_" + std::to_string(Is))...);
+}
+
+template <class In, class Out, std::size_t N, class Proxy>
+void register_fanout(Proxy& m, phlex::configuration const& config)
+{
+    register_fanout_impl<In, Out, N>(m, config, std::make_index_sequence<N>{});
 }
 
 } // namespace wcphlex

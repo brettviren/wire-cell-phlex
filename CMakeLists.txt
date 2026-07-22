@@ -217,14 +217,23 @@ target_link_libraries(wcph_frame_sink PRIVATE
 )
 target_compile_options(wcph_frame_sink PRIVATE -UNDEBUG)
 
-# Fans job: 4×IFrame fan-in → merge via FrameFanin → file.
-add_library(wcph_frame_fanin_sink_file MODULE modules/frame_fanin_sink_file.cpp)
-target_link_libraries(wcph_frame_fanin_sink_file PRIVATE
+# Fan-in shape (FaninExecutor<IFrame,IFrame>, fixed multiplicity 4).
+add_library(wcph_frame_fanin MODULE modules/frame_fanin.cpp)
+target_link_libraries(wcph_frame_fanin PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcph_frame_fanin_sink_file PRIVATE -UNDEBUG)
+target_compile_options(wcph_frame_fanin PRIVATE -UNDEBUG)
+
+# Fan-in + terminal sink composed in one module (two chained nodes).
+add_library(wcph_frame_fanin_sink MODULE modules/frame_fanin_sink.cpp)
+target_link_libraries(wcph_frame_fanin_sink PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcph_frame_fanin_sink PRIVATE -UNDEBUG)
 
 # ---------------------------------------------------------------------------
 # Config-schema Jsonnet factories
@@ -235,16 +244,14 @@ target_compile_options(wcph_frame_fanin_sink_file PRIVATE -UNDEBUG)
 # boost_config CMake package; the files are re-derived from the C++ structs on
 # every build, so they cannot drift.
 # ---------------------------------------------------------------------------
-boost_config_add_libjsonnet(
-  PACKAGE wire_cell_phlex
-  ALL
-  PLUGINS
-    # Only modules that still BOOST_CONFIG_EXPORT a schema.  The templated-shape
-    # modules (deposet_to_frame, deposet_filter, frame_filter, deposet_sink,
-    # frame_sink, deposet_source, frame_source) deliberately export nothing —
-    # their schema will be revisited in terms of node shapes.
-    wcph_frame_fanin_sink_file
-)
+# NOTE: no per-module config-schema generation at present.  Every module now
+# uses the templated shape executors (register_function/sink/source/fanin) and
+# deliberately drops BOOST_CONFIG_EXPORT; the node-config schema will be
+# revisited in terms of node shapes.  When a module again exports a schema,
+# reinstate:
+#   boost_config_add_libjsonnet(PACKAGE wire_cell_phlex ALL PLUGINS <targets...>)
+# (the macro requires a non-empty PLUGINS list).  Nothing currently imports the
+# generated .libjsonnet, so dropping generation is safe.
 
 # ---------------------------------------------------------------------------
 # Tests
@@ -638,7 +645,8 @@ foreach(_mod IN ITEMS
     wcph_deposet_observer
     wcph_deposet_sink
     wcph_frame_sink
-    wcph_frame_fanin_sink_file
+    wcph_frame_fanin
+    wcph_frame_fanin_sink
     wcph_wire_schema_source
     wcph_wire_schema_observer
 )

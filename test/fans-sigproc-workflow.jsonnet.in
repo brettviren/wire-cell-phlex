@@ -74,16 +74,31 @@
       input_layer: 'event',
       wct_tla: { apa_ident: '3' },
     },
-    frame_fanin_sink: {
-      cpp: 'wcph_frame_fanin_sink_file',
-      wct_config: 'frame-fanin-file-sink.jsonnet',
-      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSio'],
-      input_layer: 'event',
-      input_from_0: 'sim_sp_0',
-      input_from_1: 'sim_sp_1',
-      input_from_2: 'sim_sp_2',
-      input_from_3: 'sim_sp_3',
-      wct_tla: { outname: '@WCP_OUTPUT_DIR@/fans-sigproc-frames.npz' },
+    # Fan-in + terminal sink composed in one module (two chained nodes).  The
+    # merged Frame the fan-in produces (creator = this module's label,
+    # "merge") is consumed by the sink sub-node.  Each sub-block carries a
+    # distinct module_label so the two WCT executors get distinct component
+    # scopes.
+    merge: {
+      cpp: 'wcph_frame_fanin_sink',
+      fanin: {
+        module_label: 'merge_fanin',
+        wct_config: 'frame-fanin.jsonnet',
+        wct_plugins: ['WireCellPgraph', 'WireCellGen'],
+        input_layer: 'event',
+        input_from_0: 'sim_sp_0',
+        input_from_1: 'sim_sp_1',
+        input_from_2: 'sim_sp_2',
+        input_from_3: 'sim_sp_3',
+      },
+      sink: {
+        module_label: 'merge_sink',
+        wct_config: 'frame-file-sink.jsonnet',
+        wct_plugins: ['WireCellPgraph', 'WireCellSio'],
+        input_layer: 'event',
+        input_from: 'merge',
+        wct_tla: { outname: '@WCP_OUTPUT_DIR@/fans-sigproc-frames.npz' },
+      },
     },
   },
 }

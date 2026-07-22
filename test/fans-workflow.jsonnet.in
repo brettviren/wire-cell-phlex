@@ -90,15 +90,24 @@
       input_layer: 'event',
       wct_tla: { apa_ident: '3' },
     },
-    frame_fanin_sink: {
-      cpp: 'wcph_frame_fanin_sink_file',
-      wct_config: 'frame-fanin-file-sink.jsonnet',
-      wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSio'],
+    # Fan-in as a standalone node producing a merged Frame product ...
+    fanin: {
+      cpp: 'wcph_frame_fanin',
+      wct_config: 'frame-fanin.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen'],
       input_layer: 'event',
       input_from_0: 'sim_0',
       input_from_1: 'sim_1',
       input_from_2: 'sim_2',
       input_from_3: 'sim_3',
+    },
+    # ... consumed by a separate terminal sink that writes it to a file.
+    frame_sink: {
+      cpp: 'wcph_frame_sink',
+      wct_config: 'frame-file-sink.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellSio'],
+      input_layer: 'event',
+      input_from: 'fanin',
       wct_tla: { outname: '@WCP_OUTPUT_DIR@/fans-frames.npz' },
     },
   },
