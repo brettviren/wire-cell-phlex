@@ -41,3 +41,10 @@ target_compile_definitions(test_function_executor PRIVATE
   WCP_CFG_DIR="${CMAKE_SOURCE_DIR}/cfg"
 )
 add_test(NAME function_executor COMMAND test_function_executor)
+
+# Shape-executor family (Source/Sink/Function/Fanin/Fanout/Join/Split) — a
+# compile-time proof that every shape instantiates.
+add_executable(test_shape_executors test_shape_executors.cpp)
+target_link_libraries(test_shape_executors PRIVATE wire_cell_phlex
+  ${WIRECELL_RUNTIME_LIBS})
+add_test(NAME shape_executors COMMAND test_shape_executors)

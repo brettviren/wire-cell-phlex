@@ -6,24 +6,25 @@
 // concrete IFrameSource / IFrameSink.  Used by test_function_executor to prove
 // FunctionExecutor<IFrame,IFrame> wires through Pgraph.
 //
-// TLA parameters: source_name, sink_name, app_name (bound by the Executor).
+// TLA parameters (indexed per port, bound by PortedExecutor):
+//   source_name_0, sink_name_0, app_name
 
 function(
-    source_name = "wcphlex_frame_source",
-    sink_name   = "wcphlex_frame_sink",
-    app_name    = "wcphlex_pgrapher",
+    source_name_0 = "wcphlex_source_0",
+    sink_name_0   = "wcphlex_sink_0",
+    app_name      = "wcphlex_pgrapher",
 )
 [
-    { type: "GenericFrameBoundarySource", name: source_name, data: {} },
-    { type: "GenericFrameBoundarySink",   name: sink_name,   data: {} },
+    { type: "GenericFrameBoundarySource", name: source_name_0, data: {} },
+    { type: "GenericFrameBoundarySink",   name: sink_name_0,   data: {} },
     {
         type: "Pgrapher",
         name: app_name,
         data: {
             edges: [
                 {
-                    tail: { node: "GenericFrameBoundarySource:" + source_name, port: 0 },
-                    head: { node: "GenericFrameBoundarySink:"   + sink_name,   port: 0 },
+                    tail: { node: "GenericFrameBoundarySource:" + source_name_0, port: 0 },
+                    head: { node: "GenericFrameBoundarySink:"   + sink_name_0,   port: 0 },
                 },
             ],
         },
