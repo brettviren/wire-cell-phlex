@@ -11,46 +11,31 @@
 
 // modules/deposet_to_frame.cpp
 //
-// PHLEX algorithm module: wraps wcphlex::DepoSetToFrame as a PHLEX transform.
+// PHLEX algorithm module: IDepoSet -> IFrame function node.
 //
-// Mirrors frame_filter.cpp but for IDepoSet → IFrame conversion.  The WCT
-// sub-graph (e.g. deposet-to-frame.jsonnet) is initialized once; each PHLEX
-// event calls operator()(DepoSet) which fills the DepoSetBoundarySource,
-// runs the graph, and drains the FrameBoundarySink.
+// Naming convention: <in>_to_<out> with <type> = the WCT IData type, "I"
+// removed and lower-cased (IDepoSet -> deposet, IFrame -> frame).  Hence this
+// file is deposet_to_frame.cpp, the module library is
+// libwcph_deposet_to_frame.so, and the node is registered as
+// "wcph_deposet_to_frame" (both derived by register_function()).
 //
-// Expected config keys:
-//   wct_config   (string, required):    Path to the WCT Jsonnet config file.
-//   input_layer  (string, required):    PHLEX layer for the input DepoSet product.
-//   wct_plugins  (array of strings, optional): Extra WCT plugin libraries to load.
-//   wct_app      (string, optional):    WCT IApplication type (default "Pgrapher").
-//   wct_tla      (object, optional):    String→string map of extra Jsonnet TLAs.
+// The node is FunctionExecutor<IDepoSet,IFrame>: a 1-in/1-out transform backed
+// by a WCT sub-graph (deposet-to-frame.jsonnet) whose data crosses the Phlex
+// boundary through GenericDepoSetBoundarySource / GenericFrameBoundarySink.
+//
+// Config keys: wct_config (required), input_layer (required), input_from
+// (optional, default "input"), wct_plugins / wct_app / wct_tla (optional).
 
 #include "wire_cell_phlex/Data.hpp"
-#include "wire_cell_phlex/Executor.hpp"
 
-#include "modules/executor_config.hpp"
+#include "modules/register_shapes.hpp"
 #include "boost_config/discovery.hpp"
+
 #include "phlex/module.hpp"
 
-#include <memory>
-
-using namespace phlex;
-
-// Advertise this node's config schema for CLI discovery (boost-config):
-//   scan the plugin's dynamic symbols for the boost_config_factories__ prefix.
 BOOST_CONFIG_EXPORT(DepoSetToFrameConfig, wcphlex::DepoSetToFrameConfig)
 
 PHLEX_REGISTER_ALGORITHMS(m, config)
 {
-    auto const layer = config.get<std::string>("input_layer");
-
-    auto d2f = std::make_shared<wcphlex::DepoSetToFrame>(to_executor_config(config));
-
-    m.transform("wcph_deposet_to_frame",
-                [d2f](wcphlex::DepoSet const& input) -> wcphlex::Frame {
-                    return (*d2f)(input);
-                },
-                concurrency::serial)
-      .input_family(product_selector{.creator = "input", .layer = layer, .suffix = "deposet"})
-      .output_product_suffixes("frame");
+    wcphlex::register_function<WireCell::IDepoSet, WireCell::IFrame>(m, config);
 }

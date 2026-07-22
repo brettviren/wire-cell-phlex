@@ -79,6 +79,7 @@ struct port_traits<WireCell::IFrame> {
     using sink_iface = WireCell::ISinkNode<WireCell::IFrame>;
     static constexpr const char* src_class = "GenericFrameBoundarySource";
     static constexpr const char* snk_class = "GenericFrameBoundarySink";
+    static constexpr const char* stem = "frame";   // <type>: IFrame -> frame
 };
 
 template <>
@@ -87,7 +88,16 @@ struct port_traits<WireCell::IDepoSet> {
     using sink_iface = WireCell::ISinkNode<WireCell::IDepoSet>;
     static constexpr const char* src_class = "GenericDepoSetBoundarySource";
     static constexpr const char* snk_class = "GenericDepoSetBoundarySink";
+    static constexpr const char* stem = "deposet"; // <type>: IDepoSet -> deposet
 };
+
+// The naming-convention <type> token for a WCT IData type (the "I" removed,
+// lower-cased): IFrame -> "frame", IDepoSet -> "deposet".
+template <class IType>
+std::string type_stem()
+{
+    return port_traits<IType>::stem;
+}
 
 // A storage-free type-list carrier for the port types.  (std::tuple cannot be
 // used here: the WCT interface types — IFrame, IDepoSet, … — are abstract, and

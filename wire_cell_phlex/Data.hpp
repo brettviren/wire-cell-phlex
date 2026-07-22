@@ -40,49 +40,29 @@
 
 namespace wcphlex {
 
-    // One ionisation deposit.
-    struct Depo {
-        WireCell::IDepo::pointer ptr;
-    };
-
-    // A set of deposits (one drift batch).
-    struct DepoSet {
-        WireCell::IDepoSet::pointer ptr;
-    };
-
-    // One readout frame (one drift window's worth of ADC/deconvolved waveforms).
-    struct Frame {
-        WireCell::IFrame::pointer ptr;
-    };
-
-    // A single named tensor.
-    struct Tensor {
-        WireCell::ITensor::pointer ptr;
-    };
-
-    // A set of named tensors.
-    struct TensorSet {
-        WireCell::ITensorSet::pointer ptr;
-    };
-
-    // Wire geometry schema loaded from a WCT wire file at the job layer.
-    // WireCell::WireSchema::Store internally holds a shared_ptr to its data,
-    // so copies are cheap.  The default-constructed store has a null pointer;
-    // a successfully loaded store is guaranteed to have non-empty wires().
-    struct WireSchema {
-        WireCell::WireSchema::Store store;
-    };
-
     // Generic pointer-carrying wrapper, parameterised by the WCT interface type.
-    // Data<IFrame> is structurally identical to Frame above; because PHLEX
-    // distinguishes products by typeid (the type_id exact_ field, see the note
-    // atop this file), Data<IFrame> and Data<IDepoSet> are distinct product
-    // types.  The named structs above can become aliases of these, and the
-    // templated executors (FunctionExecutor<In,Out>) use Data<IType> directly.
-    // (WireSchema is excluded: it carries a Store, not an IType::pointer.)
+    // Each instantiation is a distinct C++ aggregate, so PHLEX distinguishes
+    // products by typeid (the type_id exact_ field, see the note above):
+    // Data<IFrame> and Data<IDepoSet> are distinct product types.  The templated
+    // executors (FunctionExecutor<In,Out>, …) deal in Data<IType> directly.
     template <class IType>
     struct Data {
         typename IType::pointer ptr;
+    };
+
+    // The common WCT concepts as named aliases (convenience for module code).
+    using Depo = Data<WireCell::IDepo>;              // one ionisation deposit
+    using DepoSet = Data<WireCell::IDepoSet>;        // a set of deposits (a drift batch)
+    using Frame = Data<WireCell::IFrame>;            // one readout frame
+    using Tensor = Data<WireCell::ITensor>;          // a single named tensor
+    using TensorSet = Data<WireCell::ITensorSet>;    // a set of named tensors
+
+    // Wire geometry schema loaded from a WCT wire file at the job layer.  Kept a
+    // distinct struct (not a Data<IType>): it carries a WireSchema::Store, not an
+    // IType::pointer.  The Store internally holds a shared_ptr, so copies are
+    // cheap; a default-constructed store is null, a loaded one has non-empty wires().
+    struct WireSchema {
+        WireCell::WireSchema::Store store;
     };
 
 } // namespace wcphlex

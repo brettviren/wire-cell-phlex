@@ -72,6 +72,18 @@ WIRECELL_FACTORY(DepoSetBoundarySink,
                  WireCell::IDepoSetSink,
                  WireCell::IConfigurable)
 
+// Generic (mid-level-interface) DepoSet boundary nodes — used by the templated
+// shape executors (FunctionExecutor<IDepoSet,...> etc.).
+WIRECELL_FACTORY(GenericDepoSetBoundarySource,
+                 wcphlex::BoundarySource<WireCell::ISourceNode<WireCell::IDepoSet>>,
+                 WireCell::ISourceNode<WireCell::IDepoSet>,
+                 WireCell::IConfigurable)
+
+WIRECELL_FACTORY(GenericDepoSetBoundarySink,
+                 wcphlex::BoundarySink<WireCell::ISinkNode<WireCell::IDepoSet>>,
+                 WireCell::ISinkNode<WireCell::IDepoSet>,
+                 WireCell::IConfigurable)
+
 // --- TensorSet boundary nodes -----------------------------------------------
 
 WIRECELL_FACTORY(TensorSetBoundarySource,
