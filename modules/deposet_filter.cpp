@@ -11,65 +11,28 @@
 
 // modules/deposet_filter.cpp
 //
-// PHLEX algorithm module: wraps wcphlex::DepoSetFilter as a PHLEX transform.
+// PHLEX algorithm module: IDepoSet -> IDepoSet function node.
 //
-// The WCT sub-graph (e.g. deposet-passthrough.jsonnet or deposet-drifter.jsonnet)
-// is initialized once; each PHLEX event calls operator()(DepoSet) which fills
-// the DepoSetBoundarySource, runs the graph, and drains the DepoSetBoundarySink.
+// A 1-in/1-out transform backed by a WCT sub-graph (e.g. an identity
+// passthrough or a DepoSetDrifter) whose data crosses the Phlex boundary
+// through GenericDepoSetBoundarySource / GenericDepoSetBoundarySink.  The node
+// is FunctionExecutor<IDepoSet,IDepoSet>, registered via register_function().
 //
-// Config schema: DepoSetFilterConfig (wire_cell_phlex/Config.hpp) =
-//   { phlex: PhlexAlgorithmConfig, executor: ExecutorConfig }
-// The `phlex` block carries the generic registration data (name, concurrency,
-// input families, output suffixes); `executor` carries the WCT settings.  This
-// is the first node migrated to the generic phlex_config schema; the input
-// selectors and output suffixes come from config rather than being hard-coded.
+// The library keeps its historical name (libwcph_deposet_filter.so) although
+// the naming convention's <in>_to_<out> node name is wcph_deposet_to_deposet.
+//
+// Config keys: wct_config (required), input_layer (required), input_from
+// (required: "input" to consume a source, else an upstream module label),
+// input_suffix / output_suffix (optional, default "deposet"),
+// wct_plugins / wct_app / wct_tla (optional).
 
 #include "wire_cell_phlex/Data.hpp"
-#include "wire_cell_phlex/Executor.hpp"
-#include "wire_cell_phlex/Config_json.hpp"   // value_to<ExecutorConfig>
 
-#include "modules/phlex_adapt.hpp"
-#include "boost_config/discovery.hpp"
+#include "modules/register_shapes.hpp"
+
 #include "phlex/module.hpp"
-
-#include <memory>
-#include <stdexcept>
-#include <string>
-
-using namespace phlex;
-
-// Advertise this node's config schema for CLI discovery (boost-config):
-//   scan the plugin's dynamic symbols for the boost_config_factories__ prefix.
-BOOST_CONFIG_EXPORT(DepoSetFilterConfig, wcphlex::DepoSetFilterConfig)
 
 PHLEX_REGISTER_ALGORITHMS(m, config)
 {
-    // Generic Phlex registration data (name / concurrency / inputs / outputs).
-    auto const pac = config.get<phlex_config::PhlexAlgorithmConfig>("phlex");
-
-    // WCT executor config; fold in the framework-injected module_label so
-    // multi-instance WCT component names stay unique.
-    auto exec = config.get<wcphlex::ExecutorConfig>("executor");
-    if (auto const ml = config.get_if_present<std::string>("module_label")) {
-        if (std::string(exec.module_label).empty()) {
-            exec.module_label = *ml;
-        }
-    }
-    auto dsf = std::make_shared<wcphlex::DepoSetFilter>(exec);
-
-    // DepoSetFilter is a 1-input / 1-output transform.
-    auto const& inputs = pac.inputs.value;
-    auto const& outputs = pac.outputs.value;
-    if (inputs.size() != 1 || outputs.size() != 1) {
-        throw std::runtime_error(
-            "wcph_deposet_filter: expected exactly 1 input selector and 1 output suffix");
-    }
-
-    m.transform(std::string(pac.name),
-                [dsf](wcphlex::DepoSet const& input) -> wcphlex::DepoSet {
-                    return (*dsf)(input);
-                },
-                wcphlex::to_concurrency(std::string(pac.concurrency)))
-      .input_family(wcphlex::to_selector(inputs[0]))
-      .output_product_suffixes(outputs[0]);
+    wcphlex::register_function<WireCell::IDepoSet, WireCell::IDepoSet>(m, config);
 }

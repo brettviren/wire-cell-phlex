@@ -30,16 +30,10 @@
   modules: {
     deposet_drifter: {
       cpp: 'wcph_deposet_filter',
-      phlex: {
-        name: 'deposet_drifter',
-        concurrency: 'serial',
-        inputs: [{ creator: 'input', layer: 'event', suffix: 'deposet', stage: 'CURRENT' }],
-        outputs: ['deposet'],
-      },
-      executor: {
-        wct_config: 'deposet-drifter.jsonnet',
-        wct_plugins: ['WireCellPgraph', 'WireCellGen'],
-      },
+      wct_config: 'deposet-drifter.jsonnet',
+      wct_plugins: ['WireCellPgraph', 'WireCellGen'],
+      input_layer: 'event',
+      input_from: 'input',
     },
     deposet_sink: {
       cpp: 'wcph_deposet_sink_file',

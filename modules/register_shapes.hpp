@@ -53,15 +53,19 @@ inline ExecutorConfig executor_config_from(phlex::configuration const& config)
 }
 
 // Register a 1->1 function node (FunctionExecutor<In,Out>).  Node name
-// "wcph_<in>_to_<out>"; input family suffix <in>, output suffix <out>.  The
-// input creator must be named explicitly via the required "input_from" config
-// key: the literal "input" to consume a source's output, or an upstream
-// module's label to chain off it.
+// "wcph_<in>_to_<out>".  The input creator must be named explicitly via the
+// required "input_from" config key: the literal "input" to consume a source's
+// output, or an upstream module's label to chain off it.  The product suffixes
+// default to the type <stem>s (input <in>, output <out>) but may be overridden
+// via "input_suffix" / "output_suffix" — e.g. to disambiguate several streams
+// of the same type in one layer (multi-instance).
 template <class In, class Out, class Proxy>
 void register_function(Proxy& m, phlex::configuration const& config)
 {
     const std::string layer = config.get<std::string>("input_layer");
     const std::string from = config.get<std::string>("input_from");
+    const std::string in_suffix = config.get<std::string>("input_suffix", type_stem<In>());
+    const std::string out_suffix = config.get<std::string>("output_suffix", type_stem<Out>());
 
     auto node = std::make_shared<FunctionExecutor<In, Out>>(executor_config_from(config));
 
@@ -70,8 +74,8 @@ void register_function(Proxy& m, phlex::configuration const& config)
                 phlex::concurrency::serial)
         .input_family(phlex::product_selector{
             .creator = from, .layer = layer,
-            .suffix = phlex::experimental::identifier{type_stem<In>()}})
-        .output_product_suffixes(type_stem<Out>());
+            .suffix = phlex::experimental::identifier{in_suffix}})
+        .output_product_suffixes(out_suffix);
 }
 
 } // namespace wcphlex
