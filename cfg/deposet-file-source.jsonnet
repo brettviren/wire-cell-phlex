@@ -1,19 +1,19 @@
 // cfg/deposet-file-source.jsonnet
 //
-// WCT sub-graph: DepoFileSource → DepoSetBoundarySink.
+// WCT sub-graph: DepoFileSource → GenericDepoSetBoundarySink.
 //
 // Used by the DepoSetSourceFile executor.  The WCT graph is run once to
 // completion; all depo sets read from the file queue in the boundary sink.
 //
 // TLA parameters:
-//   sink_name  (string): instance name for the DepoSetBoundarySink node
+//   sink_name_0  (string): instance name for the GenericDepoSetBoundarySink node
 //   app_name   (string): instance name for the Pgrapher application
 //   inname     (string): input file path (passed via wct_tla from module config)
 //
 // Required WCT plugins: WireCellPgraph, WireCellSio
 
 function(
-    sink_name = "wcphlex_deposet_sink",
+    sink_name_0 = "wcphlex_deposet_sink",
     app_name  = "wcphlex_pgrapher",
     inname    = "depos.npz",
 )
@@ -29,8 +29,8 @@ function(
 
     // Boundary sink: DepoSetSourceFile executor drains this after graph run.
     {
-        type: "DepoSetBoundarySink",
-        name: sink_name,
+        type: "GenericDepoSetBoundarySink",
+        name: sink_name_0,
         data: {},
     },
 
@@ -42,7 +42,7 @@ function(
             edges: [
                 {
                     tail: { node: "DepoFileSource:file_source", port: 0 },
-                    head: { node: "DepoSetBoundarySink:" + sink_name, port: 0 },
+                    head: { node: "GenericDepoSetBoundarySink:" + sink_name_0, port: 0 },
                 },
             ],
         },

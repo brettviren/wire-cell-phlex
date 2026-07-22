@@ -30,7 +30,7 @@
       wire_schema_file: 'microboone-celltree-wires-v2.1.json.bz2',
     },
     frame_source: {
-      cpp: 'wcph_frame_source',
+      cpp: 'wcph_frame_gen',
       output_layer: 'event',
     },
   },

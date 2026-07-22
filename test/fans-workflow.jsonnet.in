@@ -2,7 +2,7 @@
   // PHLEX integration test workflow: fan-out/fan-in 4-APA PDHD simulation.
   //
   // Topology:
-  //   wcph_deposet_source_file  (DepoFileSource + Drifter, whole-detector xregions)
+  //   wcph_deposet_source  (DepoFileSource + Drifter, whole-detector xregions)
   //     └─* PHLEX broadcast (TBB fan-out) → 4× wcph_deposet_to_frame
   //           each: DepoTransform with per-APA PDHD geometry (no sigproc)
   //           → PHLEX multilayer_join_node<4> fan-in
@@ -50,7 +50,7 @@
   },
   sources: {
     depo_source: {
-      cpp: 'wcph_deposet_source_file',
+      cpp: 'wcph_deposet_source',
       wct_config: 'pdhd-file-drifter.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio', 'WireCellGen'],
       output_layer: 'event',

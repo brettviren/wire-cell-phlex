@@ -11,35 +11,27 @@
 
 // modules/deposet_source.cpp
 //
-// PHLEX source module: produces synthetic wcphlex::DepoSet objects for testing.
+// PHLEX provider module: (real WCT source) -> IDepoSet source node.
 //
-// For each data cell in the configured layer, creates an empty SimpleDepoSet
-// whose ident equals data_cell_index::number().  This feeds a downstream
-// wcph_deposet_to_frame module.
+// A 0-in/1-out SourceExecutor<IDepoSet>: drives a WCT sub-graph that begins
+// with a real WCT source and ends in a GenericDepoSetBoundarySink.  The
+// particular source (e.g. DepoFileSource reading an npz) is chosen entirely by
+// the wct_config — "read from a file" is just one such graph.  The first Phlex
+// call runs the graph and queues every DepoSet; each call drains one.
 //
-// Expected config keys:
-//   output_layer  (string, required): PHLEX layer name for the output DepoSet product.
+// (Trivial in-memory DepoSets for connectivity tests come from the separate,
+// pure-Phlex wcph_deposet_gen module.)
+//
+// Config keys: wct_config (required), output_layer (required), output_suffix
+// (optional, default "deposet"), wct_plugins / wct_app / wct_tla (optional).
 
 #include "wire_cell_phlex/Data.hpp"
 
-#include "phlex/configuration.hpp"
-#include "phlex/model/data_cell_index.hpp"
+#include "modules/register_shapes.hpp"
+
 #include "phlex/source.hpp"
-
-#include <WireCellAux/SimpleDepoSet.h>
-
-using namespace phlex;
 
 PHLEX_REGISTER_PROVIDERS(m, config)
 {
-    auto const layer = config.get<std::string>("output_layer");
-
-    m.provide("wcph_provide_deposet",
-              [](data_cell_index const& id) -> wcphlex::DepoSet {
-                  auto ds = std::make_shared<WireCell::Aux::SimpleDepoSet>(
-                      static_cast<int>(id.number()),
-                      WireCell::IDepo::vector{});
-                  return wcphlex::DepoSet{std::move(ds)};
-              })
-      .output_product("input", "deposet", experimental::identifier{layer});
+    wcphlex::register_source<WireCell::IDepoSet>(m, config);
 }

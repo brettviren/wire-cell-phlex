@@ -16,7 +16,7 @@
   },
   sources: {
     deposet_source: {
-      cpp: 'wcph_deposet_source',
+      cpp: 'wcph_deposet_gen',
       output_layer: 'event',
     },
   },

@@ -96,13 +96,13 @@ target_link_libraries(wire_cell_phlex
 #
 # These modules must be compiled with GCC 15 (required by phlex headers).
 # ---------------------------------------------------------------------------
-add_library(wcph_frame_source MODULE modules/frame_source.cpp)
-target_link_libraries(wcph_frame_source PRIVATE
+add_library(wcph_frame_gen MODULE modules/frame_gen.cpp)
+target_link_libraries(wcph_frame_gen PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcph_frame_source PRIVATE -UNDEBUG)
+target_compile_options(wcph_frame_gen PRIVATE -UNDEBUG)
 
 add_library(wcph_frame_filter MODULE modules/frame_filter.cpp)
 target_link_libraries(wcph_frame_filter PRIVATE
@@ -147,14 +147,14 @@ target_link_libraries(wcph_wire_schema_observer PRIVATE
 )
 target_compile_options(wcph_wire_schema_observer PRIVATE -UNDEBUG)
 
-# Step 6: IDepoSet → IFrame executor module.
-add_library(wcph_deposet_source MODULE modules/deposet_source.cpp)
-target_link_libraries(wcph_deposet_source PRIVATE
+# Synthetic in-memory DepoSet generator (pure-Phlex test fixture).
+add_library(wcph_deposet_gen MODULE modules/deposet_gen.cpp)
+target_link_libraries(wcph_deposet_gen PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcph_deposet_source PRIVATE -UNDEBUG)
+target_compile_options(wcph_deposet_gen PRIVATE -UNDEBUG)
 
 add_library(wcph_deposet_to_frame MODULE modules/deposet_to_frame.cpp)
 target_link_libraries(wcph_deposet_to_frame PRIVATE
@@ -182,14 +182,14 @@ target_link_libraries(wcph_deposet_observer PRIVATE
 )
 target_compile_options(wcph_deposet_observer PRIVATE -UNDEBUG)
 
-# Steps C+D: File-based DepoSet source and sink modules.
-add_library(wcph_deposet_source_file MODULE modules/deposet_source_file.cpp)
-target_link_libraries(wcph_deposet_source_file PRIVATE
+# IDepoSet source module (SourceExecutor<IDepoSet>; e.g. a WCT file reader).
+add_library(wcph_deposet_source MODULE modules/deposet_source.cpp)
+target_link_libraries(wcph_deposet_source PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcph_deposet_source_file PRIVATE -UNDEBUG)
+target_compile_options(wcph_deposet_source PRIVATE -UNDEBUG)
 
 add_library(wcph_deposet_sink MODULE modules/deposet_sink.cpp)
 target_link_libraries(wcph_deposet_sink PRIVATE
@@ -199,14 +199,14 @@ target_link_libraries(wcph_deposet_sink PRIVATE
 )
 target_compile_options(wcph_deposet_sink PRIVATE -UNDEBUG)
 
-# Third real job: file → IFrame source module.
-add_library(wcph_frame_source_file MODULE modules/frame_source_file.cpp)
-target_link_libraries(wcph_frame_source_file PRIVATE
+# IFrame source module (SourceExecutor<IFrame>; e.g. a WCT file reader).
+add_library(wcph_frame_source MODULE modules/frame_source.cpp)
+target_link_libraries(wcph_frame_source PRIVATE
   wire_cell_phlex
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
-target_compile_options(wcph_frame_source_file PRIVATE -UNDEBUG)
+target_compile_options(wcph_frame_source PRIVATE -UNDEBUG)
 
 # Second real job: IFrame → file sink module.
 add_library(wcph_frame_sink MODULE modules/frame_sink.cpp)
@@ -241,10 +241,8 @@ boost_config_add_libjsonnet(
   PLUGINS
     # Only modules that still BOOST_CONFIG_EXPORT a schema.  The templated-shape
     # modules (deposet_to_frame, deposet_filter, frame_filter, deposet_sink,
-    # frame_sink) deliberately export nothing — their schema will be revisited
-    # in terms of node shapes.
-    wcph_deposet_source_file
-    wcph_frame_source_file
+    # frame_sink, deposet_source, frame_source) deliberately export nothing —
+    # their schema will be revisited in terms of node shapes.
     wcph_frame_fanin_sink_file
 )
 
@@ -628,17 +626,17 @@ install(DIRECTORY wire_cell_phlex/
 
 # PHLEX MODULE libraries (dlopen only — no EXPORT needed)
 foreach(_mod IN ITEMS
+    wcph_frame_gen
     wcph_frame_source
     wcph_frame_filter
     wcph_frame_observer
     wcph_two_frame_observer
+    wcph_deposet_gen
     wcph_deposet_source
     wcph_deposet_to_frame
     wcph_deposet_filter
     wcph_deposet_observer
-    wcph_deposet_source_file
     wcph_deposet_sink
-    wcph_frame_source_file
     wcph_frame_sink
     wcph_frame_fanin_sink_file
     wcph_wire_schema_source

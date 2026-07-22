@@ -1,7 +1,7 @@
 {
   // PHLEX integration test workflow: Variant B — combined sim + signal processing.
   //
-  // Reads muon-depos.npz via wcph_deposet_source_file, runs drift + DepoTransform
+  // Reads muon-depos.npz via wcph_deposet_source, runs drift + DepoTransform
   // + OmnibusSigProc in a single wcph_deposet_to_frame executor, and writes the
   // signal-processed frames to sp-frames-b.npz via wcph_frame_sink.
   //
@@ -23,7 +23,7 @@
   },
   sources: {
     deposet_source: {
-      cpp: 'wcph_deposet_source_file',
+      cpp: 'wcph_deposet_source',
       wct_config: 'deposet-file-source.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       output_layer: 'event',

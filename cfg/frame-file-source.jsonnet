@@ -1,19 +1,19 @@
 // cfg/frame-file-source.jsonnet
 //
-// WCT sub-graph: FrameFileSource → FrameBoundarySink.
+// WCT sub-graph: FrameFileSource → GenericFrameBoundarySink.
 //
 // Used by the FrameSourceFile executor.  The WCT graph is run once to
 // completion; all frames read from the file queue in the boundary sink.
 //
 // TLA parameters:
-//   sink_name  (string): instance name for the FrameBoundarySink node
+//   sink_name_0  (string): instance name for the GenericFrameBoundarySink node
 //   app_name   (string): instance name for the Pgrapher application
 //   inname     (string): input file path (passed via wct_tla from module config)
 //
 // Required WCT plugins: WireCellPgraph, WireCellSio
 
 function(
-    sink_name = "wcphlex_frame_sink",
+    sink_name_0 = "wcphlex_frame_sink",
     app_name  = "wcphlex_pgrapher",
     inname    = "frames.npz",
 )
@@ -29,8 +29,8 @@ function(
 
     // Boundary sink: FrameSourceFile executor drains this after graph run.
     {
-        type: "FrameBoundarySink",
-        name: sink_name,
+        type: "GenericFrameBoundarySink",
+        name: sink_name_0,
         data: {},
     },
 
@@ -42,7 +42,7 @@ function(
             edges: [
                 {
                     tail: { node: "FrameFileSource:file_source", port: 0 },
-                    head: { node: "FrameBoundarySink:" + sink_name, port: 0 },
+                    head: { node: "GenericFrameBoundarySink:" + sink_name_0, port: 0 },
                 },
             ],
         },

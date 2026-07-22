@@ -33,7 +33,7 @@
   },
   sources: {
     depo_source: {
-      cpp: 'wcph_deposet_source_file',
+      cpp: 'wcph_deposet_source',
       wct_config: 'pdhd-file-drifter.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio', 'WireCellGen'],
       output_layer: 'event',

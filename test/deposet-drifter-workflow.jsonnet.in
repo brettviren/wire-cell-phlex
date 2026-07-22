@@ -1,7 +1,7 @@
 {
   // PHLEX integration test workflow: DepoSet drift simulation.
   //
-  // Reads muon-depos.npz (1 depo set) via wcph_deposet_source_file, runs the
+  // Reads muon-depos.npz (1 depo set) via wcph_deposet_source, runs the
   // WCT DepoSetDrifter to simulate ionisation drift (diffusion, lifetime,
   // x-region boundaries), and writes the drifted depo set to drifted-output.npz.
   //
@@ -20,7 +20,7 @@
   },
   sources: {
     deposet_source: {
-      cpp: 'wcph_deposet_source_file',
+      cpp: 'wcph_deposet_source',
       wct_config: 'deposet-file-source.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       output_layer: 'event',

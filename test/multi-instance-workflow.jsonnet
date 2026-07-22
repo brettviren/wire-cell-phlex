@@ -20,12 +20,12 @@
   },
   sources: {
     source_a: {
-      cpp: 'wcph_frame_source',
+      cpp: 'wcph_frame_gen',
       output_layer: 'event',
       output_suffix: 'frame_a',
     },
     source_b: {
-      cpp: 'wcph_frame_source',
+      cpp: 'wcph_frame_gen',
       output_layer: 'event',
       output_suffix: 'frame_b',
     },

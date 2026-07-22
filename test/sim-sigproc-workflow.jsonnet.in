@@ -2,7 +2,7 @@
   // PHLEX integration test workflow: two-island sim + sigproc pipeline.
   //
   // Topology:
-  //   wcph_deposet_source_file  (DepoFileSource + Drifter)
+  //   wcph_deposet_source  (DepoFileSource + Drifter)
   //     → wcph_deposet_to_frame  (DepoTransform + Reframer + AddNoise + Digitizer)
   //     → wcph_frame_filter      (OmnibusSigProc)
   //     → wcph_frame_sink   (FrameFileSink)
@@ -59,7 +59,7 @@
   },
   sources: {
     deposet_source: {
-      cpp: 'wcph_deposet_source_file',
+      cpp: 'wcph_deposet_source',
       wct_config: 'deposet-file-source.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       output_layer: 'event',

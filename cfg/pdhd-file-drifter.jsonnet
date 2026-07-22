@@ -1,6 +1,6 @@
 // cfg/pdhd-file-drifter.jsonnet
 //
-// WCT sub-graph: DepoFileSource → DepoSetDrifter → DepoSetBoundarySink
+// WCT sub-graph: DepoFileSource → DepoSetDrifter → GenericDepoSetBoundarySink
 //
 // Reads a depo file and drifts all depos to the response planes of all 4 PDHD
 // APAs (2 drift columns × 2 faces each = 4 drift regions).  Used by the
@@ -14,7 +14,7 @@
 // PDHD geometry constants from wire-cell-toolkit simparams.jsonnet.
 //
 // TLA parameters:
-//   sink_name (string): instance name for DepoSetBoundarySink
+//   sink_name_0 (string): instance name for GenericDepoSetBoundarySink
 //   app_name  (string): instance name for Pgrapher
 //   inname    (string): input depo file path (via wct_tla from module config)
 //
@@ -23,7 +23,7 @@
 local wc = import "wirecell.jsonnet";
 
 function(
-    sink_name = "wcphlex_deposet_sink",
+    sink_name_0 = "wcphlex_deposet_sink",
     app_name  = "wcphlex_pgrapher",
     inname    = "depos.npz",
 )
@@ -103,8 +103,8 @@ local file_source = {
 };
 
 local snk = {
-    type: "DepoSetBoundarySink",
-    name: sink_name,
+    type: "GenericDepoSetBoundarySink",
+    name: sink_name_0,
     data: {},
 };
 

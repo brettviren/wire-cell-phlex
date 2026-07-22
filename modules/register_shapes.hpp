@@ -29,6 +29,7 @@
 #include "modules/executor_config.hpp"        // to_executor_config
 
 #include "phlex/module.hpp"
+#include "phlex/model/data_cell_index.hpp"    // data_cell_index (register_source)
 
 #include <boost/json.hpp>
 
@@ -98,6 +99,30 @@ void register_sink(Proxy& m, phlex::configuration const& config)
         .input_family(phlex::product_selector{
             .creator = from, .layer = layer,
             .suffix = phlex::experimental::identifier{in_suffix}});
+}
+
+// Register a 0->1 source node (SourceExecutor<Out>).  Drives a WCT sub-graph
+// that begins with a real WCT source (e.g. a file reader) and ends in a
+// GenericBoundarySink; the first call runs the graph and queues every output,
+// each Phlex call drains one.  Registered as a Phlex provider named
+// "wcph_<out>_source"; the output product's creator is the literal "input"
+// (the source convention) with suffix defaulting to the type <stem>.
+//
+// NOTE: this is the WCT-graph source shape.  Trivial in-memory test generators
+// (SimpleFrame/SimpleDepoSet) are a different, pure-Phlex kind and live in the
+// *_gen modules.
+template <class Out, class Proxy>
+void register_source(Proxy& m, phlex::configuration const& config)
+{
+    const std::string layer = config.get<std::string>("output_layer");
+    const std::string out_suffix = config.get<std::string>("output_suffix", type_stem<Out>());
+
+    auto node = std::make_shared<SourceExecutor<Out>>(executor_config_from(config));
+
+    m.provide("wcph_" + type_stem<Out>() + "_source",
+              [node](phlex::data_cell_index const&) -> Data<Out> { return (*node)(); })
+        .output_product("input", phlex::experimental::identifier{out_suffix},
+                        phlex::experimental::identifier{layer});
 }
 
 } // namespace wcphlex

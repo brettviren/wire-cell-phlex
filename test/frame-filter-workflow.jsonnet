@@ -19,7 +19,7 @@
   },
   sources: {
     frame_source: {
-      cpp: 'wcph_frame_source',
+      cpp: 'wcph_frame_gen',
       output_layer: 'event',
     },
   },

@@ -1,7 +1,7 @@
 {
   // PHLEX integration test workflow: Variant A — standalone signal processing.
   //
-  // Reads sim-frames.npz (produced by phlex_deposet_sim) via wcph_frame_source_file,
+  // Reads sim-frames.npz (produced by phlex_deposet_sim) via wcph_frame_source,
   // runs OmnibusSigProc via wcph_frame_filter (frame-sigproc.jsonnet), and writes
   // the signal-processed frames to sp-frames-a.npz via wcph_frame_sink.
   //
@@ -24,7 +24,7 @@
   },
   sources: {
     frame_source: {
-      cpp: 'wcph_frame_source_file',
+      cpp: 'wcph_frame_source',
       wct_config: 'frame-file-source.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
       output_layer: 'event',
