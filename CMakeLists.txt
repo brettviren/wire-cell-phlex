@@ -217,14 +217,18 @@ target_link_libraries(wcph_frame_sink PRIVATE
 )
 target_compile_options(wcph_frame_sink PRIVATE -UNDEBUG)
 
-# Fan-in shape (FaninExecutor<IFrame,IFrame>, fixed multiplicity 4).
-add_library(wcph_frame_fanin MODULE modules/frame_fanin.cpp)
-target_link_libraries(wcph_frame_fanin PRIVATE
-  wire_cell_phlex
-  phlex::module
-  ${WIRECELL_RUNTIME_LIBS}
-)
-target_compile_options(wcph_frame_fanin PRIVATE -UNDEBUG)
+# Frame fan-in shape series: one module per compile-time multiplicity
+# (FaninExecutor<IFrame,IFrame,N>).  Single-digit DUNE multiplicities for now;
+# 150/160 await a look at large-fan TBB scaling.
+foreach(_n IN ITEMS 2 3 4 6 8)
+  add_library(wcph_frames_to_frame_${_n} MODULE modules/frames_to_frame_${_n}.cpp)
+  target_link_libraries(wcph_frames_to_frame_${_n} PRIVATE
+    wire_cell_phlex
+    phlex::module
+    ${WIRECELL_RUNTIME_LIBS}
+  )
+  target_compile_options(wcph_frames_to_frame_${_n} PRIVATE -UNDEBUG)
+endforeach()
 
 # Fan-in + terminal sink composed in one module (two chained nodes).
 add_library(wcph_frame_fanin_sink MODULE modules/frame_fanin_sink.cpp)
@@ -645,7 +649,11 @@ foreach(_mod IN ITEMS
     wcph_deposet_observer
     wcph_deposet_sink
     wcph_frame_sink
-    wcph_frame_fanin
+    wcph_frames_to_frame_2
+    wcph_frames_to_frame_3
+    wcph_frames_to_frame_4
+    wcph_frames_to_frame_6
+    wcph_frames_to_frame_8
     wcph_frame_fanin_sink
     wcph_wire_schema_source
     wcph_wire_schema_observer

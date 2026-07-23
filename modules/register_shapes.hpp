@@ -213,14 +213,18 @@ void register_source(Proxy& m, phlex::configuration const& config)
 // multiplicity of the (WCT-dynamic) FaninExecutor / FanoutExecutor.
 // ---------------------------------------------------------------------------
 
-// N -> 1 homogeneous fan-in (FaninExecutor<In,Out>).  Node "wcph_<in>s_to_<out>"
-// (input type pluralised per the naming convention).  Consumes N products, one
-// per "inputs" selector (each finger its own creator/layer/suffix), packs them
-// into the vector FaninExecutor expects, and produces one output.
+// N -> 1 homogeneous fan-in (FaninExecutor<In,Out>).  Node
+// "wcph_<in>s_to_<out>_<N>" — the input type pluralised and the multiplicity N
+// appended, since N is a compile-time template parameter (it fixes the Phlex
+// node's argument arity) and one module .cpp is built per supported N.  Consumes
+// N products, one per "inputs" selector (each finger its own creator/layer/
+// suffix), packs them into the vector FaninExecutor expects, and produces one
+// output.
 template <class In, class Out, std::size_t N, class Proxy, std::size_t... Is>
 void register_fanin_impl(Proxy& m, phlex::configuration const& config, std::index_sequence<Is...>)
 {
-    const std::string node = "wcph_" + type_stem<In>() + "s_to_" + type_stem<Out>();
+    const std::string node =
+        "wcph_" + type_stem<In>() + "s_to_" + type_stem<Out>() + "_" + std::to_string(N);
     auto inputs = read_ports(config, "inputs");
     auto outputs = read_ports(config, "outputs");
     check_arity(node, inputs.size(), N, outputs.size(), 1);
@@ -242,15 +246,17 @@ void register_fanin(Proxy& m, phlex::configuration const& config)
     register_fanin_impl<In, Out, N>(m, config, std::make_index_sequence<N>{});
 }
 
-// 1 -> N homogeneous fan-out (FanoutExecutor<In,Out>).  Node "wcph_<in>_to_<out>s".
-// Consumes one product and produces N — one per "outputs" element, which must
-// give distinct suffixes so they coexist in one layer.  The FanoutExecutor's
-// std::vector<Data<Out>> is unpacked into the N-way tuple Phlex expects for a
-// multi-output transform.
+// 1 -> N homogeneous fan-out (FanoutExecutor<In,Out>).  Node
+// "wcph_<in>_to_<out>s_<N>" (output type pluralised, multiplicity N appended —
+// see register_fanin_impl).  Consumes one product and produces N — one per
+// "outputs" element, which must give distinct suffixes so they coexist in one
+// layer.  The FanoutExecutor's std::vector<Data<Out>> is unpacked into the N-way
+// tuple Phlex expects for a multi-output transform.
 template <class In, class Out, std::size_t N, class Proxy, std::size_t... Is>
 void register_fanout_impl(Proxy& m, phlex::configuration const& config, std::index_sequence<Is...>)
 {
-    const std::string node = "wcph_" + type_stem<In>() + "_to_" + type_stem<Out>() + "s";
+    const std::string node =
+        "wcph_" + type_stem<In>() + "_to_" + type_stem<Out>() + "s_" + std::to_string(N);
     auto inputs = read_ports(config, "inputs");
     auto outputs = read_ports(config, "outputs");
     check_arity(node, inputs.size(), 1, outputs.size(), N);

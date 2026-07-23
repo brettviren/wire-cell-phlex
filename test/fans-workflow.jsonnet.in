@@ -93,7 +93,7 @@
     },
     # Fan-in as a standalone node producing a merged Frame product ...
     fanin: {
-      cpp: 'wcph_frame_fanin',
+      cpp: 'wcph_frames_to_frame_4',
       wct_config: 'frame-fanin.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen'],
       inputs: [
