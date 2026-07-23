@@ -338,11 +338,9 @@ add_test(NAME phlex_wire_schema
 )
 set_tests_properties(phlex_wire_schema PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
 
-add_test(NAME phlex_frame_filter_facade
-  COMMAND "${PHLEX_EXECUTABLE}" -c
-    "${CMAKE_CURRENT_SOURCE_DIR}/test/frame-filter-facade-workflow.jsonnet"
-)
-set_tests_properties(phlex_frame_filter_facade PROPERTIES ENVIRONMENT "${_phlex_env_with_data}")
+# (The frame_filter wire-schema/facade path and its phlex_frame_filter_facade
+# test were retired with the FrameFilter executor; a future join-executor-based
+# design will restore auxiliary wire-schema input and its coverage.)
 
 # Step B: DepoSet passthrough filter + observer.
 add_test(NAME phlex_deposet_filter

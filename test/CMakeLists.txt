@@ -20,17 +20,10 @@ target_link_libraries(test_boundary PRIVATE wire_cell_phlex
   ${WIRECELL_RUNTIME_LIBS})
 add_test(NAME boundary COMMAND test_boundary)
 
-# Step 4: WctExecutor class.
-# Runs a full WCT Pgrapher sub-graph (frame passthrough) for 12 events via
-# FrameFilter.  Requires WireCellPgraph plugin (loaded at runtime via dlopen).
-add_executable(test_executor test_executor.cpp)
-target_link_libraries(test_executor PRIVATE wire_cell_phlex
-  ${WIRECELL_RUNTIME_LIBS})
-# Inject the path to cfg/ so the test can locate frame-passthrough.jsonnet.
-target_compile_definitions(test_executor PRIVATE
-  WCP_CFG_DIR="${CMAKE_SOURCE_DIR}/cfg"
-)
-add_test(NAME executor COMMAND test_executor)
+# (The former test_executor, which exercised the original FrameFilter /
+# DepoSetFilter named executors directly, has been retired along with those
+# executors; the templated executors are covered by test_function_executor,
+# test_shape_executors, and the integration workflows.)
 
 # Idea-2 spike (ddm-7dk.3): templated FunctionExecutor<In,Out> + generic
 # mid-level-interface boundary nodes.

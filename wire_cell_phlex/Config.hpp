@@ -32,7 +32,6 @@
 // PFR machinery, and its compiler requirements, out of this public header.
 
 #include "boost_config/Documented.hpp"
-#include "phlex_config/PhlexAlgorithmConfig.hpp"
 
 #include <map>
 #include <string>
@@ -41,11 +40,9 @@
 namespace wcphlex {
 
 using boost_config::Documented;
-using phlex_config::PhlexAlgorithmConfig;
 
-// Common WCT-executor configuration shared by every node (composed, not
-// inherited).  Field names match the JSON keys the executors previously read
-// by hand.
+// Common WCT-executor configuration consumed by every shape executor (via
+// register_shapes.hpp's executor_config_from / Config_json.hpp value_to).
 struct ExecutorConfig {
     Documented<std::string> wct_config{
         "", "Path to the WCT Jsonnet config file (required). A Jsonnet function "
@@ -63,38 +60,6 @@ struct ExecutorConfig {
         "", "WCT log destination: 'stdout', 'stderr', or a file path. Empty = none."};
     Documented<std::string> wct_log_level{
         "", "WCT log level ('warn', 'info', 'debug', ...). Only used with wct_log_sink."};
-};
-
-// A pass-through node whose configuration is exactly an ExecutorConfig under
-// the uniform `executor` key.  Declared via a macro so that adding a field
-// later is a one-line change from this to an explicit struct.
-#define WCPHLEX_EXECUTOR_NODE_CONFIG(Name)                                     \
-    struct Name {                                                             \
-        ExecutorConfig executor;                                              \
-    }
-
-WCPHLEX_EXECUTOR_NODE_CONFIG(DepoSetToFrameConfig);
-WCPHLEX_EXECUTOR_NODE_CONFIG(DepoSetSourceFileConfig);
-WCPHLEX_EXECUTOR_NODE_CONFIG(DepoSetSinkFileConfig);
-WCPHLEX_EXECUTOR_NODE_CONFIG(FrameSourceFileConfig);
-WCPHLEX_EXECUTOR_NODE_CONFIG(FrameSinkFileConfig);
-WCPHLEX_EXECUTOR_NODE_CONFIG(FrameFaninSinkFileConfig);
-
-// DepoSetFilter is the first node migrated to carry the generic Phlex
-// registration data (name/concurrency/inputs/outputs) in a `phlex` field, so
-// its module reads the input families / output suffixes from config rather than
-// hard-coding them.  Other node configs will follow the same shape.
-struct DepoSetFilterConfig {
-    PhlexAlgorithmConfig phlex;
-    ExecutorConfig       executor;
-};
-
-// FrameFilter adds one field of its own.
-struct FrameFilterConfig {
-    ExecutorConfig executor;
-    Documented<bool> use_wire_schema{
-        false, "When true, inject the wire_schema_name TLA (= module scope) for "
-               "the geometry-aware FacadeWireSchema path."};
 };
 
 } // namespace wcphlex

@@ -29,21 +29,5 @@
 namespace wcphlex {
 
 BOOST_CONFIG_JSON(ExecutorConfig)
-BOOST_CONFIG_JSON(DepoSetToFrameConfig)
-BOOST_CONFIG_JSON(DepoSetSourceFileConfig)
-BOOST_CONFIG_JSON(DepoSetSinkFileConfig)
-BOOST_CONFIG_JSON(DepoSetFilterConfig)
-BOOST_CONFIG_JSON(FrameSourceFileConfig)
-BOOST_CONFIG_JSON(FrameSinkFileConfig)
-BOOST_CONFIG_JSON(FrameFaninSinkFileConfig)
-BOOST_CONFIG_JSON(FrameFilterConfig)
-
-// Parse a node config from the boost::json::object PHLEX hands a module.
-// boost::json::value_to wants a value, so wrap the object first.
-template <class Cfg>
-Cfg parse_node_config(boost::json::object const& obj)
-{
-    return boost::json::value_to<Cfg>(boost::json::value(obj));
-}
 
 } // namespace wcphlex
