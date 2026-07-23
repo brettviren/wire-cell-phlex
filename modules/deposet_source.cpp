@@ -14,7 +14,7 @@
 // PHLEX provider module: (real WCT source) -> IDepoSet source node.
 //
 // A 0-in/1-out SourceExecutor<IDepoSet>: drives a WCT sub-graph that begins
-// with a real WCT source and ends in a GenericDepoSetBoundarySink.  The
+// with a real WCT source and ends in a DepoSetBoundarySink.  The
 // particular source (e.g. DepoFileSource reading an npz) is chosen entirely by
 // the wct_config — "read from a file" is just one such graph.  The first Phlex
 // call runs the graph and queues every DepoSet; each call drains one.

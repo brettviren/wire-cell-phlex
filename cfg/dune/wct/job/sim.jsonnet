@@ -1,7 +1,7 @@
 // cfg/dune/wct/job/sim.jsonnet
 //
-// WCT sub-graph: GenericDepoSetBoundarySource → DepoSetDrifter → DepoTransform
-//                → Reframer → AddNoise → Digitizer → GenericFrameBoundarySink
+// WCT sub-graph: DepoSetBoundarySource → DepoSetDrifter → DepoTransform
+//                → Reframer → AddNoise → Digitizer → FrameBoundarySink
 //
 // Implements a full drift + electronics simulation for a single anode of any
 // DUNE detector described by a DetectorDescription object (see wct/dets/).

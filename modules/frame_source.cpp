@@ -14,7 +14,7 @@
 // PHLEX provider module: (real WCT source) -> IFrame source node.
 //
 // A 0-in/1-out SourceExecutor<IFrame>: drives a WCT sub-graph that begins with
-// a real WCT source and ends in a GenericFrameBoundarySink.  The particular
+// a real WCT source and ends in a FrameBoundarySink.  The particular
 // source (e.g. FrameFileSource reading an npz) is chosen entirely by the
 // wct_config — "read from a file" is just one such graph.  The first Phlex call
 // runs the graph and queues every Frame; each call drains one.

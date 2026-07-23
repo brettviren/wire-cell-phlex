@@ -1,6 +1,6 @@
 // cfg/pdhd-apa-sim.jsonnet
 //
-// WCT sub-graph: GenericDepoSetBoundarySource → DepoTransform → GenericFrameBoundarySink
+// WCT sub-graph: DepoSetBoundarySource → DepoTransform → FrameBoundarySink
 //
 // Like pdhd-apa-sim-sigproc.jsonnet but without OmnibusSigProc.
 // Used for debugging fan-out/fan-in topology when sigproc is not needed.

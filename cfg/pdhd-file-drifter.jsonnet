@@ -1,6 +1,6 @@
 // cfg/pdhd-file-drifter.jsonnet
 //
-// WCT sub-graph: DepoFileSource → DepoSetDrifter → GenericDepoSetBoundarySink
+// WCT sub-graph: DepoFileSource → DepoSetDrifter → DepoSetBoundarySink
 //
 // Reads a depo file and drifts all depos to the response planes of all 4 PDHD
 // APAs (2 drift columns × 2 faces each = 4 drift regions).  Used by the

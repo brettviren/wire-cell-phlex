@@ -1,7 +1,7 @@
 // cfg/deposet-drifter.jsonnet
 //
-// WCT sub-graph: GenericDepoSetBoundarySource → DepoSetDrifter (Drifter+Random)
-//                → GenericDepoSetBoundarySink.
+// WCT sub-graph: DepoSetBoundarySource → DepoSetDrifter (Drifter+Random)
+//                → DepoSetBoundarySink.
 //
 // Used by wcph_deposet_filter to run the WCT drift simulation on each PHLEX event.
 //

@@ -13,7 +13,7 @@
 //
 // PHLEX algorithm module: IFrame -> IFrame function node
 // (FunctionExecutor<IFrame,IFrame>).  The data crosses the Phlex boundary
-// through GenericFrameBoundarySource / GenericFrameBoundarySink.
+// through FrameBoundarySource / FrameBoundarySink.
 //
 // NOTE: the former use_wire_schema path (a 2-input transform on the original
 // FrameFilter executor that side-channel-registered a WireSchema into

@@ -1,6 +1,6 @@
 // cfg/pdhd-apa-sim-sigproc.jsonnet
 //
-// WCT sub-graph: GenericDepoSetBoundarySource → DepoTransform → OmnibusSigProc → GenericFrameBoundarySink
+// WCT sub-graph: DepoSetBoundarySource → DepoTransform → OmnibusSigProc → FrameBoundarySink
 //
 // Implements per-APA electronics simulation + signal processing for one PDHD APA.
 // The Drifter has already been applied upstream (in pdhd-file-drifter.jsonnet).

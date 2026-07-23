@@ -79,8 +79,8 @@ template <>
 struct port_traits<WireCell::IFrame> {
     using source_iface = WireCell::ISourceNode<WireCell::IFrame>;
     using sink_iface = WireCell::ISinkNode<WireCell::IFrame>;
-    static constexpr const char* src_class = "GenericFrameBoundarySource";
-    static constexpr const char* snk_class = "GenericFrameBoundarySink";
+    static constexpr const char* src_class = "FrameBoundarySource";
+    static constexpr const char* snk_class = "FrameBoundarySink";
     static constexpr const char* stem = "frame";   // <type>: IFrame -> frame
 };
 
@@ -88,8 +88,8 @@ template <>
 struct port_traits<WireCell::IDepoSet> {
     using source_iface = WireCell::ISourceNode<WireCell::IDepoSet>;
     using sink_iface = WireCell::ISinkNode<WireCell::IDepoSet>;
-    static constexpr const char* src_class = "GenericDepoSetBoundarySource";
-    static constexpr const char* snk_class = "GenericDepoSetBoundarySink";
+    static constexpr const char* src_class = "DepoSetBoundarySource";
+    static constexpr const char* snk_class = "DepoSetBoundarySink";
     static constexpr const char* stem = "deposet"; // <type>: IDepoSet -> deposet
 };
 

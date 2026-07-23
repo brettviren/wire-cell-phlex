@@ -14,7 +14,7 @@
 // PHLEX algorithm module: IFrame -> (terminal) sink node.
 //
 // A 1-in/0-out SinkExecutor<IFrame>: consumes each Frame, fills the WCT
-// GenericFrameBoundarySource, and runs a WCT sub-graph terminating in a real
+// FrameBoundarySource, and runs a WCT sub-graph terminating in a real
 // WCT sink.  The particular sink (e.g. FrameFileSink writing an npz) is chosen
 // entirely by the wct_config — "sink to a file" is just one such graph.
 //

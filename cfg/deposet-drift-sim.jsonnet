@@ -1,6 +1,6 @@
 // cfg/deposet-drift-sim.jsonnet
 //
-// WCT sub-graph: GenericDepoSetBoundarySource → DepoSetDrifter → DepoTransform → GenericFrameBoundarySink
+// WCT sub-graph: DepoSetBoundarySource → DepoSetDrifter → DepoTransform → FrameBoundarySink
 //
 // Implements a full drift + electronics simulation pipeline using PDSP APA 0
 // geometry parameters.  Used by the DepoSetToFrame executor.

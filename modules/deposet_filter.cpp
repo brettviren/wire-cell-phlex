@@ -15,7 +15,7 @@
 //
 // A 1-in/1-out transform backed by a WCT sub-graph (e.g. an identity
 // passthrough or a DepoSetDrifter) whose data crosses the Phlex boundary
-// through GenericDepoSetBoundarySource / GenericDepoSetBoundarySink.  The node
+// through DepoSetBoundarySource / DepoSetBoundarySink.  The node
 // is FunctionExecutor<IDepoSet,IDepoSet>, registered via register_function().
 //
 // The library keeps its historical name (libwcph_deposet_filter.so) although

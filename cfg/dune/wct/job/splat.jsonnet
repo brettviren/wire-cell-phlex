@@ -1,7 +1,7 @@
 // cfg/dune/wct/job/splat.jsonnet
 //
-// WCT sub-graph: GenericDepoSetBoundarySource → DepoSetDrifter → DepoFluxSplat
-//                → Reframer → GenericFrameBoundarySink
+// WCT sub-graph: DepoSetBoundarySource → DepoSetDrifter → DepoFluxSplat
+//                → Reframer → FrameBoundarySink
 //
 // Implements drift + DepoFluxSplat ("true signal") for a single anode of any
 // DUNE detector described by a DetectorDescription object (see wct/dets/).

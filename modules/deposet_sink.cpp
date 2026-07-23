@@ -14,7 +14,7 @@
 // PHLEX algorithm module: IDepoSet -> (terminal) sink node.
 //
 // A 1-in/0-out SinkExecutor<IDepoSet>: consumes each DepoSet, fills the WCT
-// GenericDepoSetBoundarySource, and runs a WCT sub-graph terminating in a real
+// DepoSetBoundarySource, and runs a WCT sub-graph terminating in a real
 // WCT sink.  The particular sink (e.g. DepoFileSink writing an npz) is chosen
 // entirely by the wct_config — "sink to a file" is just one such graph.
 //

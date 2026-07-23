@@ -172,7 +172,7 @@ void register_sink(Proxy& m, phlex::configuration const& config)
 
 // Register a 0->1 source node (SourceExecutor<Out>).  Drives a WCT sub-graph
 // that begins with a real WCT source (e.g. a file reader) and ends in a
-// GenericBoundarySink; the first call runs the graph and queues every output,
+// boundary sink; the first call runs the graph and queues every output,
 // each Phlex call drains one.  Registered as a Phlex provider named
 // "wcph_<out>_source".  Empty "inputs"; one "outputs" element — a provider
 // honors its full { creator, layer, suffix } (creator defaults to the source

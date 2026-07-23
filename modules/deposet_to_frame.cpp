@@ -21,7 +21,7 @@
 //
 // The node is FunctionExecutor<IDepoSet,IFrame>: a 1-in/1-out transform backed
 // by a WCT sub-graph (deposet-to-frame.jsonnet) whose data crosses the Phlex
-// boundary through GenericDepoSetBoundarySource / GenericFrameBoundarySink.
+// boundary through DepoSetBoundarySource / FrameBoundarySink.
 //
 // Config keys: wct_config (required), input_layer (required), input_from
 // (required: "input" to consume a source, else an upstream module label),

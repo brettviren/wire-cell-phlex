@@ -1,6 +1,6 @@
 // cfg/dune/wct/job/sigproc.jsonnet
 //
-// WCT sub-graph: GenericFrameBoundarySource → OmnibusSigProc → GenericFrameBoundarySink
+// WCT sub-graph: FrameBoundarySource → OmnibusSigProc → FrameBoundarySink
 //
 // Implements signal processing for a single anode of any DUNE detector
 // described by a DetectorDescription object (see wct/dets/).

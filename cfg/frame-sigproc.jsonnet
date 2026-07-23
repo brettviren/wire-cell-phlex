@@ -1,6 +1,6 @@
 // cfg/frame-sigproc.jsonnet
 //
-// WCT sub-graph: GenericFrameBoundarySource → OmnibusSigProc → GenericFrameBoundarySink.
+// WCT sub-graph: FrameBoundarySource → OmnibusSigProc → FrameBoundarySink.
 //
 // Standalone signal processing variant (Variant A of third-real-job).
 // Used by the FrameFilter executor.  Each PHLEX event fills the boundary

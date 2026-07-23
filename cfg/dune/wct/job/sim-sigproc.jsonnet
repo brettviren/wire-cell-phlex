@@ -1,8 +1,8 @@
 // cfg/dune/wct/job/sim-sigproc.jsonnet
 //
-// WCT sub-graph: GenericDepoSetBoundarySource → DepoSetDrifter → DepoTransform
+// WCT sub-graph: DepoSetBoundarySource → DepoSetDrifter → DepoTransform
 //                → Reframer → AddNoise → Digitizer → OmnibusSigProc
-//                → GenericFrameBoundarySink
+//                → FrameBoundarySink
 //
 // Combined drift simulation + signal processing for a single anode.
 // Service components (AnodePlane, DFT, FieldResponse, ElecResponse) are

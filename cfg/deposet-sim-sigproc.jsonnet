@@ -1,7 +1,7 @@
 // cfg/deposet-sim-sigproc.jsonnet
 //
-// WCT sub-graph: GenericDepoSetBoundarySource → DepoSetDrifter → DepoTransform
-//                → OmnibusSigProc → GenericFrameBoundarySink.
+// WCT sub-graph: DepoSetBoundarySource → DepoSetDrifter → DepoTransform
+//                → OmnibusSigProc → FrameBoundarySink.
 //
 // Combined drift + electronics simulation + signal processing variant
 // (Variant B of third-real-job).  Used by the DepoSetToFrame executor.

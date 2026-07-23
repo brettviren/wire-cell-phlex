@@ -23,8 +23,8 @@
 // the sources/sinks inode arrays), so it is not hard-coded in any config.
 //
 // Concrete type names used in Jsonnet config (type: "Name"):
-//   GenericFrameBoundarySource / GenericFrameBoundarySink
-//   GenericDepoSetBoundarySource / GenericDepoSetBoundarySink
+//   FrameBoundarySource / FrameBoundarySink
+//   DepoSetBoundarySource / DepoSetBoundarySink
 
 #include "wire_cell_phlex/BoundarySource.hpp"
 #include "wire_cell_phlex/BoundarySink.hpp"
@@ -37,24 +37,24 @@
 
 // --- Frame boundary nodes ---------------------------------------------------
 
-WIRECELL_FACTORY(GenericFrameBoundarySource,
+WIRECELL_FACTORY(FrameBoundarySource,
                  wcphlex::BoundarySource<WireCell::ISourceNode<WireCell::IFrame>>,
                  WireCell::ISourceNode<WireCell::IFrame>,
                  WireCell::IConfigurable)
 
-WIRECELL_FACTORY(GenericFrameBoundarySink,
+WIRECELL_FACTORY(FrameBoundarySink,
                  wcphlex::BoundarySink<WireCell::ISinkNode<WireCell::IFrame>>,
                  WireCell::ISinkNode<WireCell::IFrame>,
                  WireCell::IConfigurable)
 
 // --- DepoSet boundary nodes -------------------------------------------------
 
-WIRECELL_FACTORY(GenericDepoSetBoundarySource,
+WIRECELL_FACTORY(DepoSetBoundarySource,
                  wcphlex::BoundarySource<WireCell::ISourceNode<WireCell::IDepoSet>>,
                  WireCell::ISourceNode<WireCell::IDepoSet>,
                  WireCell::IConfigurable)
 
-WIRECELL_FACTORY(GenericDepoSetBoundarySink,
+WIRECELL_FACTORY(DepoSetBoundarySink,
                  wcphlex::BoundarySink<WireCell::ISinkNode<WireCell::IDepoSet>>,
                  WireCell::ISinkNode<WireCell::IDepoSet>,
                  WireCell::IConfigurable)
