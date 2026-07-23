@@ -28,8 +28,8 @@
       cpp: 'wcph_frame_filter',
       wct_config: 'frame-passthrough-generic.jsonnet',
       wct_plugins: ['WireCellPgraph'],
-      input_layer: 'event',
-      input_from: 'input',
+      inputs: [{ creator: 'input', layer: 'event', suffix: 'frame' }],
+      outputs: [{ suffix: 'frame' }],
     },
   },
 }

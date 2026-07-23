@@ -25,8 +25,8 @@
       cpp: 'wcph_deposet_filter',
       wct_config: 'deposet-passthrough-generic.jsonnet',
       wct_plugins: ['WireCellPgraph'],
-      input_layer: 'event',
-      input_from: 'input',
+      inputs: [{ creator: 'input', layer: 'event', suffix: 'deposet' }],
+      outputs: [{ suffix: 'deposet' }],
     },
     deposet_observer: {
       cpp: 'wcph_deposet_observer',

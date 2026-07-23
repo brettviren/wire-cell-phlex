@@ -56,8 +56,8 @@ local with_log = {
             cpp:         "wcph_frame_filter",
             wct_config:  "dune/wct/job/sigproc.jsonnet",
             wct_plugins: ["WireCellPgraph", "WireCellGen", "WireCellSigProc", "WireCellAux"],
-            input_layer: "event",
-            input_from:  "input",
+            inputs:  [{ creator: "input", layer: "event", suffix: "frame" }],
+            outputs: [{ suffix: "frame" }],
             wct_tla: {
                 detector:    params.detname,
                 anode_index: ai_str,

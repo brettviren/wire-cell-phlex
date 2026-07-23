@@ -62,17 +62,18 @@
       cpp: 'wcph_deposet_source',
       wct_config: 'deposet-file-source.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
-      output_layer: 'event',
+      inputs: [],
+      outputs: [{ creator: 'input', layer: 'event', suffix: 'deposet' }],
       wct_tla: { inname: '@WCP_TEST_DATA_DIR@/muon-depos.npz' },
     },
   },
   modules: {
     frame_sim: {
       cpp: 'wcph_deposet_to_frame',
-      input_from: 'input',
       wct_config: 'deposet-drift-sim.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
-      input_layer: 'event',
+      inputs: [{ creator: 'input', layer: 'event', suffix: 'deposet' }],
+      outputs: [{ suffix: 'frame' }],
       // service_prefix not set → default "" → service components use bare names
       // (e.g. AnodePlane:apa0) and will be shared with the sigproc island below.
       // To use independent instances, add: wct_tla: { service_prefix: 'sim_' }
@@ -81,8 +82,8 @@
       cpp: 'wcph_frame_filter',
       wct_config: 'frame-sigproc.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellGen', 'WireCellSigProc', 'WireCellAux'],
-      input_layer: 'event',
-      input_from: 'frame_sim',
+      inputs: [{ creator: 'frame_sim', layer: 'event', suffix: 'frame' }],
+      outputs: [{ suffix: 'frame' }],
       // service_prefix not set → default "" → resolves to the same factory instances
       // as frame_sim (AnodePlane:apa0, FieldResponse:fr, etc. are shared).
       // To use independent instances, add: wct_tla: { service_prefix: 'sp_' }
@@ -91,8 +92,8 @@
       cpp: 'wcph_frame_sink',
       wct_config: 'frame-file-sink.jsonnet',
       wct_plugins: ['WireCellPgraph', 'WireCellSio'],
-      input_layer: 'event',
-      input_from: 'frame_sigproc',
+      inputs: [{ creator: 'frame_sigproc', layer: 'event', suffix: 'frame' }],
+      outputs: [],
       wct_tla: { outname: '@WCP_OUTPUT_DIR@/sim-sigproc-frames.npz' },
     },
   },

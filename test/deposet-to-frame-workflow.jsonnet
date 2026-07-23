@@ -25,8 +25,8 @@
       cpp: 'wcph_deposet_to_frame',
       wct_config: 'deposet-to-frame.jsonnet',
       wct_plugins: ['WireCellPgraph'],
-      input_layer: 'event',
-      input_from: 'input',
+      inputs: [{ creator: 'input', layer: 'event', suffix: 'deposet' }],
+      outputs: [{ suffix: 'frame' }],
     },
   },
 }

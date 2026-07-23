@@ -55,10 +55,10 @@ local ai_str = "%d" % anode_index;  // PHLEX wct_tla requires string values
         // function; the detector and anode are selected via wct_tla strings.
         frame_sim_sigproc: {
             cpp:         "wcph_deposet_to_frame",
-            input_from: "input",
             wct_config:  "dune/wct/job/sim-sigproc.jsonnet",
             wct_plugins: ["WireCellPgraph", "WireCellGen", "WireCellSigProc", "WireCellAux"],
-            input_layer: "event",
+            inputs:  [{ creator: "input", layer: "event", suffix: "deposet" }],
+            outputs: [{ suffix: "frame" }],
             wct_tla: {
                 detector:    params.detname,
                 anode_index: ai_str,
