@@ -8,20 +8,24 @@
 // Physics parameters use a fictional single-APA geometry for testing.
 // Set fluctuate: false for determinism in unit tests.
 //
-// TLA parameters:
-//   source_name_0 (string): instance name for the GenericDepoSetBoundarySource node
-//   sink_name_0   (string): instance name for the GenericDepoSetBoundarySink node
-//   app_name    (string): instance name for the Pgrapher application
+// TLA parameters (injected by the ShapeExecutor base):
+//   sources  — array of WCT inode { type, name } for the boundary source(s)
+//   sinks    — array of WCT inode { type, name } for the boundary sink(s)
+//   app_name — instance name for the Pgrapher application
 //
 // Required WCT plugins: WireCellPgraph, WireCellGen
 
 local wc = import "wirecell.jsonnet";
 
 function(
-    source_name_0 = "wcphlex_deposet_source",
-    sink_name_0   = "wcphlex_deposet_sink",
-    app_name    = "wcphlex_pgrapher",
+    sources  = [],
+    sinks    = [],
+    app_name = "wcphlex_pgrapher",
 )
+
+local src = sources[0];
+local snk = sinks[0];
+
 [
     // Random number generator (required by Drifter).
     {
@@ -66,18 +70,10 @@ function(
     },
 
     // Boundary source: DepoSetFilter executor fills this before each WCT run.
-    {
-        type: "GenericDepoSetBoundarySource",
-        name: source_name_0,
-        data: {},
-    },
+    src { data: {} },
 
     // Boundary sink: DepoSetFilter executor drains this after each WCT run.
-    {
-        type: "GenericDepoSetBoundarySink",
-        name: sink_name_0,
-        data: {},
-    },
+    snk { data: {} },
 
     // Pgrapher: boundary source → drifter → boundary sink.
     {
@@ -86,12 +82,12 @@ function(
         data: {
             edges: [
                 {
-                    tail: { node: "GenericDepoSetBoundarySource:" + source_name_0, port: 0 },
-                    head: { node: "DepoSetDrifter:deposet_drifter",        port: 0 },
+                    tail: { node: src.type + ":" + src.name,        port: 0 },
+                    head: { node: "DepoSetDrifter:deposet_drifter", port: 0 },
                 },
                 {
-                    tail: { node: "DepoSetDrifter:deposet_drifter",        port: 0 },
-                    head: { node: "GenericDepoSetBoundarySink:" + sink_name_0,      port: 0 },
+                    tail: { node: "DepoSetDrifter:deposet_drifter", port: 0 },
+                    head: { node: snk.type + ":" + snk.name,        port: 0 },
                 },
             ],
         },

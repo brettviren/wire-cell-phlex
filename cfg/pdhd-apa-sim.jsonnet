@@ -8,8 +8,8 @@
 local wc = import "wirecell.jsonnet";
 
 function(
-    source_name_0 = "wcphlex_deposet_source",
-    sink_name_0   = "wcphlex_frame_sink",
+    sources  = [],
+    sinks    = [],
     app_name    = "wcphlex_pgrapher",
     apa_ident   = "0",
 )
@@ -200,17 +200,9 @@ local digitizer = {
     },
 };
 
-local src = {
-    type: "GenericDepoSetBoundarySource",
-    name: source_name_0,
-    data: {},
-};
+local src = sources[0] { data: {} };
 
-local snk = {
-    type: "GenericFrameBoundarySink",
-    name: sink_name_0,
-    data: {},
-};
+local snk = sinks[0] { data: {} };
 
 [dft, rng, wires, fr, elec, anode] + pirs +
 [transform, reframer, noise_model, addnoise, digitizer, src, snk,

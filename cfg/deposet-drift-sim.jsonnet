@@ -11,8 +11,8 @@
 //
 // TLA parameters (injected by FunctionExecutor<IDepoSet,IFrame> — indexed per
 // port; single-port shapes use index 0):
-//   source_name_0 (string): instance name for GenericDepoSetBoundarySource
-//   sink_name_0   (string): instance name for GenericFrameBoundarySink
+//   sources  — array of WCT inode { type, name } for the boundary source(s)
+//   sinks    — array of WCT inode { type, name } for the boundary sink(s)
 //   app_name      (string): instance name for Pgrapher
 //
 // Required WCT plugins: WireCellPgraph, WireCellGen, WireCellSigProc, WireCellAux
@@ -20,8 +20,8 @@
 local wc = import "wirecell.jsonnet";
 
 function(
-    source_name_0  = "wcphlex_deposet_source",
-    sink_name_0    = "wcphlex_frame_sink",
+    sources  = [],
+    sinks    = [],
     app_name       = "wcphlex_pgrapher",
     service_prefix = "",   // prefix for all service component names;
                            // "" (default) = bare names, shared with any other island
@@ -250,17 +250,9 @@ local digitizer = {
 // Boundary nodes (names come from TLAs injected by DepoSetToFrame executor)
 // ---------------------------------------------------------------------------
 
-local src = {
-    type: "GenericDepoSetBoundarySource",
-    name: source_name_0,
-    data: {},
-};
+local src = sources[0] { data: {} };
 
-local snk = {
-    type: "GenericFrameBoundarySink",
-    name: sink_name_0,
-    data: {},
-};
+local snk = sinks[0] { data: {} };
 
 // ---------------------------------------------------------------------------
 // Full component list + Pgrapher

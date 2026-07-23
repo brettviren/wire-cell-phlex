@@ -2,37 +2,42 @@
 //
 // Minimal WCT graph for testing wcphlex::DepoSetToFrame:
 //
-//   DepoSetBoundarySource ──[IDepoSet]──> TrivialDepoFramer ──[IFrame]──> FrameBoundarySink
+//   DepoSet boundary source ──[IDepoSet]──> TrivialDepoFramer ──[IFrame]──> Frame boundary sink
 //
 // TrivialDepoFramer produces an empty IFrame whose ident matches the
 // incoming IDepoSet ident.  This is a connectivity test only.
 //
-// TLA parameters (injected by FunctionExecutor<IDepoSet,IFrame> — indexed per
-// port; single-port shapes use index 0):
-//   source_name_0 — instance name for the (generic) DepoSet boundary source
-//   sink_name_0   — instance name for the (generic) Frame boundary sink
-//   app_name      — instance name for the Pgrapher
+// TLA parameters (injected by the ShapeExecutor base):
+//   sources  — array of WCT inode objects { type, name } for the boundary
+//              sources this shape needs (here: one DepoSet boundary source)
+//   sinks    — array of WCT inode objects { type, name } for the boundary
+//              sinks (here: one Frame boundary sink)
+//   app_name — instance name for the Pgrapher
 
 function(
-    source_name_0 = "wcph_deposet_source",
-    sink_name_0   = "wcph_frame_sink",
-    app_name      = "wcph_pgrapher",
+    sources  = [],
+    sinks    = [],
+    app_name = "wcph_pgrapher",
 )
+
+local src = sources[0];   // DepoSet boundary source inode { type, name }
+local snk = sinks[0];      // Frame boundary sink inode { type, name }
+
 [
-    { type: "GenericDepoSetBoundarySource", name: source_name_0, data: {} },
-    { type: "GenericFrameBoundarySink",     name: sink_name_0,   data: {} },
-    { type: "TrivialDepoFramer",            name: "converter",   data: {} },
+    src { data: {} },
+    snk { data: {} },
+    { type: "TrivialDepoFramer", name: "converter", data: {} },
     {
         type: "Pgrapher",
         name: app_name,
         data: { edges: [
             {
-                tail: { node: "GenericDepoSetBoundarySource:" + source_name_0, port: 0 },
-                head: { node: "TrivialDepoFramer:converter",                   port: 0 },
+                tail: { node: src.type + ":" + src.name,     port: 0 },
+                head: { node: "TrivialDepoFramer:converter", port: 0 },
             },
             {
-                tail: { node: "TrivialDepoFramer:converter",                   port: 0 },
-                head: { node: "GenericFrameBoundarySink:" + sink_name_0,       port: 0 },
+                tail: { node: "TrivialDepoFramer:converter", port: 0 },
+                head: { node: snk.type + ":" + snk.name,     port: 0 },
             },
         ]},
     },

@@ -1,22 +1,28 @@
 // cfg/deposet-file-source.jsonnet
 //
-// WCT sub-graph: DepoFileSource → GenericDepoSetBoundarySink.
+// WCT sub-graph: DepoFileSource → DepoSet boundary sink.
 //
-// Used by the DepoSetSourceFile executor.  The WCT graph is run once to
-// completion; all depo sets read from the file queue in the boundary sink.
+// The IDepoSet source shape (SourceExecutor<IDepoSet>): the WCT graph is run
+// once to completion; all depo sets read from the file queue in the boundary
+// sink, and PHLEX drains one per event.
 //
-// TLA parameters:
-//   sink_name_0  (string): instance name for the GenericDepoSetBoundarySink node
-//   app_name   (string): instance name for the Pgrapher application
-//   inname     (string): input file path (passed via wct_tla from module config)
+// TLA parameters (injected by the ShapeExecutor base):
+//   sources  — array (empty: the origin is the real DepoFileSource, not a boundary)
+//   sinks    — array of WCT inode objects { type, name }: one DepoSet boundary sink
+//   app_name — instance name for the Pgrapher application
+//   inname   — input file path (passed via wct_tla from the module config)
 //
 // Required WCT plugins: WireCellPgraph, WireCellSio
 
 function(
-    sink_name_0 = "wcphlex_deposet_sink",
-    app_name  = "wcphlex_pgrapher",
-    inname    = "depos.npz",
+    sources  = [],
+    sinks    = [],
+    app_name = "wcphlex_pgrapher",
+    inname   = "depos.npz",
 )
+
+local snk = sinks[0];
+
 [
     // WCT file source: reads depo sets from disk.
     {
@@ -27,24 +33,16 @@ function(
         },
     },
 
-    // Boundary sink: DepoSetSourceFile executor drains this after graph run.
-    {
-        type: "GenericDepoSetBoundarySink",
-        name: sink_name_0,
-        data: {},
-    },
+    snk { data: {} },
 
-    // Pgrapher: wire file source → boundary sink.
     {
         type: "Pgrapher",
         name: app_name,
-        data: {
-            edges: [
-                {
-                    tail: { node: "DepoFileSource:file_source", port: 0 },
-                    head: { node: "GenericDepoSetBoundarySink:" + sink_name_0, port: 0 },
-                },
-            ],
-        },
+        data: { edges: [
+            {
+                tail: { node: "DepoFileSource:file_source", port: 0 },
+                head: { node: snk.type + ":" + snk.name,    port: 0 },
+            },
+        ]},
     },
 ]

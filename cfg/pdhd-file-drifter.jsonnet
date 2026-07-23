@@ -14,7 +14,8 @@
 // PDHD geometry constants from wire-cell-toolkit simparams.jsonnet.
 //
 // TLA parameters:
-//   sink_name_0 (string): instance name for GenericDepoSetBoundarySink
+//   sources  — array (empty; the origin is the real DepoFileSource)
+//   sinks    — array of WCT inode { type, name }: one DepoSet boundary sink
 //   app_name  (string): instance name for Pgrapher
 //   inname    (string): input depo file path (via wct_tla from module config)
 //
@@ -23,7 +24,8 @@
 local wc = import "wirecell.jsonnet";
 
 function(
-    sink_name_0 = "wcphlex_deposet_sink",
+    sources  = [],
+    sinks    = [],
     app_name  = "wcphlex_pgrapher",
     inname    = "depos.npz",
 )
@@ -102,11 +104,7 @@ local file_source = {
     data: { inname: inname },
 };
 
-local snk = {
-    type: "GenericDepoSetBoundarySink",
-    name: sink_name_0,
-    data: {},
-};
+local snk = sinks[0] { data: {} };
 
 [rng, drifter_comp, setdrifter, file_source, snk,
 {

@@ -1,31 +1,31 @@
 // cfg/frame-file-sink.jsonnet
 //
-// WCT sub-graph: GenericFrameBoundarySource → FrameFileSink.
+// WCT sub-graph: Frame boundary source → FrameFileSink.
 //
-// Used by the FrameSinkFile executor.  Each PHLEX event fills the boundary
-// source with one Frame and runs the graph once.  The FrameFileSink (ITerminal)
-// accumulates all events; WireCell::Main::~Main() calls finalize() to flush
-// and close the output file.
+// The IFrame sink shape (SinkExecutor<IFrame>): each PHLEX event fills the
+// boundary source with one Frame and runs the graph once.  The FrameFileSink
+// (ITerminal) accumulates all events; WireCell::Main::~Main() calls finalize()
+// to flush and close the output file.
 //
-// TLA parameters:
-//   source_name_0 (string): instance name for the GenericFrameBoundarySource node
-//   app_name    (string): instance name for the Pgrapher application
-//   outname     (string): output file path (passed via wct_tla from module config)
+// TLA parameters (injected by the ShapeExecutor base):
+//   sources  — array of WCT inode objects { type, name }: one Frame boundary source
+//   sinks    — array (empty: the terminal is the real FrameFileSink, not a boundary)
+//   app_name — instance name for the Pgrapher application
+//   outname  — output file path (passed via wct_tla from the module config)
 //
 // Required WCT plugins: WireCellPgraph, WireCellSio
 
 function(
-    source_name_0 = "wcphlex_frame_source",
-    app_name    = "wcphlex_pgrapher",
-    outname     = "frames-out.npz",
+    sources  = [],
+    sinks    = [],
+    app_name = "wcphlex_pgrapher",
+    outname  = "frames-out.npz",
 )
+
+local src = sources[0];
+
 [
-    // Boundary source: FrameSinkFile executor fills this per PHLEX event.
-    {
-        type: "GenericFrameBoundarySource",
-        name: source_name_0,
-        data: {},
-    },
+    src { data: {} },
 
     // WCT file sink: writes frames to disk in "frame file" format.  finalize()
     // closes the stream when WireCell::Main is destroyed.
@@ -39,17 +39,14 @@ function(
         },
     },
 
-    // Pgrapher: wire boundary source → file sink.
     {
         type: "Pgrapher",
         name: app_name,
-        data: {
-            edges: [
-                {
-                    tail: { node: "GenericFrameBoundarySource:" + source_name_0, port: 0 },
-                    head: { node: "FrameFileSink:file_sink", port: 0 },
-                },
-            ],
-        },
+        data: { edges: [
+            {
+                tail: { node: src.type + ":" + src.name, port: 0 },
+                head: { node: "FrameFileSink:file_sink", port: 0 },
+            },
+        ]},
     },
 ]

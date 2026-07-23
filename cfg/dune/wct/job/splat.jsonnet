@@ -12,8 +12,8 @@
 // per-anode configuration is taken from det.anodes[anode_index].
 //
 // TLA parameters (same signature as sim.jsonnet):
-//   source_name_0    (string): instance name for GenericDepoSetBoundarySource
-//   sink_name_0      (string): instance name for GenericFrameBoundarySink
+//   sources  — array of WCT inode { type, name } for the boundary source(s)
+//   sinks    — array of WCT inode { type, name } for the boundary sink(s)
 //   app_name       (string): instance name for Pgrapher
 //   detector       (string): canonical detector name, e.g. "pdhd" or "pdvd"
 //   anode_index    (string): anode index into det.anodes[], e.g. "0"
@@ -25,8 +25,8 @@ local wc   = import "wirecell.jsonnet";
 local dets = import "dune/wct/dets.jsonnet";
 
 function(
-    source_name_0    = "wcphlex_deposet_source",
-    sink_name_0      = "wcphlex_frame_sink",
+    sources  = [],
+    sinks    = [],
     app_name       = "wcphlex_pgrapher",
     detector       = "pdhd",
     anode_index    = "0",
@@ -155,17 +155,9 @@ local reframer = {
 // Boundary nodes
 // ---------------------------------------------------------------------------
 
-local src = {
-    type: "GenericDepoSetBoundarySource",
-    name: source_name_0,
-    data: {},
-};
+local src = sources[0] { data: {} };
 
-local snk = {
-    type: "GenericFrameBoundarySink",
-    name: sink_name_0,
-    data: {},
-};
+local snk = sinks[0] { data: {} };
 
 // ---------------------------------------------------------------------------
 // Full component list + Pgrapher

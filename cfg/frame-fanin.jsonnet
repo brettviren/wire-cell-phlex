@@ -1,72 +1,59 @@
 // cfg/frame-fanin.jsonnet
 //
-// WCT sub-graph: 4×GenericFrameBoundarySource → FrameFanin → GenericFrameBoundarySink.
+// WCT sub-graph: N × Frame boundary source → FrameFanin → Frame boundary sink.
 //
-// The fanin-only shape: each PHLEX event delivers four Frames (one per APA) to
-// the four boundary sources; FrameFanin merges them into a single Frame
-// (concatenating traces, merging channel masks) which is drained back to PHLEX
-// through the boundary sink.  (Writing the merged Frame to a file is a separate
-// sink node — see frame-file-sink.jsonnet.)
+// The fan-in shape: each PHLEX event delivers N Frames (one per APA) to the N
+// boundary sources; FrameFanin merges them into a single Frame (concatenating
+// traces, merging channel masks) which is drained back to PHLEX through the
+// boundary sink.  (Writing the merged Frame to a file is a separate sink node —
+// see frame-file-sink.jsonnet.)
 //
-// TLA parameters (injected by FaninExecutor<IFrame,IFrame> — indexed per port):
-//   source_name_0..3 (string): instance names for the 4 GenericFrameBoundarySource nodes
-//   sink_name_0      (string): instance name for the GenericFrameBoundarySink node
-//   app_name         (string): instance name for the Pgrapher
+// The multiplicity is taken from the number of source inodes supplied, so the
+// config adapts to whatever fan-in width the executor was built for.
+//
+// TLA parameters (injected by the ShapeExecutor base):
+//   sources  — array of WCT inode objects { type, name }: the N boundary sources
+//   sinks    — array of WCT inode objects { type, name }: one boundary sink
+//   app_name — instance name for the Pgrapher
 //
 // Required WCT plugins: WireCellPgraph, WireCellGen
 
 local wc = import "wirecell.jsonnet";
 
 function(
-    source_name_0 = "wcphlex_frame_source_0",
-    source_name_1 = "wcphlex_frame_source_1",
-    source_name_2 = "wcphlex_frame_source_2",
-    source_name_3 = "wcphlex_frame_source_3",
-    sink_name_0   = "wcphlex_frame_sink",
-    app_name      = "wcphlex_pgrapher",
+    sources  = [],
+    sinks    = [],
+    app_name = "wcphlex_pgrapher",
 )
 
-local src_names = [source_name_0, source_name_1, source_name_2, source_name_3];
-
-local srcs = [
-    {
-        type: "GenericFrameBoundarySource",
-        name: src_names[n],
-        data: {},
-    }
-    for n in std.range(0, 3)
-];
+local n = std.length(sources);
+local srcs = [sources[i] { data: {} } for i in std.range(0, n - 1)];
+local snk = sinks[0];
 
 local fanin = {
     type: "FrameFanin",
     name: "fanin",
     data: {
-        multiplicity: 4,
-        tags: ["apa0", "apa1", "apa2", "apa3"],
+        multiplicity: n,
+        tags: ["apa%d" % i for i in std.range(0, n - 1)],
     },
 };
 
-local snk = {
-    type: "GenericFrameBoundarySink",
-    name: sink_name_0,
-    data: {},
-};
-
-// Edges: each boundary source → FrameFanin input port N; FrameFanin → sink.
+// Edges: each boundary source → FrameFanin input port i; FrameFanin → sink.
 local edges = [
     {
-        tail: { node: wc.tn(srcs[n]), port: 0 },
-        head: { node: wc.tn(fanin),   port: n },
+        tail: { node: wc.tn(srcs[i]), port: 0 },
+        head: { node: wc.tn(fanin),   port: i },
     }
-    for n in std.range(0, 3)
+    for i in std.range(0, n - 1)
 ] + [
     {
-        tail: { node: wc.tn(fanin), port: 0 },
-        head: { node: wc.tn(snk),   port: 0 },
+        tail: { node: wc.tn(fanin),                 port: 0 },
+        head: { node: snk.type + ":" + snk.name,    port: 0 },
     },
 ];
 
-srcs + [fanin, snk,
+srcs + [fanin, snk { data: {} },
 {
     type: "Pgrapher",
     name: app_name,

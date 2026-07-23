@@ -23,8 +23,8 @@
 //   nticks    = 6000 at 0.5 us (3 ms readout)
 //
 // TLA parameters:
-//   source_name_0 (string): instance name for GenericDepoSetBoundarySource
-//   sink_name_0   (string): instance name for GenericFrameBoundarySink
+//   sources  — array of WCT inode { type, name } for the boundary source(s)
+//   sinks    — array of WCT inode { type, name } for the boundary sink(s)
 //   app_name    (string): instance name for Pgrapher
 //   apa_ident   (string): APA number "0", "1", "2", or "3"
 //
@@ -34,8 +34,8 @@ local wc = import "wirecell.jsonnet";
 local spfilt = import "sp-filters.jsonnet";
 
 function(
-    source_name_0 = "wcphlex_deposet_source",
-    sink_name_0   = "wcphlex_frame_sink",
+    sources  = [],
+    sinks    = [],
     app_name    = "wcphlex_pgrapher",
     apa_ident   = "0",
 )
@@ -300,17 +300,9 @@ local sigproc = {
 // Boundary nodes
 // ---------------------------------------------------------------------------
 
-local src = {
-    type: "GenericDepoSetBoundarySource",
-    name: source_name_0,
-    data: {},
-};
+local src = sources[0] { data: {} };
 
-local snk = {
-    type: "GenericFrameBoundarySink",
-    name: sink_name_0,
-    data: {},
-};
+local snk = sinks[0] { data: {} };
 
 // ---------------------------------------------------------------------------
 // Full component list + Pgrapher

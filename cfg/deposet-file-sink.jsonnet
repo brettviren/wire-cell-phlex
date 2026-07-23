@@ -1,31 +1,31 @@
 // cfg/deposet-file-sink.jsonnet
 //
-// WCT sub-graph: GenericDepoSetBoundarySource → DepoFileSink.
+// WCT sub-graph: DepoSet boundary source → DepoFileSink.
 //
-// Used by the DepoSetSinkFile executor.  Each PHLEX event fills the boundary
-// source with one DepoSet and runs the graph once.  The DepoFileSink (ITerminal)
-// accumulates all events; the executor's destructor calls finalize() to flush
-// and close the output file.
+// The IDepoSet sink shape (SinkExecutor<IDepoSet>): each PHLEX event fills the
+// boundary source with one DepoSet and runs the graph once.  The DepoFileSink
+// (ITerminal) accumulates all events; WireCell::Main::~Main() calls finalize()
+// to flush and close the output file.
 //
-// TLA parameters:
-//   source_name_0 (string): instance name for the GenericDepoSetBoundarySource node
-//   app_name    (string): instance name for the Pgrapher application
-//   outname     (string): output file path (passed via wct_tla from module config)
+// TLA parameters (injected by the ShapeExecutor base):
+//   sources  — array of WCT inode objects { type, name }: one DepoSet boundary source
+//   sinks    — array (empty: the terminal is the real DepoFileSink, not a boundary)
+//   app_name — instance name for the Pgrapher application
+//   outname  — output file path (passed via wct_tla from the module config)
 //
 // Required WCT plugins: WireCellPgraph, WireCellSio
 
 function(
-    source_name_0 = "wcphlex_deposet_source",
-    app_name    = "wcphlex_pgrapher",
-    outname     = "depos-out.npz",
+    sources  = [],
+    sinks    = [],
+    app_name = "wcphlex_pgrapher",
+    outname  = "depos-out.npz",
 )
+
+local src = sources[0];
+
 [
-    // Boundary source: DepoSetSinkFile executor fills this per PHLEX event.
-    {
-        type: "GenericDepoSetBoundarySource",
-        name: source_name_0,
-        data: {},
-    },
+    src { data: {} },
 
     // WCT file sink: writes depo sets to disk.  finalize() closes the stream.
     {
@@ -36,17 +36,14 @@ function(
         },
     },
 
-    // Pgrapher: wire boundary source → file sink.
     {
         type: "Pgrapher",
         name: app_name,
-        data: {
-            edges: [
-                {
-                    tail: { node: "GenericDepoSetBoundarySource:" + source_name_0, port: 0 },
-                    head: { node: "DepoFileSink:file_sink", port: 0 },
-                },
-            ],
-        },
+        data: { edges: [
+            {
+                tail: { node: src.type + ":" + src.name, port: 0 },
+                head: { node: "DepoFileSink:file_sink",  port: 0 },
+            },
+        ]},
     },
 ]

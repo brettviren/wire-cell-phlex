@@ -52,6 +52,8 @@
 #include <WireCellIface/IFrame.h>
 #include <WireCellIface/IDepoSet.h>
 
+#include <boost/json.hpp>
+
 #include <atomic>
 #include <cstddef>
 #include <memory>
@@ -118,6 +120,30 @@ inline std::string port_sink_name(std::string const& scope, std::size_t j)
     return scope + "_sink_" + std::to_string(j);
 }
 
+// Inject the boundary-node handles into the WCT sub-graph as two code-valued
+// TLAs, "sources" and "sinks".  Each is an array of WCT "inode" objects
+// { type: <WCT class name>, name: <instance name> } — ready for a Jsonnet
+// config to drop in as component definitions and reference in Pgraph edges.
+// Both arrays are always injected (either may be empty), so every shape's
+// Jsonnet function signature is the uniform (sources=[], sinks=[], app_name).
+// Passing the type this way means the Jsonnet never hard-codes a boundary class
+// name, and the port count is not baked into the function signature.
+inline void inject_boundary_tlas(
+    WireCell::Main& wcmain,
+    std::vector<std::pair<std::string, std::string>> const& sources,
+    std::vector<std::pair<std::string, std::string>> const& sinks)
+{
+    auto to_code = [](std::vector<std::pair<std::string, std::string>> const& ports) {
+        boost::json::array arr;
+        for (auto const& [type, name] : ports) {
+            arr.push_back(boost::json::object{{"type", type}, {"name", name}});
+        }
+        return boost::json::serialize(boost::json::value(std::move(arr)));
+    };
+    wcmain.tla_code("sources", to_code(sources));
+    wcmain.tla_code("sinks", to_code(sinks));
+}
+
 // ---------------------------------------------------------------------------
 // PortedExecutor<type_list<Ins...>, type_list<Outs...>> — the workhorse base.
 // ---------------------------------------------------------------------------
@@ -162,8 +188,11 @@ private:
     template <std::size_t... I, std::size_t... J>
     void inject_tlas(std::index_sequence<I...>, std::index_sequence<J...>)
     {
-        (m_wcmain.tla_var("source_name_" + std::to_string(I), src_name(I)), ...);
-        (m_wcmain.tla_var("sink_name_" + std::to_string(J), snk_name(J)), ...);
+        std::vector<std::pair<std::string, std::string>> sources{
+            std::pair<std::string, std::string>{port_traits<Ins>::src_class, src_name(I)}...};
+        std::vector<std::pair<std::string, std::string>> sinks{
+            std::pair<std::string, std::string>{port_traits<Outs>::snk_class, snk_name(J)}...};
+        inject_boundary_tlas(m_wcmain, sources, sinks);
     }
 
     template <std::size_t... I>
@@ -253,10 +282,13 @@ public:
         : Executor(config)
         , m_mult(multiplicity)
     {
+        std::vector<std::pair<std::string, std::string>> sources;
         for (std::size_t i = 0; i < m_mult; ++i) {
-            m_wcmain.tla_var("source_name_" + std::to_string(i), port_source_name(m_scope, i));
+            sources.emplace_back(port_traits<In>::src_class, port_source_name(m_scope, i));
         }
-        m_wcmain.tla_var("sink_name_0", port_sink_name(m_scope, 0));
+        std::vector<std::pair<std::string, std::string>> sinks{
+            {port_traits<Out>::snk_class, port_sink_name(m_scope, 0)}};
+        inject_boundary_tlas(m_wcmain, sources, sinks);
     }
 
     Data<Out> operator()(std::vector<Data<In>> const& ins)
@@ -302,10 +334,13 @@ public:
         : Executor(config)
         , m_mult(multiplicity)
     {
-        m_wcmain.tla_var("source_name_0", port_source_name(m_scope, 0));
+        std::vector<std::pair<std::string, std::string>> sources{
+            {port_traits<In>::src_class, port_source_name(m_scope, 0)}};
+        std::vector<std::pair<std::string, std::string>> sinks;
         for (std::size_t j = 0; j < m_mult; ++j) {
-            m_wcmain.tla_var("sink_name_" + std::to_string(j), port_sink_name(m_scope, j));
+            sinks.emplace_back(port_traits<Out>::snk_class, port_sink_name(m_scope, j));
         }
+        inject_boundary_tlas(m_wcmain, sources, sinks);
     }
 
     std::vector<Data<Out>> operator()(Data<In> const& in)

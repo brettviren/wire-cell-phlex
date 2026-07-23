@@ -1,32 +1,35 @@
 // cfg/frame-passthrough-generic.jsonnet
 //
-// Like frame-passthrough.jsonnet, but using the GenericFrameBoundarySource /
-// GenericFrameBoundarySink types — the boundary nodes whose WCT interface is
-// the templated ISourceNode<IFrame> / ISinkNode<IFrame> rather than the
-// concrete IFrameSource / IFrameSink.  Used by test_function_executor to prove
-// FunctionExecutor<IFrame,IFrame> wires through Pgraph.
+// Identity IFrame → IFrame passthrough: a Frame boundary source wired straight
+// to a Frame boundary sink.  Used by test_function_executor to prove
+// FunctionExecutor<IFrame,IFrame> wires through Pgraph, and by the plain
+// wcph_frame_filter path.
 //
-// TLA parameters (indexed per port, bound by PortedExecutor):
-//   source_name_0, sink_name_0, app_name
+// TLA parameters (injected by the ShapeExecutor base):
+//   sources  — array of WCT inode objects { type, name }: one Frame boundary source
+//   sinks    — array of WCT inode objects { type, name }: one Frame boundary sink
+//   app_name — instance name for the Pgrapher application
 
 function(
-    source_name_0 = "wcphlex_source_0",
-    sink_name_0   = "wcphlex_sink_0",
-    app_name      = "wcphlex_pgrapher",
+    sources  = [],
+    sinks    = [],
+    app_name = "wcphlex_pgrapher",
 )
+
+local src = sources[0];
+local snk = sinks[0];
+
 [
-    { type: "GenericFrameBoundarySource", name: source_name_0, data: {} },
-    { type: "GenericFrameBoundarySink",   name: sink_name_0,   data: {} },
+    src { data: {} },
+    snk { data: {} },
     {
         type: "Pgrapher",
         name: app_name,
-        data: {
-            edges: [
-                {
-                    tail: { node: "GenericFrameBoundarySource:" + source_name_0, port: 0 },
-                    head: { node: "GenericFrameBoundarySink:"   + sink_name_0,   port: 0 },
-                },
-            ],
-        },
+        data: { edges: [
+            {
+                tail: { node: src.type + ":" + src.name, port: 0 },
+                head: { node: snk.type + ":" + snk.name, port: 0 },
+            },
+        ]},
     },
 ]
