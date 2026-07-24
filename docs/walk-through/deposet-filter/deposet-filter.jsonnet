@@ -12,10 +12,12 @@
 
 local phlex = import 'phlex/phlex.libsonnet';
 
-// A synthetic source of DepoSets, one per "event" data cell.  A Phlex provider
-// stamps its products with creator "input" (a convention), which is what a
-// consumer selects — src.output('deposet') encodes exactly that.
-local src = phlex.source('deposet_source', 'wcph_deposet_source',
+// A synthetic source of DepoSets, one per "event" data cell (wcph_deposet_gen
+// makes an empty SimpleDepoSet in-memory — the WCT-graph file reader is the
+// separate wcph_deposet_source).  A Phlex provider stamps its products with
+// creator "input" (a convention), which is what a consumer selects —
+// src.output('deposet') encodes exactly that.
+local src = phlex.source('deposet_source', 'wcph_deposet_gen',
                          layer='event', outputs=['deposet']);
 
 // The DepoSetFilter node: a 1-in/1-out transform that runs the incoming DepoSet
@@ -23,15 +25,13 @@ local src = phlex.source('deposet_source', 'wcph_deposet_source',
 //   - inputs : one product family, wired from the source's output.
 //   - outputs: one product suffix ('deposet'); its creator becomes this node's
 //              label, 'deposet_filter'.
-//   - config : the algorithm-specific part (the WCT executor settings).
+//   - config : algorithm-specific keys merged at top level (the WCT settings).
 local filt = phlex.node('deposet_filter', 'wcph_deposet_filter', layer='event',
                         inputs=[src.output('deposet')],
                         outputs=['deposet'],
                         config={
-                          executor: {
-                            wct_config: 'deposet-passthrough.jsonnet',
-                            wct_plugins: ['WireCellPgraph'],
-                          },
+                          wct_config: 'deposet-passthrough.jsonnet',
+                          wct_plugins: ['WireCellPgraph'],
                         });
 
 // Assemble { driver, sources, modules }.  The result is a plain object, so we

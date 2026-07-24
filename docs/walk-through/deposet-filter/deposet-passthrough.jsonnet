@@ -1,44 +1,42 @@
-// cfg/deposet-passthrough.jsonnet
+// deposet-passthrough.jsonnet
 //
-// Minimal WCT configuration: DepoSetBoundarySource → DepoSetBoundarySink with
-// no processing in between.  Used as a smoke test for the DepoSetFilter executor.
+// Minimal WCT configuration: DepoSet boundary source → DepoSet boundary sink
+// with no processing in between — the identity IDepoSet → IDepoSet sub-graph
+// wcph_deposet_filter runs on each event.
 //
-// TLA parameters:
-//   source_name (string): instance name for the DepoSetBoundarySource node
-//   sink_name   (string): instance name for the DepoSetBoundarySink node
-//   app_name    (string): instance name for the Pgrapher application
+// TLA parameters (injected by the ShapeExecutor base as code-valued arrays):
+//   sources  — array of WCT inode objects { type, name }: one DepoSet boundary source
+//   sinks    — array of WCT inode objects { type, name }: one DepoSet boundary sink
+//   app_name — instance name for the Pgrapher application
+//
+// The boundary node types (DepoSetBoundarySource/Sink) arrive inside the
+// sources/sinks arrays, so this config never hard-codes them.
 
 function(
-    source_name = "wcphlex_deposet_source",
-    sink_name   = "wcphlex_deposet_sink",
-    app_name    = "wcphlex_pgrapher",
+    sources  = [],
+    sinks    = [],
+    app_name = "wcphlex_pgrapher",
 )
+
+local src = sources[0];
+local snk = sinks[0];
+
 [
     // Boundary source: PHLEX fills this before each WCT run.
-    {
-        type: "DepoSetBoundarySource",
-        name: source_name,
-        data: {},
-    },
+    src { data: {} },
 
     // Boundary sink: PHLEX drains this after each WCT run.
-    {
-        type: "DepoSetBoundarySink",
-        name: sink_name,
-        data: {},
-    },
+    snk { data: {} },
 
     // Pgrapher: wire source → sink.
     {
         type: "Pgrapher",
         name: app_name,
-        data: {
-            edges: [
-                {
-                    tail: { node: "DepoSetBoundarySource:" + source_name, port: 0 },
-                    head: { node: "DepoSetBoundarySink:"   + sink_name,   port: 0 },
-                },
-            ],
-        },
+        data: { edges: [
+            {
+                tail: { node: src.type + ":" + src.name, port: 0 },
+                head: { node: snk.type + ":" + snk.name, port: 0 },
+            },
+        ]},
     },
 ]

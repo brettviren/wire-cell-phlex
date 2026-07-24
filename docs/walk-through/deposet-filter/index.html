@@ -221,9 +221,13 @@
 <section id="topology">
   <h2>2. The example topology</h2>
   <p>The workflow is deliberately minimal: a synthetic <span class="t phlex">source</span> of
-    <code>DepoSet</code>s feeds the <code>deposet_filter</code> <span class="t phlex">transform</span>,
-    which runs each one through a trivial WCT graph (a passthrough) and emits it; an
-    <span class="t phlex">observer</span> checks the result.</p>
+    <code>DepoSet</code>s — the pure-Phlex generator <code>wcph_deposet_gen</code>, which hands out
+    an empty in-memory <code>SimpleDepoSet</code> per event — feeds the <code>deposet_filter</code>
+    <span class="t phlex">transform</span>, which runs each one through a trivial WCT graph (a
+    passthrough) and emits it; an <span class="t phlex">observer</span> checks the result.</p>
+  <p class="muted">(The name <code>wcph_deposet_source</code> now refers to a <em>different</em>
+    module — a WCT-graph file reader — so this example's synthetic source is
+    <code>wcph_deposet_gen</code>.)</p>
 
   <div class="flow">
     <div class="node src"><div class="k">source · provider</div><div class="n">deposet_source</div></div>
@@ -255,7 +259,7 @@
   <table>
     <tr><th>file</th><th>role</th></tr>
     <tr><td><code>deposet-filter.jsonnet</code></td><td><span class="pill cfg">config</span> the Phlex workflow, authored with the <code>phlex.libsonnet</code> DSL</td></tr>
-    <tr><td><code>deposet-passthrough.jsonnet</code></td><td><span class="pill wct">wct</span> the WCT sub-graph the filter runs (a copy of <code>cfg/deposet-passthrough.jsonnet</code>)</td></tr>
+    <tr><td><code>deposet-passthrough.jsonnet</code></td><td><span class="pill wct">wct</span> the WCT sub-graph the filter runs (a copy of <code>cfg/deposet-passthrough-generic.jsonnet</code>)</td></tr>
     <tr><td><code>run.sh</code></td><td>runs it with <code>phlexed</code></td></tr>
     <tr><td><code>index.html</code></td><td>this document</td></tr>
   </table>
@@ -276,19 +280,22 @@
       <span class="lines">whole file</span></figcaption>
 <pre><code>local phlex = import 'phlex/phlex.libsonnet';
 
+// A synthetic source of DepoSets (wcph_deposet_gen makes an empty SimpleDepoSet
+// in-memory — the WCT-graph file reader is the separate wcph_deposet_source).
 // A Phlex provider stamps its products with creator "input" (a convention),
 // which is what a consumer selects — src.output('deposet') encodes exactly that.
-local src = phlex.source('deposet_source', 'wcph_deposet_source',
+local src = phlex.source('deposet_source', 'wcph_deposet_gen',
                          layer='event', outputs=['deposet']);
 
+// A 1-in/1-out transform.  inputs is wired from the source's output; outputs is
+// one product suffix; the algorithm-specific WCT settings are merged at TOP
+// LEVEL via `config` (no nested executor/phlex blocks any more).
 local filt = phlex.node('deposet_filter', 'wcph_deposet_filter', layer='event',
                         inputs=[src.output('deposet')],
                         outputs=['deposet'],
                         config={
-                          executor: {
-                            wct_config: 'deposet-passthrough.jsonnet',
-                            wct_plugins: ['WireCellPgraph'],
-                          },
+                          wct_config: 'deposet-passthrough.jsonnet',
+                          wct_plugins: ['WireCellPgraph'],
                         });
 
 phlex.workflow(
@@ -311,46 +318,57 @@ phlex.workflow(
   <p>The DSL is small and lives in the <span class="t intg">phlex-config</span> package:</p>
   <figure class="code intg">
     <figcaption><span class="path">devel/phlex-config/jsonnet/phlex/phlex.libsonnet</span>
-      <span class="lines">L33–46, 57–63, 71</span></figcaption>
-<pre><code>node(label, cpp, layer='event', inputs=[], outputs=[],
-     concurrency='serial', config={}, name=null):: {
+      <span class="lines">node() / source()</span></figcaption>
+<pre><code>node(label, cpp, layer='event', inputs=[], outputs=[], config={}):: {
+  label:: label,
+  layer:: layer,
   block:: {
     cpp: cpp,
-    phlex: { name: if name == null then label else name,
-             concurrency: concurrency, inputs: inputs, outputs: outputs },
-  } + config,
-  output(suffix):: lib.selector(label, layer, suffix),   // transform: creator = label
+    inputs: inputs,                                       // list of selectors
+    outputs: [if std.type(o) == 'string' then { suffix: o } else o
+              for o in outputs],                          // strings → {suffix: ...}
+  } + config,                                             // algo keys merged at TOP LEVEL
+  output(suffix):: lib.selector(label, layer, suffix),    // transform: creator = label
 },
 source(label, cpp, layer='event', outputs=[], config={}, creator='input'):: {
-  block:: { cpp: cpp, output_layer: layer } + ...,
-  output(suffix):: lib.selector(creator, layer, suffix), // provider: creator = "input"
+  label:: label,
+  layer:: layer,
+  block:: { cpp: cpp, output_layer: layer }
+          + (if std.length(outputs) > 0 then { output_suffix: outputs[0] } else {})
+          + config,
+  output(suffix):: lib.selector(creator, layer, suffix),  // provider: creator = "input"
 },</code></pre>
-    <div class="note">A <code>node</code>'s <code>output()</code> reports <code>creator = label</code>
-      (a transform's products are created by the module); a <code>source</code>'s reports
-      <code>creator = "input"</code>. This asymmetry mirrors how the C++ actually stamps creators.</div>
+    <div class="note">There is <b>no <code>phlex</code> block</b> any more: a <code>node</code> emits
+      flat <code>inputs</code>/<code>outputs</code> arrays (name and concurrency are decided by the
+      C++ shape module, not the config). <code>outputs</code> normalises bare suffix strings to
+      <code>{suffix: …}</code> objects. A <code>node</code>'s <code>output()</code> reports
+      <code>creator = label</code> (a transform's products are created by the module); a
+      <code>source</code>'s reports <code>creator = "input"</code> — and <code>source</code> still
+      emits the flat <code>output_layer</code>/<code>output_suffix</code> the synthetic generators
+      read. This asymmetry mirrors how the C++ actually stamps creators.</div>
   </figure>
 
   <h3>What Phlex actually receives</h3>
   <p>Compiling the Jsonnet yields the JSON below. Everything from here on is a reading of
-    <em>this</em> object. Note the two shapes in a module entry: <code>cpp</code> (framework key —
-    which <code>lib&lt;cpp&gt;.so</code> to load) sits beside <code>phlex</code> and
-    <code>executor</code> (opaque to Phlex; handed to our module).</p>
+    <em>this</em> object. Note the flat shape of a module entry: <code>cpp</code> (framework key —
+    which <code>lib&lt;cpp&gt;.so</code> to load) sits beside <code>inputs</code>,
+    <code>outputs</code> and the WCT keys <code>wct_config</code>/<code>wct_plugins</code> — all at
+    top level, all opaque to Phlex and handed straight to our module.</p>
   <figure class="code cfg">
     <figcaption><span class="path">jsonnet -J … deposet-filter.jsonnet</span><span class="lines">output</span></figcaption>
 <pre><code>{
   "driver":  { "cpp": "generate_layers",
                "layers": { "event": { "parent": "job", "total": 3, "starting_number": 1 } } },
-  "sources": { "deposet_source": { "cpp": "wcph_deposet_source",
+  "sources": { "deposet_source": { "cpp": "wcph_deposet_gen",
                                    "output_layer": "event", "output_suffix": "deposet" } },
   "modules": {
     "deposet_filter": {
       "cpp": "wcph_deposet_filter",
-      "phlex":    { "name": "deposet_filter", "concurrency": "serial",
-                    "inputs": [ { "creator": "input", "layer": "event",
-                                  "suffix": "deposet", "stage": "CURRENT" } ],
-                    "outputs": [ "deposet" ] },
-      "executor": { "wct_config": "deposet-passthrough.jsonnet",
-                    "wct_plugins": [ "WireCellPgraph" ] }
+      "inputs":  [ { "creator": "input", "layer": "event",
+                     "suffix": "deposet", "stage": "CURRENT" } ],
+      "outputs": [ { "suffix": "deposet" } ],
+      "wct_config":  "deposet-passthrough.jsonnet",
+      "wct_plugins": [ "WireCellPgraph" ]
     },
     "deposet_observer": { "cpp": "wcph_deposet_observer",
                           "input_from": "deposet_filter", "input_layer": "event" }
@@ -359,68 +377,67 @@ source(label, cpp, layer='event', outputs=[], config={}, creator='input'):: {
   </figure>
   <div class="box"><b>Framework keys vs. opaque keys.</b> Phlex itself only consumes <code>cpp</code>
     (the plugin library basename) and injects <code>module_label</code> = the map key
-    (<code>"deposet_filter"</code>). <em>Every other key</em> in a module block — <code>phlex</code>,
-    <code>executor</code>, the legacy <code>input_*</code> — is passed verbatim to our module's
-    registration function. That is the seam we build on.</div>
+    (<code>"deposet_filter"</code>). <em>Every other key</em> in a module block — <code>inputs</code>,
+    <code>outputs</code>, <code>wct_config</code>, <code>wct_plugins</code>, the legacy
+    <code>input_*</code> — is passed verbatim to our module's registration function. That is the
+    seam we build on.</div>
 </section>
 
 <section id="typed">
   <h2>5. JSON → typed config <span class="pill intg">integration</span></h2>
-  <p>The <code>phlex</code> and <code>executor</code> sub-objects are described by plain C++
-    aggregates. <span class="t intg">boost-config</span>'s <code>Documented&lt;T&gt;</code> attaches a
-    docstring to each field while staying transparent to use, and gives the struct
-    <code>boost::json</code> (de)serialisation and a Jsonnet factory for free.</p>
+  <p>Two different mechanisms read this module block. The <b>WCT settings</b>
+    (<code>wct_config</code>, <code>wct_plugins</code>, …) are described by a plain C++ aggregate,
+    <code>ExecutorConfig</code>, and parsed into it wholesale. The <b>input/output wiring</b>
+    (<code>inputs</code>/<code>outputs</code>) is <em>not</em> parsed into a C++ struct — it is read
+    directly, element by element, as an array of descriptor objects (see <a href="#register">§6</a>).
+    <span class="t intg">boost-config</span>'s <code>Documented&lt;T&gt;</code> attaches a docstring to
+    each aggregate field while staying transparent to use, and gives the struct <code>boost::json</code>
+    (de)serialisation for free.</p>
 
+  <p>The wiring descriptor has a schema mirror in phlex-config — field-for-field the same shape the
+    <code>inputs</code>/<code>outputs</code> objects carry, and field-for-field Phlex's own
+    <code>product_selector</code>:</p>
   <figure class="code intg">
-    <figcaption><span class="path">devel/phlex-config/phlex_config/ProductSelector.hpp</span><span class="lines">L26–35</span></figcaption>
+    <figcaption><span class="path">devel/phlex-config/phlex_config/ProductSelector.hpp</span><span class="lines">struct ProductSelector</span></figcaption>
 <pre><code>struct ProductSelector {
-    Documented&lt;std::string&gt; creator{"", "Producing algorithm/module label. Empty matches any."};
-    Documented&lt;std::string&gt; layer{"event", "Data layer the product lives in (required)."};
+    Documented&lt;std::string&gt; creator{"", "Producing algorithm/module label (the creator). Empty matches any."};
+    Documented&lt;std::string&gt; layer{"event", "Data layer the product lives in (required, e.g. 'job'/'run'/'event')."};
     Documented&lt;std::string&gt; suffix{"", "Product suffix/label within a creator. Empty matches any."};
     Documented&lt;std::string&gt; stage{"CURRENT", "Processing stage."};
 };
 BOOST_CONFIG_JSON(ProductSelector)   // emits the boost::json tag_invoke hooks</code></pre>
-    <div class="note">This mirrors Phlex's own <code>product_selector</code> field-for-field, so the
-      same JSON round-trips into either.</div>
+    <div class="note">This (in namespace <code>phlex_config</code>) mirrors Phlex's own
+      <code>product_selector</code> field-for-field, so the same JSON round-trips into either. A
+      sibling schema <code>PhlexAlgorithmConfig</code> (name/concurrency/<code>inputs</code>/
+      <code>outputs</code>) also lives in phlex-config, but the wire-cell-phlex module <b>no longer
+      parses a <code>phlex</code> block</b> — the shape modules read the flat <code>inputs</code>/
+      <code>outputs</code> arrays directly instead.</div>
   </figure>
 
+  <p>The WCT-specific settings <em>are</em> a boost-config aggregate. <code>Config.hpp</code> now
+    defines exactly one struct, <code>ExecutorConfig</code>, consumed by every shape executor:</p>
   <figure class="code intg">
-    <figcaption><span class="path">devel/phlex-config/phlex_config/PhlexAlgorithmConfig.hpp</span><span class="lines">L38–47</span></figcaption>
-<pre><code>struct PhlexAlgorithmConfig {
-    Documented&lt;std::string&gt;                  name{"", "Node name; the algorithm half of the creator."};
-    Documented&lt;std::string&gt;                  concurrency{"serial", "'serial' | 'unlimited' | integer."};
-    Documented&lt;std::vector&lt;ProductSelector&gt;&gt; inputs{{}, "One input family per callable input."};
-    Documented&lt;std::vector&lt;std::string&gt;&gt;     outputs{{}, "One product suffix per returned value."};
-};
-BOOST_CONFIG_JSON(PhlexAlgorithmConfig)</code></pre>
-    <div class="note"><code>PhlexAlgorithmConfig</code> is <em>generic</em> — it captures the parts of
-      a node registration that are data (name/concurrency/inputs/outputs), independent of any
-      algorithm. It lives in phlex-config and has no dependency on WCT.</div>
-  </figure>
-
-  <p>The node's full config composes the generic part with the algorithm-specific part
-    (<code>ExecutorConfig</code>) by <b>aggregation</b> — the same pattern used for every WCT node:</p>
-  <figure class="code intg">
-    <figcaption><span class="path">devel/wire-cell-phlex/wire_cell_phlex/Config.hpp</span><span class="lines">L49–56, 87–90</span></figcaption>
+    <figcaption><span class="path">devel/wire-cell-phlex/wire_cell_phlex/Config.hpp</span><span class="lines">struct ExecutorConfig</span></figcaption>
 <pre><code>struct ExecutorConfig {
-    Documented&lt;std::string&gt;                            wct_config{"", "Path to the WCT Jsonnet config (required)."};
-    Documented&lt;std::string&gt;                            wct_app{"Pgrapher", "WCT IApplication type."};
-    Documented&lt;std::vector&lt;std::string&gt;&gt;               wct_plugins{{}, "Extra WCT plugin libraries."};
-    Documented&lt;std::map&lt;std::string,std::string&gt;&gt;      wct_tla{{}, "Extra Jsonnet top-level args."};
-    Documented&lt;std::string&gt;                            module_label{"", "Scope for WCT component names."};
-    // ... wct_log_sink, wct_log_level ...
-};
-
-struct DepoSetFilterConfig {
-    PhlexAlgorithmConfig phlex;      // the generic registration data  (the "phlex" JSON block)
-    ExecutorConfig       executor;   // the WCT-specific settings       (the "executor" JSON block)
+    Documented&lt;std::string&gt;                       wct_config{"", "Path to the WCT Jsonnet config file (required)."};
+    Documented&lt;std::string&gt;                       wct_app{"Pgrapher", "WCT IApplication type used to build add_app()."};
+    Documented&lt;std::vector&lt;std::string&gt;&gt;          wct_plugins{{}, "Additional WCT plugin libraries (e.g. WireCellPgraph)."};
+    Documented&lt;std::map&lt;std::string,std::string&gt;&gt; wct_tla{{}, "Extra Jsonnet top-level arguments (string -> string)."};
+    Documented&lt;std::string&gt;                       module_label{"", "Scope prefix for WCT component instance names."};
+    Documented&lt;std::string&gt;                       wct_log_sink{"", "WCT log destination: 'stdout'/'stderr'/path."};
+    Documented&lt;std::string&gt;                       wct_log_level{"", "WCT log level ('warn'/'info'/'debug', ...)."};
 };</code></pre>
+    <div class="note">Boost.PFR does not support inheritance, so the config schemas compose by
+      aggregation rather than inherit. There is no longer any per-node struct such as
+      <code>DepoSetFilterConfig</code> (that type was deleted); a shape module reads
+      <code>ExecutorConfig</code> plus the raw wiring arrays.</div>
   </figure>
   <div class="box"><b>Why the field names matter.</b> The C++ member names <em>are</em> the JSON keys
-    (via <code>boost::pfr</code> reflection). <code>cfg.phlex.inputs[0].creator</code> is the JSON path
-    <code>modules.deposet_filter.phlex.inputs[0].creator</code>. And parsing is strict: an unknown key
-    throws (<code>reject_unknown</code>), which is why <code>cpp</code>/<code>module_label</code> are
-    read separately rather than parsed into the struct.</div>
+    (via <code>boost::pfr</code> reflection). <code>ExecutorConfig::wct_config</code> is the JSON path
+    <code>modules.deposet_filter.wct_config</code> — top-level, no nesting. The
+    <code>module_label</code> Phlex injects is folded in separately (see
+    <code>executor_config_from</code>, <a href="#register">§6</a>), and the <code>inputs</code>/
+    <code>outputs</code> arrays are pulled out by hand rather than parsed into the struct.</div>
 </section>
 
 <section id="register">
@@ -431,65 +448,68 @@ struct DepoSetFilterConfig {
     body for the filter:</p>
 
   <figure class="code intg">
-    <figcaption><span class="path">devel/wire-cell-phlex/modules/deposet_filter.cpp</span><span class="lines">L45–75</span></figcaption>
+    <figcaption><span class="path">devel/wire-cell-phlex/modules/deposet_filter.cpp</span><span class="lines">PHLEX_REGISTER_ALGORITHMS</span></figcaption>
 <pre><code>PHLEX_REGISTER_ALGORITHMS(m, config)
 {
-    // (1) generic registration data — the "phlex" block, parsed via value_to.
-    auto const pac = config.get&lt;phlex_config::PhlexAlgorithmConfig&gt;("phlex");
-
-    // (2) algorithm config — the "executor" block; fold in the framework's
-    //     module_label so multi-instance WCT component names stay unique.
-    auto exec = config.get&lt;wcphlex::ExecutorConfig&gt;("executor");
-    if (auto const ml = config.get_if_present&lt;std::string&gt;("module_label"))
-        if (std::string(exec.module_label).empty()) exec.module_label = *ml;
-    auto dsf = std::make_shared&lt;wcphlex::DepoSetFilter&gt;(exec);   // constructs the WCT bridge (§7)
-
-    // (3) register the node: name / concurrency / input family / output suffix
-    //     all come from config — nothing is hard-coded.
-    m.transform(std::string(pac.name),
-                [dsf](wcphlex::DepoSet const&amp; input) -&gt; wcphlex::DepoSet { return (*dsf)(input); },
-                wcphlex::to_concurrency(std::string(pac.concurrency)))
-      .input_family(wcphlex::to_selector(inputs[0]))
-      .output_product_suffixes(outputs[0]);
+    wcphlex::register_function&lt;WireCell::IDepoSet, WireCell::IDepoSet&gt;(m, config);
 }</code></pre>
-    <div class="note">Compare the old body: it hard-coded
-      <code>.input_family(product_selector{.creator="input", .layer=layer, .suffix="deposet"})</code>
-      and <code>concurrency::serial</code>. Now those are <em>data</em>, read from
-      <code>pac</code>.</div>
+    <div class="note">That is the <em>whole</em> module. The node is the templated shape executor
+      <code>FunctionExecutor&lt;IDepoSet, IDepoSet&gt;</code> (§7); everything data-driven — reading the
+      config, checking arity, building the selector, wiring the node — lives in the generic
+      <code>register_function</code> helper. The old body (parsing a <code>phlex</code> block into a
+      <code>PhlexAlgorithmConfig</code>, constructing a bespoke <code>DepoSetFilter</code>, adapting
+      via <code>phlex_adapt.hpp</code>) is <b>gone</b>: those types and that header were deleted.</div>
   </figure>
 
-  <p><code>config.get&lt;T&gt;("phlex")</code> works because <code>PhlexAlgorithmConfig</code> carries its
-    <code>boost::json</code> hooks (the <code>BOOST_CONFIG_JSON</code> from §5); Phlex's
-    <code>get&lt;T&gt;</code> is just <code>value_to&lt;T&gt;</code> under the hood. The bridge from the
-    generic schema types to Phlex's concrete registration types is one small header:</p>
+  <p><code>register_function&lt;In,Out&gt;</code> reads the two top-level arrays <code>inputs</code> and
+    <code>outputs</code>, checks the port arity (one of each for a 1→1 transform), builds an
+    <code>ExecutorConfig</code> (folding in <code>module_label</code>), and does the actual Phlex
+    registration — <code>m.transform(…).input_family(…).output_product_suffixes(…)</code>:</p>
 
   <figure class="code intg">
-    <figcaption><span class="path">devel/wire-cell-phlex/modules/phlex_adapt.hpp</span><span class="lines">L29–58</span></figcaption>
-<pre><code>inline phlex::concurrency to_concurrency(std::string const&amp; s) {
-    if (s == "serial")    return phlex::concurrency::serial;
-    if (s == "unlimited") return phlex::concurrency::unlimited;
-    return phlex::concurrency{static_cast&lt;std::size_t&gt;(std::stoul(s))};
+    <figcaption><span class="path">devel/wire-cell-phlex/modules/register_shapes.hpp</span><span class="lines">register_function + helpers</span></figcaption>
+<pre><code>template &lt;class In, class Out, class Proxy&gt;
+void register_function(Proxy&amp; m, phlex::configuration const&amp; config)
+{
+    const std::string node = "wcph_" + type_stem&lt;In&gt;() + "_to_" + type_stem&lt;Out&gt;();
+    auto inputs  = read_ports(config, "inputs");     // config.get&lt;vector&lt;configuration&gt;&gt;("inputs")
+    auto outputs = read_ports(config, "outputs");
+    check_arity(node, inputs.size(), 1, outputs.size(), 1);   // one in, one out
+
+    auto exec = std::make_shared&lt;FunctionExecutor&lt;In, Out&gt;&gt;(executor_config_from(config));
+
+    m.transform(node,
+                [exec](Data&lt;In&gt; const&amp; in) -&gt; Data&lt;Out&gt; { return (*exec)(in); },
+                phlex::concurrency::serial)
+        .input_family(input_selector(inputs[0], type_stem&lt;In&gt;()))
+        .output_product_suffixes(transform_output_suffix(outputs[0], type_stem&lt;Out&gt;()));
 }
-inline phlex::product_selector to_selector(phlex_config::ProductSelector const&amp; ps) {
-    phlex::product_selector sel{ .creator = std::string(ps.creator), .layer = std::string(ps.layer) };
-    if (const std::string suffix = ps.suffix; !suffix.empty())
-        sel.suffix = phlex::experimental::identifier{suffix};   // type is filled by input_family()
-    return sel;
-}</code></pre>
+
+// input_selector: build a product_selector from an {creator?, layer, suffix?, stage?} element
+//   (layer required; creator empty/omitted matches any; suffix defaults to the port type stem).
+// transform_output_suffix: a transform's output element may set ONLY "suffix" — its creator is
+//   fixed to the module label and its layer to the input's layer, so setting either throws.
+// check_arity: element counts must equal the shape's port arity, else a clear runtime_error.</code></pre>
+    <div class="note">The node name is derived from the port types: <code>wcph_deposet_to_deposet</code>
+      (<code>type_stem&lt;IDepoSet&gt;()</code> = <code>"deposet"</code>). The library keeps its historical
+      name <code>libwcph_deposet_filter.so</code> even though the node name follows the
+      <code>&lt;in&gt;_to_&lt;out&gt;</code> convention. Concurrency is <code>serial</code>.</div>
   </figure>
 
   <h3>How edges actually form</h3>
   <p>The node has no wires. Instead:</p>
   <ol class="steps">
     <li>The filter's output product gets <b>creator = <code>{module_label, node-name}</code></b> —
-      here <code>{deposet_filter, deposet_filter}</code> — and suffix <code>deposet</code>
+      here <code>{deposet_filter, wcph_deposet_to_deposet}</code> — and suffix <code>deposet</code>
       (from <code>output_product_suffixes</code>).</li>
     <li>The source explicitly stamps its product with creator <code>"input"</code>:</li>
   </ol>
   <figure class="code intg">
-    <figcaption><span class="path">devel/wire-cell-phlex/modules/deposet_source.cpp</span><span class="lines">L37–44</span></figcaption>
+    <figcaption><span class="path">devel/wire-cell-phlex/modules/deposet_gen.cpp</span><span class="lines">PHLEX_REGISTER_PROVIDERS</span></figcaption>
 <pre><code>m.provide("wcph_provide_deposet",
-          [](data_cell_index const&amp; id) -&gt; wcphlex::DepoSet { /* make a DepoSet */ })
+          [](data_cell_index const&amp; id) -&gt; wcphlex::DepoSet {
+              // an empty SimpleDepoSet whose ident = id.number()
+          })
   .output_product("input", "deposet", experimental::identifier{layer});
 //               └ creator  └ suffix   └ layer</code></pre>
   </figure>
@@ -504,73 +524,104 @@ inline phlex::product_selector to_selector(phlex_config::ProductSelector const&a
   </ol>
   <div class="box key"><b>Vocabulary trap.</b> "creator" is a pair — <code>{plugin=module_label,
     algorithm=node-name}</code> — and matching succeeds on <em>either</em> half. That is why the
-    node-name passed to <code>m.transform</code> is largely cosmetic (nobody selects by it here) and
-    why the <code>wcph_</code>-prefixed node names were a naming, not a functional, concern.</div>
+    node-name passed to <code>m.transform</code> is largely cosmetic (nobody selects by it here — the
+    observer matches on the <em>module_label</em> half, <code>deposet_filter</code>) and why
+    <code>register_function</code> can safely synthesise the node-name from the port types
+    (<code>wcph_deposet_to_deposet</code>) rather than take it from config.</div>
 </section>
 
 <section id="executor">
   <h2>7. Executor &amp; the WCT bridge <span class="pill intg">integration</span> <span class="pill wct">wct</span></h2>
-  <p>Step (2) above built a <code>DepoSetFilter</code>. That object is where the integration meets
-    WCT. Its base, <code>Executor</code>, turns an <code>ExecutorConfig</code> into a configured (but
-    not yet initialised) <code>WireCell::Main</code>:</p>
+  <p><code>register_function</code> constructed a <code>FunctionExecutor&lt;IDepoSet, IDepoSet&gt;</code>.
+    That object is where the integration meets WCT. Its base, <code>Executor</code>, turns an
+    <code>ExecutorConfig</code> into a configured (but not yet initialised) <code>WireCell::Main</code>:</p>
 
   <figure class="code intg">
-    <figcaption><span class="path">devel/wire-cell-phlex/wire_cell_phlex/Executor.cpp</span><span class="lines">L91–139</span></figcaption>
+    <figcaption><span class="path">devel/wire-cell-phlex/wire_cell_phlex/Executor.cpp</span><span class="lines">Executor::Executor</span></figcaption>
 <pre><code>Executor::Executor(ExecutorConfig const&amp; config)
 {
     m_wcmain.add_config(std::string(config.wct_config));   // the WCT Jsonnet file (deposet-passthrough)
     m_app_type = config.wct_app;                            // "Pgrapher"
-    m_wcmain.add_plugin("wire_cell_phlex");                 // provides the Boundary nodes
+    m_wcmain.add_plugin("wire_cell_phlex");                 // provides the boundary nodes
     for (auto const&amp; p : config.wct_plugins.value) m_wcmain.add_plugin(p);   // "WireCellPgraph"
     for (auto const&amp; [k, v] : config.wct_tla.value) m_wcmain.tla_var(k, v);  // extra WCT TLAs
     if (!std::string(config.module_label).empty()) m_scope = config.module_label;  // unique naming
-    // ...
+    // ... wct_log_sink / wct_log_level captured for deferred setup ...
     m_app_name = m_scope + "_pgrapher";
     m_wcmain.tla_var("app_name", m_app_name);               // feed the WCT Jsonnet's app_name TLA
     m_wcmain.add_app(m_app_type + ":" + m_app_name);
 }</code></pre>
     <div class="note"><span class="t wct">TLA</span> = Jsonnet "top-level argument". The WCT config
-      is a Jsonnet <em>function</em>; <code>tla_var(k,v)</code> binds its parameters. This is how the
-      integration injects the per-instance node names into the WCT graph.</div>
+      is a Jsonnet <em>function</em>; <code>tla_var(k,v)</code> binds a string parameter. The base
+      binds only <code>app_name</code>; there are <b>no named executor subclasses any more</b>.</div>
   </figure>
 
-  <p>The concrete subclass adds the boundary-node names, derived from the scope so two instances never
-    collide in WCT's global factory:</p>
+  <p><code>FunctionExecutor&lt;In,Out&gt;</code> is a thin wrapper over
+    <code>PortedExecutor&lt;type_list&lt;In&gt;, type_list&lt;Out&gt;&gt;</code>, and it is that
+    <code>PortedExecutor</code> base — not a bespoke subclass — that injects the boundary nodes. It no
+    longer binds plain <code>source_name</code>/<code>sink_name</code> strings; it injects two
+    <b>code-valued (JSON) array TLAs</b>, <code>sources</code> and <code>sinks</code>, via
+    <code>WireCell::Main::tla_code(...)</code>. Each is an array of WCT "inode" objects
+    <code>{ type, name }</code>, where <code>type</code> is the boundary class name from
+    <code>port_traits</code> — so the config never hard-codes it:</p>
   <figure class="code intg">
-    <figcaption><span class="path">devel/wire-cell-phlex/wire_cell_phlex/Executor.cpp</span><span class="lines">L340–372</span></figcaption>
-<pre><code>DepoSetFilter::DepoSetFilter(ExecutorConfig const&amp; config) : Executor(config) {
-    m_src_name = m_scope + "_deposet_source";
-    m_snk_name = m_scope + "_deposet_sink";
-    m_wcmain.tla_var("source_name", m_src_name);   // → the WCT config's source_name TLA
-    m_wcmain.tla_var("sink_name",   m_snk_name);
+    <figcaption><span class="path">devel/wire-cell-phlex/wire_cell_phlex/ShapeExecutors.hpp</span><span class="lines">port_traits / PortedExecutor / FunctionExecutor</span></figcaption>
+<pre><code>template &lt;&gt;
+struct port_traits&lt;WireCell::IDepoSet&gt; {
+    using source_iface = WireCell::ISourceNode&lt;WireCell::IDepoSet&gt;;   // Pgraph wires by data TYPE
+    using sink_iface   = WireCell::ISinkNode&lt;WireCell::IDepoSet&gt;;     //   (not IDepoSetSource/Sink)
+    static constexpr const char* src_class = "DepoSetBoundarySource";
+    static constexpr const char* snk_class = "DepoSetBoundarySink";
+    static constexpr const char* stem      = "deposet";
+};
+
+// injected once, in the PortedExecutor ctor — the boundary handles as CODE TLAs:
+void inject_boundary_tlas(WireCell::Main&amp; wcmain, sources, sinks) {
+    // sources/sinks := arrays of { type: &lt;class name&gt;, name: &lt;instance name&gt; }
+    wcmain.tla_code("sources", to_code(sources));
+    wcmain.tla_code("sinks",   to_code(sinks));
 }
-void DepoSetFilter::initialize_ports() {           // called once, after m_wcmain.initialize()
-    m_source = find_boundary&lt;IDepoSetSource, BoundarySource&lt;IDepoSetSource&gt;&gt;("DepoSetBoundarySource", m_src_name);
-    m_sink   = find_boundary&lt;IDepoSetSink,   BoundarySink&lt;IDepoSetSink&gt;&gt;    ("DepoSetBoundarySink",   m_snk_name);
+
+// after m_wcmain.initialize(), the base finds each port by its TEMPLATED interface:
+void PortedExecutor::initialize_ports() override {
+    // find_boundary&lt;ISourceNode&lt;IDepoSet&gt;, BoundarySource&lt;ISourceNode&lt;IDepoSet&gt;&gt;&gt;("DepoSetBoundarySource", name)
+    // find_boundary&lt;ISinkNode&lt;IDepoSet&gt;,   BoundarySink&lt;ISinkNode&lt;IDepoSet&gt;&gt;&gt;    ("DepoSetBoundarySink",   name)
 }
-DepoSet DepoSetFilter::operator()(DepoSet const&amp; input) {
-    ensure_initialized();          // first call: builds the WCT graph, finds the ports
-    m_source-&gt;fill(input.ptr);      // hand this event's DepoSet to the WCT source
-    run_graph();                    // m_wcmain() — run the Pgrapher until quiescent
-    return DepoSet{m_sink-&gt;drain()}; // take the result back out
+
+// the shape is just the ergonomic operator() over the base's run():
+Data&lt;Out&gt; FunctionExecutor&lt;In,Out&gt;::operator()(Data&lt;In&gt; const&amp; in) {
+    return std::get&lt;0&gt;(run(in));   // run(): ensure_initialized → fill source → run_graph → drain sink
 }</code></pre>
+    <div class="note">Passing the boundary class through the array is the payoff: the boundary
+      classes could be renamed without touching any config. The boundary node <em>names</em> stay
+      <code>DepoSetBoundarySource</code>/<code>DepoSetBoundarySink</code>
+      (see <code>BoundaryNodes.cpp</code>'s <code>WIRECELL_FACTORY</code> registrations).</div>
   </figure>
 
   <p>The WCT side is a normal WCT Jsonnet — a <em>function</em> of the TLAs the Executor binds. Its
-    only unusual ingredients are the two boundary nodes (provided by the <code>wire_cell_phlex</code>
-    plugin) wired through a Pgrapher:</p>
+    signature is now the uniform <code>(sources, sinks, app_name)</code>; the boundary components come
+    straight out of the injected arrays, so no boundary class name is hard-coded here:</p>
   <figure class="code wct">
-    <figcaption><span class="path">docs/walk-through/deposet-filter/deposet-passthrough.jsonnet</span><span class="lines">L11–43</span></figcaption>
-<pre><code>function(source_name = "wcphlex_deposet_source",
-         sink_name   = "wcphlex_deposet_sink",
-         app_name    = "wcphlex_pgrapher")   // ← bound by tla_var() above
+    <figcaption><span class="path">docs/walk-through/deposet-filter/deposet-passthrough.jsonnet</span><span class="lines">whole file</span></figcaption>
+<pre><code>function(
+    sources  = [],
+    sinks    = [],
+    app_name = "wcphlex_pgrapher",   // ← all bound by tla_code()/tla_var() above
+)
+
+local src = sources[0];
+local snk = sinks[0];
+
 [
-    { type: "DepoSetBoundarySource", name: source_name, data: {} },
-    { type: "DepoSetBoundarySink",   name: sink_name,   data: {} },
-    { type: "Pgrapher", name: app_name, data: { edges: [
-        { tail: { node: "DepoSetBoundarySource:" + source_name, port: 0 },
-          head: { node: "DepoSetBoundarySink:"   + sink_name,   port: 0 } },
-    ] } },
+    src { data: {} },                // boundary source — PHLEX fills it before each WCT run
+    snk { data: {} },                // boundary sink   — PHLEX drains it after each WCT run
+    {
+        type: "Pgrapher", name: app_name,
+        data: { edges: [
+            { tail: { node: src.type + ":" + src.name, port: 0 },
+              head: { node: snk.type + ":" + snk.name, port: 0 } },
+        ]},
+    },
 ]</code></pre>
   </figure>
 
@@ -595,12 +646,12 @@ DepoSet DepoSetFilter::operator()(DepoSet const&amp; input) {
   <table>
     <tr><th>#</th><th>world</th><th>what happens</th></tr>
     <tr><td>1</td><td><span class="pill phlex">phlex</span></td><td>The <code>generate_layers</code> driver emits an <code>event</code> data cell (3 of them, per <code>total:3</code>).</td></tr>
-    <tr><td>2</td><td><span class="pill phlex">phlex</span></td><td>The source provides a <code>DepoSet</code> product for that cell: creator <code>input</code>, suffix <code>deposet</code>, layer <code>event</code>.</td></tr>
+    <tr><td>2</td><td><span class="pill phlex">phlex</span></td><td>The source (<code>wcph_deposet_gen</code>) provides a <code>DepoSet</code> product for that cell: creator <code>input</code>, suffix <code>deposet</code>, layer <code>event</code>.</td></tr>
     <tr><td>3</td><td><span class="pill phlex">phlex</span></td><td>Phlex's matcher (built once at finalisation) routes it to <code>deposet_filter</code>'s input port — the edge inferred in <a href="#register">§6</a>.</td></tr>
-    <tr><td>4</td><td><span class="pill intg">intg</span></td><td><code>DepoSetFilter::operator()</code> runs: on the first call <code>ensure_initialized()</code> builds the WCT graph and finds the boundary ports; then <code>m_source-&gt;fill(deposet)</code>.</td></tr>
+    <tr><td>4</td><td><span class="pill intg">intg</span></td><td><code>FunctionExecutor&lt;IDepoSet,IDepoSet&gt;::operator()</code> runs (via the base <code>run()</code>): on the first call <code>ensure_initialized()</code> builds the WCT graph and finds the boundary ports; then it fills the boundary source with this event's deposet.</td></tr>
     <tr><td>5</td><td><span class="pill wct">wct</span></td><td><code>run_graph()</code> drives the Pgrapher: <code>DepoSetBoundarySource</code> dequeues the deposet → (passthrough) → <code>DepoSetBoundarySink</code> enqueues the result.</td></tr>
     <tr><td>6</td><td><span class="pill intg">intg</span></td><td><code>m_sink-&gt;drain()</code> returns the result; <code>operator()</code> returns a <code>DepoSet</code>.</td></tr>
-    <tr><td>7</td><td><span class="pill phlex">phlex</span></td><td>Phlex publishes it as a product with creator <code>{deposet_filter, deposet_filter}</code>, suffix <code>deposet</code>.</td></tr>
+    <tr><td>7</td><td><span class="pill phlex">phlex</span></td><td>Phlex publishes it as a product with creator <code>{deposet_filter, wcph_deposet_to_deposet}</code>, suffix <code>deposet</code>.</td></tr>
     <tr><td>8</td><td><span class="pill phlex">phlex</span></td><td>The observer's selector (<code>input_from: deposet_filter</code>) matches it; the observer runs its assertion.</td></tr>
   </table>
 </section>
@@ -625,20 +676,18 @@ phlexed -J "$install/share/jsonnet" -c deposet-filter.jsonnet
 
 <section id="tooling">
   <h2>10. Discovery tooling <span class="pill intg">integration</span></h2>
-  <p>Because each config struct is a boost-config schema, two things come for free. Each plugin can
-    <em>advertise</em> its schema for a CLI to discover, and the schema emits a documented Jsonnet
-    factory.</p>
-  <figure class="code intg">
-    <figcaption><span class="path">devel/wire-cell-phlex/modules/deposet_filter.cpp</span><span class="lines">L43</span></figcaption>
-<pre><code>BOOST_CONFIG_EXPORT(DepoSetFilterConfig, wcphlex::DepoSetFilterConfig)
-// → exports a dlsym-able  boost_config_factories__DepoSetFilterConfig()  symbol</code></pre>
-  </figure>
-  <p>The build regenerates <code>&lt;module&gt;.libjsonnet</code> factories from the C++ structs
-    (into <code>build/wire_cell_phlex/</code>, installed to
-    <code>share/jsonnet/wire_cell_phlex/</code>), so they can never drift. The
-    <code>deposetfilterconfig.libjsonnet</code> factory produces exactly the nested
-    <code>{phlex:…, executor:…}</code> shape this workflow uses — <b>schema and wire format are the
-    same object</b>.</p>
+  <p>In principle a boost-config schema is self-describing: a plugin can <em>export</em> its config
+    struct for a CLI to discover, and the schema can emit a documented Jsonnet factory — so schema and
+    wire format are the same object. <code>ExecutorConfig</code> still carries the
+    <code>Documented&lt;T&gt;</code> docstrings (§5) that would drive that.</p>
+  <p>The migrated <b>shape</b> modules, however, deliberately <b>opt out</b>. No shape module currently
+    calls <code>BOOST_CONFIG_EXPORT</code>, and the earlier per-module
+    <code>&lt;module&gt;.libjsonnet</code> generation was retired — there is no
+    <code>deposetfilterconfig.libjsonnet</code> (nor any such file), and nothing is regenerated into
+    <code>share/jsonnet/wire_cell_phlex/</code>. The reason: a single generic
+    <code>register_function&lt;In,Out&gt;</code> now backs many node types, so a per-node config schema
+    no longer maps cleanly onto one module. Config discovery is to be <b>revisited in terms of node
+    shapes</b> later; it is future work, not part of the current build.</p>
 </section>
 
 <section id="glossary">
@@ -672,13 +721,13 @@ phlexed -J "$install/share/jsonnet" -c deposet-filter.jsonnet
 
   <h3><span class="tag intg">Integration</span> &nbsp;<span class="tag cfg">Config</span></h3>
   <table class="gloss">
-    <tr><td>Executor</td><td>Base class wrapping a <code>WireCell::Main</code>; subclasses (e.g. <code>DepoSetFilter</code>) add boundary nodes and an <code>operator()</code>.</td></tr>
+    <tr><td>Executor</td><td>Base class wrapping a <code>WireCell::Main</code>. There are no longer named subclasses; the templated shape executors (<code>FunctionExecutor</code>/<code>SinkExecutor</code>/<code>SourceExecutor</code>/<code>FaninExecutor</code>/<code>FanoutExecutor</code>) subclass <code>PortedExecutor</code> (itself an <code>Executor</code>), which injects boundary nodes and provides <code>fill → run → drain</code>.</td></tr>
     <tr><td>boundary node</td><td><code>DepoSetBoundarySource</code>/<code>Sink</code>: a queue with a WCT node face and a <code>fill</code>/<code>drain</code> face — the airlock between Phlex data and the WCT graph.</td></tr>
     <tr><td>scope</td><td><code>m_scope</code> = the module_label (default <code>wcphlex</code>); prefixes all WCT component names so instances don't collide.</td></tr>
     <tr><td>Documented&lt;T&gt;</td><td>boost-config wrapper: a value plus a compile-time docstring; transparent to use, JSON-(de)serialisable, Jsonnet-emitting.</td></tr>
-    <tr><td>PhlexAlgorithmConfig</td><td>Generic node registration data: <code>name</code>, <code>concurrency</code>, <code>inputs</code> (families), <code>outputs</code> (suffixes). The <code>phlex</code> block.</td></tr>
-    <tr><td>ProductSelector</td><td>Schema mirror of Phlex's <code>product_selector</code>; how a config author names an input family.</td></tr>
-    <tr><td>ExecutorConfig</td><td>The WCT-specific settings: <code>wct_config</code>, <code>wct_plugins</code>, <code>wct_tla</code>, <code>module_label</code>, … The <code>executor</code> block.</td></tr>
+    <tr><td>PhlexAlgorithmConfig</td><td>A phlex-config schema for generic registration data (<code>name</code>/<code>concurrency</code>/<code>inputs</code>/<code>outputs</code>). It still exists in phlex-config but the wire-cell-phlex module <em>no longer parses a <code>phlex</code> block</em> — shape modules read the flat <code>inputs</code>/<code>outputs</code> arrays directly.</td></tr>
+    <tr><td>ProductSelector</td><td>Schema mirror of Phlex's <code>product_selector</code> (phlex-config); how a config author names an input family. Its field shape is what the <code>inputs</code>/<code>outputs</code> objects carry.</td></tr>
+    <tr><td>ExecutorConfig</td><td>The WCT-specific settings: <code>wct_config</code>, <code>wct_plugins</code>, <code>wct_tla</code>, <code>module_label</code>, … Read at the <em>top level</em> of the module config (no nested <code>executor</code> block). The only struct now in <code>Config.hpp</code>.</td></tr>
     <tr><td><code>wct_config</code></td><td>Path to the WCT Jsonnet sub-graph the Executor runs (here <code>deposet-passthrough.jsonnet</code>), resolved via <code>WIRECELL_PATH</code>.</td></tr>
     <tr><td>phlex.libsonnet</td><td>The DSL: <code>node</code>/<code>source</code>/<code>selector</code>/<code>workflow</code> — authors the workflow object with consistent descriptors.</td></tr>
     <tr><td>phlexed</td><td>Unofficial <code>phlex</code> + a subset of jsonnet CLI flags (<code>-J</code>), so DSL imports resolve. Top-level use only.</td></tr>
