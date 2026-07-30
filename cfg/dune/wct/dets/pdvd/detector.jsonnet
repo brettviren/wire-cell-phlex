@@ -160,6 +160,7 @@ local lar_defaults = {
     DT:          8.8   * wc.cm2 / wc.s,
     lifetime:    1000.0 * wc.ms,
     drift_speed: 1.473 * wc.mm / wc.us,
+    efield:      500  * wc.volt / wc.cm,   // nominal drift field (segment sampler recombination)
 };
 
 local daq_defaults = {
