@@ -36,6 +36,7 @@
 #include <WireCellIface/IFrame.h>
 #include <WireCellIface/ITensor.h>
 #include <WireCellIface/ITensorSet.h>
+#include <WireCellIface/ITrackSegmentSet.h>
 #include <WireCellUtil/WireSchema.h>
 
 namespace wcphlex {
@@ -56,6 +57,7 @@ namespace wcphlex {
     using Frame = Data<WireCell::IFrame>;            // one readout frame
     using Tensor = Data<WireCell::ITensor>;          // a single named tensor
     using TensorSet = Data<WireCell::ITensorSet>;    // a set of named tensors
+    using TrackSegmentSet = Data<WireCell::ITrackSegmentSet>;  // energy-deposit segments
 
     // Wire geometry schema loaded from a WCT wire file at the job layer.  Kept a
     // distinct struct (not a Data<IType>): it carries a WireSchema::Store, not an

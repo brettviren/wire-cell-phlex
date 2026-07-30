@@ -25,6 +25,7 @@
 // Concrete type names used in Jsonnet config (type: "Name"):
 //   FrameBoundarySource / FrameBoundarySink
 //   DepoSetBoundarySource / DepoSetBoundarySink
+//   TrackSegmentSetBoundarySource / TrackSegmentSetBoundarySink
 
 #include "wire_cell_phlex/BoundarySource.hpp"
 #include "wire_cell_phlex/BoundarySink.hpp"
@@ -33,6 +34,7 @@
 #include <WireCellIface/ISinkNode.h>
 #include <WireCellIface/IFrame.h>
 #include <WireCellIface/IDepoSet.h>
+#include <WireCellIface/ITrackSegmentSet.h>
 #include <WireCellUtil/NamedFactory.h>
 
 // --- Frame boundary nodes ---------------------------------------------------
@@ -57,4 +59,16 @@ WIRECELL_FACTORY(DepoSetBoundarySource,
 WIRECELL_FACTORY(DepoSetBoundarySink,
                  wcphlex::BoundarySink<WireCell::ISinkNode<WireCell::IDepoSet>>,
                  WireCell::ISinkNode<WireCell::IDepoSet>,
+                 WireCell::IConfigurable)
+
+// --- TrackSegmentSet boundary nodes ------------------------------------------
+
+WIRECELL_FACTORY(TrackSegmentSetBoundarySource,
+                 wcphlex::BoundarySource<WireCell::ISourceNode<WireCell::ITrackSegmentSet>>,
+                 WireCell::ISourceNode<WireCell::ITrackSegmentSet>,
+                 WireCell::IConfigurable)
+
+WIRECELL_FACTORY(TrackSegmentSetBoundarySink,
+                 wcphlex::BoundarySink<WireCell::ISinkNode<WireCell::ITrackSegmentSet>>,
+                 WireCell::ISinkNode<WireCell::ITrackSegmentSet>,
                  WireCell::IConfigurable)

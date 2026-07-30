@@ -51,6 +51,7 @@
 #include <WireCellIface/ISinkNode.h>
 #include <WireCellIface/IFrame.h>
 #include <WireCellIface/IDepoSet.h>
+#include <WireCellIface/ITrackSegmentSet.h>
 
 #include <boost/json.hpp>
 
@@ -91,6 +92,15 @@ struct port_traits<WireCell::IDepoSet> {
     static constexpr const char* src_class = "DepoSetBoundarySource";
     static constexpr const char* snk_class = "DepoSetBoundarySink";
     static constexpr const char* stem = "deposet"; // <type>: IDepoSet -> deposet
+};
+
+template <>
+struct port_traits<WireCell::ITrackSegmentSet> {
+    using source_iface = WireCell::ISourceNode<WireCell::ITrackSegmentSet>;
+    using sink_iface = WireCell::ISinkNode<WireCell::ITrackSegmentSet>;
+    static constexpr const char* src_class = "TrackSegmentSetBoundarySource";
+    static constexpr const char* snk_class = "TrackSegmentSetBoundarySink";
+    static constexpr const char* stem = "tracksegmentset"; // ITrackSegmentSet -> tracksegmentset
 };
 
 // The naming-convention <type> token for a WCT IData type (the "I" removed,

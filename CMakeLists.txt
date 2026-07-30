@@ -162,7 +162,25 @@ target_link_libraries(wcph_deposet_to_frame PRIVATE
   phlex::module
   ${WIRECELL_RUNTIME_LIBS}
 )
+
 target_compile_options(wcph_deposet_to_frame PRIVATE -UNDEBUG)
+
+# Track-segment sampling (segment-sampler chain): ITrackSegmentSet input ports.
+add_library(wcph_tracksegmentset_to_deposet MODULE modules/tracksegmentset_to_deposet.cpp)
+target_link_libraries(wcph_tracksegmentset_to_deposet PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcph_tracksegmentset_to_deposet PRIVATE -UNDEBUG)
+
+add_library(wcph_tracksegmentset_to_frame MODULE modules/tracksegmentset_to_frame.cpp)
+target_link_libraries(wcph_tracksegmentset_to_frame PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcph_tracksegmentset_to_frame PRIVATE -UNDEBUG)
 
 # Step A: IDepoSet → IDepoSet filter module.
 add_library(wcph_deposet_filter MODULE modules/deposet_filter.cpp)
@@ -643,6 +661,8 @@ foreach(_mod IN ITEMS
     wcph_deposet_gen
     wcph_deposet_source
     wcph_deposet_to_frame
+    wcph_tracksegmentset_to_deposet
+    wcph_tracksegmentset_to_frame
     wcph_deposet_filter
     wcph_deposet_observer
     wcph_deposet_sink
