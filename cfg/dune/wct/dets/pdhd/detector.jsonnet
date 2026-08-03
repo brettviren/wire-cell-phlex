@@ -49,6 +49,23 @@ local cpa_plane = apa_cpa - 0.5 * cpa_thick;
 local elec_gain = std.get(params, "elec_gain", 14.0) * wc.mV / wc.fC;
 
 // ---------------------------------------------------------------------------
+// As-built APA0 modeling.  Override via params.apa0_asbuilt.
+//
+// The real PDHD APA0 has its "W" plane bias disconnected: drifting electrons
+// charge the W wires until they reach a potential consistent with the ambient
+// E-field, after which W behaves as an INDUCTION plane despite being last in
+// the stack, and the middle "V" plane becomes the effective collection plane.
+// The np04hd-garfield-6paths-mcmc-bestfit field response models this as-built
+// state (its planeid=1/V slot holds a collection-type response), and the
+// companion filter_response / plane2layer=[0,2,1] / APA1-variant Wiener names
+// are tuned for it.
+//
+// Default false: model a NOMINAL APA0 (generic 1D response, standard sigproc
+// treatment), which is what the xerosere test chains want (ddm-0hk).
+// ---------------------------------------------------------------------------
+local apa0_asbuilt = std.get(params, "apa0_asbuilt", false);
+
+// ---------------------------------------------------------------------------
 // Assemble per-anode entries
 // ---------------------------------------------------------------------------
 local make_anode(n) =
@@ -85,17 +102,18 @@ local make_anode(n) =
         },
 
         // Field response file.
-        // APA0 uses a higher-quality 6-path MCMC best-fit response.
-        // APAs 1-3 use the generic DUNE 1D response.
+        // As-built APA0 (apa0_asbuilt) uses the 6-path MCMC best-fit response
+        // modeling the disconnected-W-bias state (see header comment).
+        // Otherwise the generic DUNE 1D response.
         field: {
-            filename: if n == 0
+            filename: if n == 0 && apa0_asbuilt
                 then "np04hd-garfield-6paths-mcmc-bestfit.json.bz2"
                 else "dune-garfield-1d565.json.bz2",
         },
 
         // Optional frequency-domain filter response for SP deconvolution correction.
-        // Only applied to APA0 (the one with the special field response).
-        filter_response: if n == 0
+        // Only applied to the as-built APA0 (tuned for its special field response).
+        filter_response: if n == 0 && apa0_asbuilt
             then { filename: "protodunehd-field-response-filters.json.bz2" }
             else null,
 
@@ -117,7 +135,8 @@ local make_anode(n) =
         },
 
         // OmnibusSigProc tuning.
-        // APA0 differs from APAs 1-3 in: plane2layer and Wiener filter names.
+        // The as-built APA0 (apa0_asbuilt) differs from the others in:
+        // plane2layer and Wiener filter names.
         //
         // NOTE on r_th_factor / troi_col_th_factor:
         // dunereco/DUNEWireCell/pdhd/sp.jsonnet (in the dunereco repo) uses
@@ -152,12 +171,13 @@ local make_anode(n) =
             isWrapped:   false,
             sparse:      true,
             // Wire plane ordering fed into the SP deconvolution kernel.
-            // APA0 uses [0,2,1] (U,W,V); others use standard [0,1,2] (U,V,W).
-            plane2layer: if n == 0 then [0, 2, 1] else [0, 1, 2],
+            // As-built APA0 uses [0,2,1] (V is the effective collection plane);
+            // otherwise standard [0,1,2] (U,V,W).
+            plane2layer: if n == 0 && apa0_asbuilt then [0, 2, 1] else [0, 1, 2],
             // Wiener filter instance names (hard-coded in OmnibusSigProc C++).
-            // APA0 uses the "APA1-variant" names which have different tuning values
-            // appropriate for the higher-quality 6-path MCMC field response.
-            wiener_filters: if n == 0
+            // The as-built APA0 uses the "APA1-variant" names whose tuning
+            // matches the 6-path MCMC field response.
+            wiener_filters: if n == 0 && apa0_asbuilt
                 then ["Wiener_tight_U_APA1", "Wiener_tight_V_APA1", "Wiener_tight_W_APA1"]
                 else ["Wiener_tight_U",      "Wiener_tight_V",      "Wiener_tight_W"],
         },

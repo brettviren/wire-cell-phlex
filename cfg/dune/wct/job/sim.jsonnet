@@ -133,19 +133,18 @@ local anode = {
 // 125 μs (PDHD) and 246 μs (PDVD), safely covering both.
 local pir_short_padding = det.response_plane / det.lar.drift_speed * 2.0;
 
-// pirs[i] is applied by DepoTransform to wire plane i (U=0,V=1,W=2), but the
-// PIR's "plane" config selects the FR file entry by planeid — and an FR file's
-// planeid slots may be ordered differently from the wire planes.  That file
-// ordering is recorded in a.sigproc.plane2layer (e.g. PDHD APA0's
-// np04hd-garfield-6paths-mcmc-bestfit.json.bz2 stores [U,W,V] -> [0,2,1]),
-// which OmnibusSigProc already honors.  The sim must apply the SAME map or
-// wire planes get the wrong response (xerosere ddm-0hk: V got the collection
-// response, W got induction).
+// pirs[i] is applied by DepoTransform to wire plane i, and the PIR "plane"
+// config selects the FR entry by planeid.  FR planeid slots ALWAYS correspond
+// to the wire planes (U=0, V=1, W=2) — even for as-built response variants
+// where a plane's response CHARACTER changes (e.g. PDHD APA0 with W bias
+// disconnected: planeid=1/V holds a collection-type response).  Do NOT remap
+// through sigproc.plane2layer here: that is OmnibusSigProc's internal
+// layer-treatment map, not an FR-file reordering (xerosere ddm-0hk).
 local pir(plane) = {
     type: "PlaneImpactResponse",
     name: service_prefix + "pir%d_" % plane + a.name,
     data: {
-        plane:                 a.sigproc.plane2layer[plane],
+        plane:                 plane,
         dft:                   wc.tn(dft),
         field_response:        wc.tn(fr),
         nticks:                nticks_ductor,
