@@ -31,6 +31,7 @@ function(
     detector       = "pdhd",
     anode_index    = "0",
     service_prefix = "",
+    input          = "deposet",  // or "tracksegmentset": prepend TrackSegmentSampler
 )
 
 local det = dets[detector]({detname: detector});
@@ -132,11 +133,19 @@ local anode = {
 // 125 μs (PDHD) and 246 μs (PDVD), safely covering both.
 local pir_short_padding = det.response_plane / det.lar.drift_speed * 2.0;
 
+// pirs[i] is applied by DepoTransform to wire plane i (U=0,V=1,W=2), but the
+// PIR's "plane" config selects the FR file entry by planeid — and an FR file's
+// planeid slots may be ordered differently from the wire planes.  That file
+// ordering is recorded in a.sigproc.plane2layer (e.g. PDHD APA0's
+// np04hd-garfield-6paths-mcmc-bestfit.json.bz2 stores [U,W,V] -> [0,2,1]),
+// which OmnibusSigProc already honors.  The sim must apply the SAME map or
+// wire planes get the wrong response (xerosere ddm-0hk: V got the collection
+// response, W got induction).
 local pir(plane) = {
     type: "PlaneImpactResponse",
     name: service_prefix + "pir%d_" % plane + a.name,
     data: {
-        plane:                 plane,
+        plane:                 a.sigproc.plane2layer[plane],
         dft:                   wc.tn(dft),
         field_response:        wc.tn(fr),
         nticks:                nticks_ductor,
@@ -268,18 +277,51 @@ local src = sources[0] { data: {} };
 local snk = sinks[0] { data: {} };
 
 // ---------------------------------------------------------------------------
+// Optional front end: energy-deposit segments -> depos (segment sampler)
+// ---------------------------------------------------------------------------
+
+local segments = input == "tracksegmentset";
+
+local recomb = {
+    type: "BoxRecombination",
+    name: service_prefix + "recomb_" + a.name,
+    data: { Efield: std.get(det.lar, "efield", 500 * wc.volt / wc.cm) },
+};
+
+local sampler = {
+    type: "TrackSegmentSampler",
+    name: service_prefix + "sampler_" + a.name,
+    data: {
+        ionization: "recombination",
+        recombination: wc.tn(recomb),
+        step_size: 1.0 * wc.mm,
+    },
+};
+
+// Edges from the boundary source to the drifter, with or without the sampler.
+local front_edges = if segments then [
+    { tail: { node: wc.tn(src),     port: 0 },
+      head: { node: wc.tn(sampler), port: 0 } },
+    { tail: { node: wc.tn(sampler), port: 0 },
+      head: { node: wc.tn(setdrifter), port: 0 } },
+] else [
+    { tail: { node: wc.tn(src),        port: 0 },
+      head: { node: wc.tn(setdrifter),  port: 0 } },
+];
+
+// ---------------------------------------------------------------------------
 // Full component list + Pgrapher
 // ---------------------------------------------------------------------------
 
 [dft, rng, wires, fr, elec, anode] + pirs +
-[drifter_comp, setdrifter, transform, reframer, noise_model, addnoise, digitizer, src, snk,
+[drifter_comp, setdrifter, transform, reframer, noise_model, addnoise, digitizer,
+ src, snk] + (if segments then [recomb, sampler] else []) +
+[
 {
     type: "Pgrapher",
     name: app_name,
     data: {
-        edges: [
-            { tail: { node: wc.tn(src),        port: 0 },
-              head: { node: wc.tn(setdrifter),  port: 0 } },
+        edges: front_edges + [
             { tail: { node: wc.tn(setdrifter),  port: 0 },
               head: { node: wc.tn(transform),   port: 0 } },
             { tail: { node: wc.tn(transform),   port: 0 },

@@ -103,11 +103,19 @@ local anode = {
     },
 };
 
+// pirs[i] is applied by DepoTransform to wire plane i (U=0,V=1,W=2), but the
+// PIR's "plane" config selects the FR file entry by planeid — and an FR file's
+// planeid slots may be ordered differently from the wire planes.  That file
+// ordering is recorded in sp.plane2layer (e.g. PDHD APA0's
+// np04hd-garfield-6paths-mcmc-bestfit.json.bz2 stores [U,W,V] -> [0,2,1]),
+// which OmnibusSigProc already honors.  The sim must apply the SAME map or
+// wire planes get the wrong response (xerosere ddm-0hk: V got the collection
+// response, W got induction).
 local pir(plane) = {
     type: "PlaneImpactResponse",
     name: service_prefix + "pir%d_" % plane + a.name,
     data: {
-        plane:                 plane,
+        plane:                 sp.plane2layer[plane],
         dft:                   wc.tn(dft),
         field_response:        wc.tn(fr),
         nticks:                nticks_ductor,
