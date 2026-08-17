@@ -65,7 +65,12 @@ add_library(wire_cell_phlex SHARED
   wire_cell_phlex/Executor.cpp
   wire_cell_phlex/BoundaryNodes.cpp
   wire_cell_phlex/TrivialDepoFramer.cpp
-  wire_cell_phlex/FacadeWireSchema.cpp
+  # FacadeWireSchema is DISABLED: it side-channels a WireSchema into WCT's
+  # configure-time IWireSchema service, which requires deferred (first-event)
+  # initialization.  We now initialize WCT graphs at construction time (see
+  # Executor.hpp), which is incompatible with that path.  Retained on disk for a
+  # future split-initialize()/main-thread-hook design (ddm-4or.4); not built.
+  # wire_cell_phlex/FacadeWireSchema.cpp
 )
 
 target_include_directories(wire_cell_phlex

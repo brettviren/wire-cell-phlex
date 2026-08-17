@@ -15,11 +15,11 @@
 //
 // Executor base class and concrete subclasses for per-event WCT graph execution.
 //
-// Design: WireCell::Main is initialized ONCE on the FIRST operator() call
-// (deferred initialization).  Each operator() call fills the boundary source(s),
-// runs the WCT graph with run_graph(), then drains the boundary sink(s).  The
-// BoundarySource queue-based design allows the same Pgraph graph to be re-driven
-// event after event:
+// Design: WireCell::Main is initialized ONCE, in the concrete executor's
+// constructor (construction-time initialization).  Each operator() call fills
+// the boundary source(s), runs the WCT graph with run_graph(), then drains the
+// boundary sink(s).  The BoundarySource queue-based design allows the same
+// Pgraph graph to be re-driven event after event:
 //
 //   for each PHLEX event:
 //       source->fill(input_ptr)    // enqueue data for this event
@@ -28,21 +28,26 @@
 //
 // This mirrors the larwirecell WCLS pattern: visit(event) + m_wcmain() + visit().
 //
-// Deferred initialization rationale:
-//   When geometry arrives as a PHLEX job-layer product (wcphlex::WireSchema),
-//   it is not available at Executor construction time.  The two-argument overload
-//   operator()(WireSchema const&, Frame const&) calls
-//   FacadeWireSchema::register_store(m_scope, ws.store) before the first
-//   ensure_initialized() call.  This pre-populates the static registry that
-//   FacadeWireSchema::configure() reads during initialize().
+// Geometry-as-PHLEX-product (FacadeWireSchema) note:
+//   A previous design deferred initialization to the first event so geometry
+//   arriving as a PHLEX job-layer product could be side-channelled into WCT's
+//   configure-time IWireSchema service (FacadeWireSchema) before
+//   m_wcmain.initialize() ran.  That path is INCOMPATIBLE with construction-time
+//   initialization: AnodePlane::configure() consumes the wire schema during
+//   initialize() — now at construction — before any run-time product can arrive.
+//   It is therefore currently disabled (FacadeWireSchema is not built).  Restoring
+//   it needs either a split WCT Main::initialize() (compile config on the main
+//   thread; instantiate/configure once the product arrives) or an upstream
+//   main-thread post-construction hook (ddm-4or.4).
 //
 // Lifecycle (see docs/executors.md for the full guide):
-//   1. Constructor: Executor() parses config, computes m_scope and m_app_name,
-//      registers TLAs and add_app().  Subclass constructors add boundary-node
-//      name TLAs.
-//   2. First operator() call: ensure_initialized() acquires the global WCT init
-//      mutex, calls m_wcmain.initialize(), then calls virtual initialize_ports()
-//      so the subclass can find its BoundarySource/BoundarySink instances.
+//   1. Base Executor() parses config, computes m_scope and m_app_name, registers
+//      TLAs and add_app().
+//   2. The concrete (leaf) constructor injects its boundary-node name TLAs and,
+//      as its final step, calls initialize_now(): m_wcmain.initialize() then
+//      virtual initialize_ports() so the leaf finds its BoundarySource/
+//      BoundarySink instances.  This runs on the main thread during PHLEX
+//      registration (no mutex needed; construction is serial).
 //   3. Each operator() call: fill sources → run_graph() → drain sinks.
 //
 // Config interface: boost::json::object (not phlex::configuration) so this
@@ -81,7 +86,6 @@
 
 #include <boost/json.hpp>
 
-#include <atomic>
 #include <string>
 
 namespace wcphlex {
@@ -96,8 +100,8 @@ namespace wcphlex {
 //   m_wcmain.tla_var("app_name", m_app_name)
 //   m_wcmain.add_app(m_app_type + ":" + m_app_name)
 //
-// Subclass constructors add boundary-node TLAs (source_name, sink_name, etc.).
-// initialize() is deferred to the first ensure_initialized() call in operator().
+// Subclass constructors add boundary-node TLAs (source_name, sink_name, etc.)
+// and then call initialize_now() as their final step.
 class Executor {
 public:
     // Constructed from a parsed ExecutorConfig.  Concrete subclasses parse
@@ -126,19 +130,18 @@ protected:
     // before add_app() is called; available to subclasses for reference.
     std::string    m_app_name;
 
-    std::atomic<bool> m_initialized{false};
-
     // Log sink destination ("stdout", "stderr", or a file path).  Empty = no log setup.
     std::string m_log_sink;
 
     // Log level string (e.g. "warn", "info", "debug").  Empty = no level set.
     std::string m_log_level;
 
-    // Idempotent initialization guard (DCLP).  Called by every operator().
-    // First call: acquires s_wct_init_mutex, calls m_wcmain.initialize(),
-    // calls virtual initialize_ports(), then sets m_initialized.
-    // Subsequent calls: fast-path return on m_initialized==true.
-    void ensure_initialized();
+    // Build and configure the WCT graph, then bind boundary ports.  Called once,
+    // as the final step of each concrete executor's constructor (main thread,
+    // during PHLEX registration).  Runs setup_debug_logging(), then
+    // m_wcmain.initialize(), then virtual initialize_ports().  Not thread-safe by
+    // itself: correctness relies on serial, single-threaded module construction.
+    void initialize_now();
 
     // Override in concrete subclasses to find BoundarySource/BoundarySink
     // instances in the WCT factory after m_wcmain.initialize() completes.
@@ -152,7 +155,7 @@ protected:
 private:
     // If m_log_sink is non-empty, calls add_logsink(m_log_sink) on m_wcmain.
     // If m_log_level is non-empty, calls set_loglevel("", m_log_level) on m_wcmain.
-    // Called inside ensure_initialized() before m_wcmain.initialize().
+    // Called inside initialize_now() before m_wcmain.initialize().
     void setup_debug_logging();
 };
 

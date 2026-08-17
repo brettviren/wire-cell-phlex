@@ -28,7 +28,11 @@ function(
     detector       = "pdhd",
     anode_index    = "0",
     service_prefix = "",
-    input          = "deposet",  // or "tracksegmentset": prepend TrackSegmentSampler
+    input          = "deposet",  // "deposet" (drift internally), "tracksegmentset"
+                                 // (prepend TrackSegmentSampler + drift), or "drifted"
+                                 // (depos are ALREADY drifted by a shared upstream
+                                 // drift island — skip the internal DepoSetDrifter,
+                                 // xerosere SPDIR ddm-179)
 )
 
 local det = dets[detector]({detname: detector});
@@ -298,6 +302,11 @@ local snk = sinks[0] { data: {} };
 
 local segments = input == "tracksegmentset";
 
+// When input=="drifted" the incoming depos are already drifted (by a shared
+// upstream drift island), so skip the internal DepoSetDrifter and feed the
+// boundary source straight into DepoTransform.
+local drifted = input == "drifted";
+
 local recomb = {
     type: "BoxRecombination",
     name: service_prefix + "recomb_" + a.name,
@@ -314,15 +323,23 @@ local sampler = {
     },
 };
 
-// Edges from the boundary source to the drifter, with or without the sampler.
+// Edges from the boundary source into the body: through the sampler+drifter, the
+// drifter alone, or (pre-drifted) straight into DepoTransform.
 local front_edges = if segments then [
     { tail: { node: wc.tn(src),     port: 0 },
       head: { node: wc.tn(sampler), port: 0 } },
     { tail: { node: wc.tn(sampler), port: 0 },
       head: { node: wc.tn(setdrifter), port: 0 } },
+    { tail: { node: wc.tn(setdrifter),  port: 0 },
+      head: { node: wc.tn(transform),   port: 0 } },
+] else if drifted then [
+    { tail: { node: wc.tn(src),       port: 0 },
+      head: { node: wc.tn(transform), port: 0 } },
 ] else [
     { tail: { node: wc.tn(src),        port: 0 },
       head: { node: wc.tn(setdrifter),  port: 0 } },
+    { tail: { node: wc.tn(setdrifter),  port: 0 },
+      head: { node: wc.tn(transform),   port: 0 } },
 ];
 
 // ---------------------------------------------------------------------------
@@ -330,7 +347,8 @@ local front_edges = if segments then [
 // ---------------------------------------------------------------------------
 
 [dft, rng, wires_comp, fr, elec, anode] + pirs + filter_response_comps + det.sp_filters +
-[drifter_comp, setdrifter, transform, reframer, noise_model, addnoise, digitizer, sigproc,
+(if drifted then [] else [drifter_comp, setdrifter]) +
+[transform, reframer, noise_model, addnoise, digitizer, sigproc,
  src, snk] + (if segments then [recomb, sampler] else []) +
 [
 {
@@ -338,8 +356,6 @@ local front_edges = if segments then [
     name: app_name,
     data: {
         edges: front_edges + [
-            { tail: { node: wc.tn(setdrifter),  port: 0 },
-              head: { node: wc.tn(transform),   port: 0 } },
             { tail: { node: wc.tn(transform),   port: 0 },
               head: { node: wc.tn(reframer),    port: 0 } },
             { tail: { node: wc.tn(reframer),    port: 0 },

@@ -167,6 +167,9 @@ public:
         : Executor(config)
     {
         inject_tlas(std::make_index_sequence<n_in>{}, std::make_index_sequence<n_out>{});
+        // Final step: build/configure the WCT graph now that the boundary TLAs
+        // are injected.  initialize_ports() resolves virtually to this class.
+        this->initialize_now();
     }
 
 protected:
@@ -176,7 +179,6 @@ protected:
     // Fill each input source, run the WCT graph once, drain each output sink.
     std::tuple<Data<Outs>...> run(Data<Ins> const&... ins)
     {
-        ensure_initialized();
         fill_all(std::forward_as_tuple(ins...), std::make_index_sequence<n_in>{});
         run_graph();
         return drain_all(std::make_index_sequence<n_out>{});
@@ -299,11 +301,11 @@ public:
         std::vector<std::pair<std::string, std::string>> sinks{
             {port_traits<Out>::snk_class, port_sink_name(m_scope, 0)}};
         inject_boundary_tlas(m_wcmain, sources, sinks);
+        initialize_now();
     }
 
     Data<Out> operator()(std::vector<Data<In>> const& ins)
     {
-        ensure_initialized();
         if (ins.size() != m_sources.size()) {
             throw std::runtime_error("FaninExecutor: input vector size " +
                                      std::to_string(ins.size()) + " != multiplicity " +
@@ -351,11 +353,11 @@ public:
             sinks.emplace_back(port_traits<Out>::snk_class, port_sink_name(m_scope, j));
         }
         inject_boundary_tlas(m_wcmain, sources, sinks);
+        initialize_now();
     }
 
     std::vector<Data<Out>> operator()(Data<In> const& in)
     {
-        ensure_initialized();
         m_source->fill(in.ptr);
         run_graph();
         std::vector<Data<Out>> outs;
@@ -394,8 +396,9 @@ public:
     using PortedExecutor<type_list<>, type_list<Out>>::PortedExecutor;
     Data<Out> operator()()
     {
+        // The WCT graph is built at construction; the real WCT source is driven
+        // exactly once, on the first call (subsequent calls just drain).
         if (!m_ran.exchange(true)) {
-            this->ensure_initialized();
             this->run_graph();
         }
         return Data<Out>{std::get<0>(this->m_sinks)->drain()};

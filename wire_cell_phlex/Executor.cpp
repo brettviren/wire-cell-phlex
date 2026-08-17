@@ -13,21 +13,23 @@
 //
 // Implementation of Executor base and all concrete subclasses.
 //
-// Deferred initialization model (mirrors larwirecell WCLS):
+// Construction-time initialization model:
 //   - Executor() does common config parsing: add_config, add_plugin, tla_var,
-//     add_app().  Subclass constructors add boundary-node name TLAs.
-//   - The first operator() call triggers ensure_initialized(), which calls
-//     m_wcmain.initialize(), then virtual initialize_ports() so the subclass
-//     can locate its BoundarySource/BoundarySink instances in the WCT factory.
+//     add_app().  Each concrete (leaf) executor constructor then injects its
+//     boundary-node name TLAs and, as its final step, calls initialize_now() to
+//     build and configure the WCT graph and bind its boundary ports.
 //   - Each operator() call: fill source(s) → run_graph() → drain sink(s).
 //   - BoundarySource's queue design allows re-driving the same Pgraph graph
 //     across successive events without re-initialization.
 //
-// Geometry-aware path (FrameFilter):
-//   - operator()(WireSchema const&, Frame const&) calls
-//     FacadeWireSchema::register_store(m_scope, ws.store) before the first
-//     ensure_initialized().  This pre-populates the static map that
-//     FacadeWireSchema::configure() reads during initialize().
+// WCT initialization runs during PHLEX module registration, which happens
+// serially on the main thread.  So no init-time mutex is needed (there are no
+// concurrent initialize() calls to serialize against WCT's non-thread-safe
+// global NamedFactoryRegistry/PluginManager), and the embedded go-jsonnet (cgo)
+// config evaluation runs on the main thread — the driving constraint of
+// ddm-4or.4.  Initialization must be the leaf constructor's LAST step because
+// m_wcmain.initialize() needs the boundary TLAs the leaf injects, which are not
+// yet present during the base Executor constructor.
 
 #include "wire_cell_phlex/Executor.hpp"
 #include "wire_cell_phlex/Data.hpp"
@@ -36,23 +38,9 @@
 
 #include <WireCellUtil/NamedFactory.h>
 
-#include <atomic>
 #include <iostream>
-#include <mutex>
 #include <stdexcept>
 #include <string>
-
-namespace {
-// Serializes all WireCell::Main::initialize() calls across all Executor instances.
-//
-// WCT's global NamedFactoryRegistry and PluginManager are not thread-safe:
-// concurrent initialize() calls from two different Executor instances (e.g.
-// two FrameFilter instances loaded under different PHLEX module labels) corrupt
-// the factory.  Before deferred init was introduced, constructors ran sequentially
-// at PHLEX registration time, so this was never an issue.  Now that init fires on
-// the first event (potentially in parallel TBB tasks), we must serialize.
-std::mutex s_wct_init_mutex;
-} // anonymous namespace
 
 namespace {
 
@@ -147,23 +135,16 @@ void Executor::setup_debug_logging()
     }
 }
 
-void Executor::ensure_initialized()
+void Executor::initialize_now()
 {
-    if (m_initialized.load(std::memory_order_acquire)) return;
-
-    // Serialize all WireCell::Main::initialize() calls: the WCT global factory
-    // is not thread-safe, so two concurrent initialize() calls (e.g. from two
-    // Executor instances in a PHLEX multi-instance workflow) would corrupt it.
-    std::lock_guard<std::mutex> lock(s_wct_init_mutex);
-    if (m_initialized.load(std::memory_order_relaxed)) return; // double-check
-
+    // Called once, as the final step of the concrete executor's constructor, on
+    // the main thread during PHLEX registration.  No locking is required: module
+    // construction is serial and single-threaded, so there are no concurrent
+    // WireCell::Main::initialize() calls to race over WCT's non-thread-safe
+    // global factory.
     setup_debug_logging();
     m_wcmain.initialize();
     initialize_ports();   // virtual: each subclass finds its boundary nodes here
-
-    // Store AFTER initialize_ports() so that any thread seeing m_initialized==true
-    // on the fast path is guaranteed to also see fully-assigned boundary pointers.
-    m_initialized.store(true, std::memory_order_release);
 }
 
 void Executor::initialize_ports()

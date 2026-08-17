@@ -18,6 +18,11 @@
 //   detector       (string): canonical detector name, e.g. "pdhd" or "pdvd"
 //   anode_index    (string): anode index into det.anodes[], e.g. "0"
 //   service_prefix (string): prefix for WCT service component names
+//   input          (string): "deposet" (default; DepoSetDrifter drifts the
+//                            incoming depos) or "drifted" (the incoming depos are
+//                            ALREADY drifted — skip the internal DepoSetDrifter so
+//                            a shared upstream drift island is the single drifter,
+//                            xerosere SPDIR ddm-179)
 //
 // Required WCT plugins: WireCellPgraph, WireCellGen, WireCellAux
 
@@ -31,7 +36,13 @@ function(
     detector       = "pdhd",
     anode_index    = "0",
     service_prefix = "",
+    input          = "deposet",  // or "drifted": depos are pre-drifted, skip DepoSetDrifter
 )
+
+// When input=="drifted" the depos arriving at the boundary source are already
+// drifted (by a shared upstream drift island), so this graph omits its own
+// DepoSetDrifter and feeds the boundary source straight into DepoFluxSplat.
+local drifted = input == "drifted";
 
 local det = dets[detector]({detname: detector});
 local ai  = std.parseInt(anode_index);
@@ -163,16 +174,24 @@ local snk = sinks[0] { data: {} };
 // Full component list + Pgrapher
 // ---------------------------------------------------------------------------
 
-[dft, rng, wires, fr, anode, drifter_comp, setdrifter, splat, reframer, src, snk,
+[dft, rng, wires, fr, anode] +
+(if drifted then [] else [drifter_comp, setdrifter]) +
+[splat, reframer, src, snk,
 {
     type: "Pgrapher",
     name: app_name,
     data: {
-        edges: [
+        // Front edge(s): with an internal drifter, src → setdrifter → splat;
+        // when pre-drifted, src → splat directly.
+        edges: (if drifted then [
+            { tail: { node: wc.tn(src),   port: 0 },
+              head: { node: wc.tn(splat), port: 0 } },
+        ] else [
             { tail: { node: wc.tn(src),        port: 0 },
               head: { node: wc.tn(setdrifter),  port: 0 } },
             { tail: { node: wc.tn(setdrifter),  port: 0 },
               head: { node: wc.tn(splat),        port: 0 } },
+        ]) + [
             { tail: { node: wc.tn(splat),        port: 0 },
               head: { node: wc.tn(reframer),    port: 0 } },
             { tail: { node: wc.tn(reframer),    port: 0 },
