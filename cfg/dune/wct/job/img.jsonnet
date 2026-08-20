@@ -68,6 +68,15 @@ function(
     wiener_tag     = "wiener",
     error_tag      = "gauss_error",
     charge_error_file = "microboone-charge-error.json.bz2",
+    // Optional charge stage after tiling; changes the island OUTPUT type to
+    // ICluster (the collect/blobset path is charge="").
+    //   "solve"    : BlobClustering -> BlobGrouping -> BlobSolving  (SP charge)
+    //   "depofill" : BlobClustering -> BlobDepoFill(+drifted depos) (splat true)
+    charge         = "",
+    cluster_policy = "uboone",   // BlobClustering policy: simple|uboone|uboone_local
+    depofill_time_offset = "0",  // BlobDepoFill time_offset (ns) — aligns depo time to slice time
+    depofill_nsigma      = "3.0",
+    depofill_pindex      = "2",  // primary plane index
 )
 
 local det = dets[detector]({detname: detector});
@@ -197,6 +206,77 @@ local blobsync = {
 };
 
 // ---------------------------------------------------------------------------
+// Optional charge stage (charge != "").  Clusters the per-slice IBlobSet stream
+// and puts charge on the blobs, changing the island output to one ICluster.
+// ---------------------------------------------------------------------------
+
+local do_charge = charge != "";
+
+// The 2nd boundary source (drifted IDepoSet) exists only for the depofill join
+// (sources[1]); defined here so the charge chain below can reference it.
+local depo_src = if charge == "depofill" then sources[1] { data: {} } else null;
+
+// IBlobSet stream -> ICluster (one per frame).
+local clustering = {
+    type: "BlobClustering",
+    name: service_prefix + "blobclustering_" + a.name,
+    data: { policy: cluster_policy },
+};
+
+// SP: BlobGrouping (creates the measurement nodes) -> BlobSolving (estimates
+// blob charge from the measurements).
+local grouping = {
+    type: "BlobGrouping",
+    name: service_prefix + "blobgrouping_" + a.name,
+    data: {},
+};
+local solving = {
+    type: "BlobSolving",
+    name: service_prefix + "blobsolving_" + a.name,
+    data: {},
+};
+
+// splat "true": BlobDepoFill assigns true charge from the (drifted) depos.
+local depofill = {
+    type: "BlobDepoFill",
+    name: service_prefix + "blobdepofill_" + a.name,
+    data: {
+        speed:       det.lar.drift_speed,
+        time_offset: std.parseJson(depofill_time_offset),
+        nsigma:      std.parseJson(depofill_nsigma),
+        pindex:      std.parseInt(depofill_pindex),
+    },
+};
+
+// The charge-stage component chain and its internal edges (blobsync -> ... ->
+// last), plus the last node that feeds the boundary sink.
+local charge_solve = {
+    comps: [clustering, grouping, solving],
+    edges: [
+        { tail: { node: wc.tn(blobsync),   port: 0 }, head: { node: wc.tn(clustering), port: 0 } },
+        { tail: { node: wc.tn(clustering), port: 0 }, head: { node: wc.tn(grouping),   port: 0 } },
+        { tail: { node: wc.tn(grouping),   port: 0 }, head: { node: wc.tn(solving),    port: 0 } },
+    ],
+    last: solving,
+};
+
+local charge_depofill = {
+    comps: [clustering, depofill],
+    edges: [
+        { tail: { node: wc.tn(blobsync),   port: 0 }, head: { node: wc.tn(clustering), port: 0 } },
+        { tail: { node: wc.tn(clustering), port: 0 }, head: { node: wc.tn(depofill),   port: 0 } },
+        // The drifted depos arrive on the 2nd boundary source into port 1.
+        { tail: { node: wc.tn(depo_src),   port: 0 }, head: { node: wc.tn(depofill),   port: 1 } },
+    ],
+    last: depofill,
+};
+
+local charge_stage =
+    if charge == "solve" then charge_solve
+    else if charge == "depofill" then charge_depofill
+    else error "img.jsonnet: unknown charge mode '" + charge + "' (want '', 'solve' or 'depofill')";
+
+// ---------------------------------------------------------------------------
 // Boundary nodes
 // ---------------------------------------------------------------------------
 
@@ -219,27 +299,41 @@ local front_edges = if use_mask then [
       head: { node: wc.tn(slicer_comp), port: 0 } },
 ];
 
+// Tiling edges up to the BlobSetSync inputs (identical for every mode).
+local tiling_edges = [
+    { tail: { node: wc.tn(slicer_comp),  port: 0 },
+      head: { node: wc.tn(slice_fanout), port: 0 } },
+    { tail: { node: wc.tn(slice_fanout), port: 0 },
+      head: { node: wc.tn(tilings[0]),   port: 0 } },
+    { tail: { node: wc.tn(slice_fanout), port: 1 },
+      head: { node: wc.tn(tilings[1]),   port: 0 } },
+    { tail: { node: wc.tn(tilings[0]),   port: 0 },
+      head: { node: wc.tn(blobsync),     port: 0 } },
+    { tail: { node: wc.tn(tilings[1]),   port: 0 },
+      head: { node: wc.tn(blobsync),     port: 1 } },
+];
+
+// Terminal edges: either BlobSetSync straight to the sink (blobset output), or
+// through the charge stage (cluster output: ...-> last -> sink).
+local tail_edges = if do_charge then charge_stage.edges + [
+    { tail: { node: wc.tn(charge_stage.last), port: 0 },
+      head: { node: wc.tn(snk),               port: 0 } },
+] else [
+    { tail: { node: wc.tn(blobsync), port: 0 },
+      head: { node: wc.tn(snk),      port: 0 } },
+];
+
 [wires, anode] +
 (if use_mask then [waveform_map, charge_err] else []) +
-[slicer_comp, slice_fanout] + tilings + [blobsync, src, snk] +
+[slicer_comp, slice_fanout] + tilings + [blobsync] +
+(if do_charge then charge_stage.comps else []) +
+(if charge == "depofill" then [depo_src] else []) +
+[src, snk] +
 [
 {
     type: "Pgrapher",
     name: app_name,
     data: {
-        edges: front_edges + [
-            { tail: { node: wc.tn(slicer_comp),  port: 0 },
-              head: { node: wc.tn(slice_fanout), port: 0 } },
-            { tail: { node: wc.tn(slice_fanout), port: 0 },
-              head: { node: wc.tn(tilings[0]),   port: 0 } },
-            { tail: { node: wc.tn(slice_fanout), port: 1 },
-              head: { node: wc.tn(tilings[1]),   port: 0 } },
-            { tail: { node: wc.tn(tilings[0]),   port: 0 },
-              head: { node: wc.tn(blobsync),     port: 0 } },
-            { tail: { node: wc.tn(tilings[1]),   port: 0 },
-              head: { node: wc.tn(blobsync),     port: 1 } },
-            { tail: { node: wc.tn(blobsync),     port: 0 },
-              head: { node: wc.tn(snk),          port: 0 } },
-        ],
+        edges: front_edges + tiling_edges + tail_edges,
     },
 }]
