@@ -32,6 +32,7 @@
 #pragma once
 
 #include <WireCellIface/IBlobSet.h>
+#include <WireCellIface/ICluster.h>
 #include <WireCellIface/IDepo.h>
 #include <WireCellIface/IDepoSet.h>
 #include <WireCellIface/IFrame.h>
@@ -62,6 +63,7 @@ namespace wcphlex {
     using TensorSet = Data<WireCell::ITensorSet>;    // a set of named tensors
     using TrackSegmentSet = Data<WireCell::ITrackSegmentSet>;  // energy-deposit segments
     using BlobSet = Data<WireCell::IBlobSet>;        // one set of blobs (one time slice)
+    using Cluster = Data<WireCell::ICluster>;        // a 3D-imaging cluster graph (charged blobs)
 
     // Aggregate wrapper carrying a VECTOR of WCT immutable data pointers, for
     // products that are naturally a collection with no single WCT IData type.

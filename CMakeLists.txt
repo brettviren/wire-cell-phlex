@@ -196,6 +196,24 @@ target_link_libraries(wcph_frame_to_blobsets PRIVATE
 )
 target_compile_options(wcph_frame_to_blobsets PRIVATE -UNDEBUG)
 
+# Charged 3D-imaging island (SP): IFrame -> ICluster (BlobClustering+solving).
+add_library(wcph_frame_to_cluster MODULE modules/frame_to_cluster.cpp)
+target_link_libraries(wcph_frame_to_cluster PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcph_frame_to_cluster PRIVATE -UNDEBUG)
+
+# "True"-charge 3D-imaging island (splat): (IFrame,IDepoSet) -> ICluster (BlobDepoFill).
+add_library(wcph_frame_deposet_to_cluster MODULE modules/frame_deposet_to_cluster.cpp)
+target_link_libraries(wcph_frame_deposet_to_cluster PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcph_frame_deposet_to_cluster PRIVATE -UNDEBUG)
+
 # Step A: IDepoSet → IDepoSet filter module.
 add_library(wcph_deposet_filter MODULE modules/deposet_filter.cpp)
 target_link_libraries(wcph_deposet_filter PRIVATE

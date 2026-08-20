@@ -53,6 +53,7 @@
 #include <WireCellIface/IDepoSet.h>
 #include <WireCellIface/ITrackSegmentSet.h>
 #include <WireCellIface/IBlobSet.h>
+#include <WireCellIface/ICluster.h>
 
 #include <boost/json.hpp>
 
@@ -113,6 +114,15 @@ struct port_traits<WireCell::IBlobSet> {
     static constexpr const char* stem = "blobset"; // <type>: IBlobSet -> blobset
 };
 
+template <>
+struct port_traits<WireCell::ICluster> {
+    using source_iface = WireCell::ISourceNode<WireCell::ICluster>;
+    using sink_iface = WireCell::ISinkNode<WireCell::ICluster>;
+    static constexpr const char* src_class = "ClusterBoundarySource";
+    static constexpr const char* snk_class = "ClusterBoundarySink";
+    static constexpr const char* stem = "cluster"; // <type>: ICluster -> cluster
+};
+
 // The naming-convention <type> token for a WCT IData type (the "I" removed,
 // lower-cased): IFrame -> "frame", IDepoSet -> "deposet".
 template <class IType>
@@ -127,7 +137,9 @@ std::string type_stem()
 // only ever stores std::tuple<shared_ptr<...>> / std::tuple<Data<...>>, which
 // are concrete and fine.)
 template <class... Ts>
-struct type_list {};
+struct type_list {
+    static constexpr std::size_t size = sizeof...(Ts);
+};
 
 // Per-port WCT instance names, scoped so instances of different modules never
 // collide in the global WCT factory.  Shared by every shape.

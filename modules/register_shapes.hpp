@@ -174,6 +174,45 @@ void register_collect(Proxy& m, phlex::configuration const& config)
         .output_product_suffixes(transform_output_suffix(outputs[0], type_stem<Item>() + "s"));
 }
 
+// Register an N->1 HETEROGENEOUS join node (JoinExecutor<type_list<Ins...>,Out>).
+// Unlike a fan-in (homogeneous, dynamic multiplicity) the input types differ and
+// the count is a compile-time template constant.  Node name
+// "wcph_<in0>_<in1>..._to_<out>" (each input <type> token, then the output).
+// Reads one "inputs" selector per Ins (each its own creator/layer/suffix) and one
+// "outputs" element.  Used by the splat true-charge island
+// (JoinExecutor<type_list<IFrame,IDepoSet>,ICluster>: BlobDepoFill's (cluster,
+// depos) tuple, here the frame + drifted depos crossing two boundary sources).
+template <class InList, class Out>
+struct join_registrar;  // primary left undefined; specialised on type_list
+
+template <class... Ins, class Out>
+struct join_registrar<wcphlex::type_list<Ins...>, Out> {
+    template <class Proxy, std::size_t... Is>
+    static void go(Proxy& m, phlex::configuration const& config, std::index_sequence<Is...>)
+    {
+        const std::string node =
+            "wcph_" + ((type_stem<Ins>() + "_") + ...) + "to_" + type_stem<Out>();
+        auto inputs = read_ports(config, "inputs");
+        auto outputs = read_ports(config, "outputs");
+        check_arity(node, inputs.size(), sizeof...(Ins), outputs.size(), 1);
+
+        auto exec = std::make_shared<JoinExecutor<wcphlex::type_list<Ins...>, Out>>(
+            executor_config_from(config));
+
+        m.transform(node,
+                    [exec](Data<Ins> const&... ins) -> Data<Out> { return (*exec)(ins...); },
+                    phlex::concurrency::serial)
+            .input_family(input_selector(inputs[Is], type_stem<Ins>())...)
+            .output_product_suffixes(transform_output_suffix(outputs[0], type_stem<Out>()));
+    }
+};
+
+template <class InList, class Out, class Proxy>
+void register_join(Proxy& m, phlex::configuration const& config)
+{
+    join_registrar<InList, Out>::go(m, config, std::make_index_sequence<InList::size>{});
+}
+
 // Register a 1->0 sink node (SinkExecutor<In>).  Consumes a Data<In> and drives
 // a WCT sub-graph that terminates in a real WCT sink (e.g. a file writer); no
 // Phlex product is produced.  Node name "wcph_<in>_sink"; one "inputs" selector,

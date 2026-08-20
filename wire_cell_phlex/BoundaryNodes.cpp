@@ -27,6 +27,7 @@
 //   DepoSetBoundarySource / DepoSetBoundarySink
 //   TrackSegmentSetBoundarySource / TrackSegmentSetBoundarySink
 //   BlobSetBoundarySink (sink only)
+//   ClusterBoundarySink (sink only)
 
 #include "wire_cell_phlex/BoundarySource.hpp"
 #include "wire_cell_phlex/BoundarySink.hpp"
@@ -37,6 +38,7 @@
 #include <WireCellIface/IDepoSet.h>
 #include <WireCellIface/ITrackSegmentSet.h>
 #include <WireCellIface/IBlobSet.h>
+#include <WireCellIface/ICluster.h>
 #include <WireCellUtil/NamedFactory.h>
 
 // --- Frame boundary nodes ---------------------------------------------------
@@ -84,4 +86,15 @@ WIRECELL_FACTORY(TrackSegmentSetBoundarySink,
 WIRECELL_FACTORY(BlobSetBoundarySink,
                  wcphlex::BoundarySink<WireCell::ISinkNode<WireCell::IBlobSet>>,
                  WireCell::ISinkNode<WireCell::IBlobSet>,
+                 WireCell::IConfigurable)
+
+// --- Cluster boundary node --------------------------------------------------
+//
+// Sink only: the charged-imaging islands (frame_to_cluster / frame_deposet_to_
+// cluster) end their WCT sub-graph in a solved/filled ICluster collected through
+// this sink; no island drives a cluster boundary SOURCE.
+
+WIRECELL_FACTORY(ClusterBoundarySink,
+                 wcphlex::BoundarySink<WireCell::ISinkNode<WireCell::ICluster>>,
+                 WireCell::ISinkNode<WireCell::ICluster>,
                  WireCell::IConfigurable)
