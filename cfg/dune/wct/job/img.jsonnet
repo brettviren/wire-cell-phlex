@@ -42,8 +42,8 @@
 //   sum_tag        (string): "sum" slicer: trace tag to sum ("" = all traces)
 //   nthreshold     (string): "mask" slicer: per-plane slice threshold in units of
 //                            channel RMS, applied to all three planes (default "3.6")
-//   charge_tag / wiener_tag / error_tag (string): "mask" base trace tags
-//                            (per-anode ident is appended); defaults gauss/wiener/gauss_error
+//   charge_tag / wiener_tag / error_tag (string): "mask" trace tags, used as
+//                            given; defaults gauss/wiener/gauss_error (OSP defaults)
 //   charge_error_file (string): "mask" ChargeErrorFrameEstimator WaveformMap file
 //
 // Required WCT plugins: WireCellPgraph, WireCellImg (MaskSlices/SumSlices/
@@ -78,10 +78,14 @@ local span   = std.parseInt(tick_span);
 local nthr   = std.parseJson(nthreshold);   // number
 local use_mask = slicer == "mask";
 
-// Per-anode-ident trace tags used by the "mask" slicer.
-local ct = "%s%d" % [charge_tag, a.ident];
-local wt = "%s%d" % [wiener_tag, a.ident];
-local et = "%s%d" % [error_tag, a.ident];
+// Trace tags used by the "mask" slicer, taken AS GIVEN (no ident suffix): the
+// island is single-anode, and OmnibusSigProc tags its output traces with the
+// bare "gauss"/"wiener" by default (sim-sigproc.jsonnet uses those defaults).
+// A caller whose frame uses ident-suffixed tags (e.g. "gauss0") passes the full
+// tag via the charge_tag/wiener_tag/error_tag TLAs.
+local ct = charge_tag;
+local wt = wiener_tag;
+local et = error_tag;
 
 // ---------------------------------------------------------------------------
 // Service components
