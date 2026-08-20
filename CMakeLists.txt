@@ -187,6 +187,15 @@ target_link_libraries(wcph_tracksegmentset_to_frame PRIVATE
 )
 target_compile_options(wcph_tracksegmentset_to_frame PRIVATE -UNDEBUG)
 
+# 3D-imaging island: IFrame -> vector<IBlobSet> (collect shape).
+add_library(wcph_frame_to_blobsets MODULE modules/frame_to_blobsets.cpp)
+target_link_libraries(wcph_frame_to_blobsets PRIVATE
+  wire_cell_phlex
+  phlex::module
+  ${WIRECELL_RUNTIME_LIBS}
+)
+target_compile_options(wcph_frame_to_blobsets PRIVATE -UNDEBUG)
+
 # Step A: IDepoSet → IDepoSet filter module.
 add_library(wcph_deposet_filter MODULE modules/deposet_filter.cpp)
 target_link_libraries(wcph_deposet_filter PRIVATE

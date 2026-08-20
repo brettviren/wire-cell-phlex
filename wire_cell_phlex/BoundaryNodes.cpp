@@ -26,6 +26,7 @@
 //   FrameBoundarySource / FrameBoundarySink
 //   DepoSetBoundarySource / DepoSetBoundarySink
 //   TrackSegmentSetBoundarySource / TrackSegmentSetBoundarySink
+//   BlobSetBoundarySink (sink only)
 
 #include "wire_cell_phlex/BoundarySource.hpp"
 #include "wire_cell_phlex/BoundarySink.hpp"
@@ -35,6 +36,7 @@
 #include <WireCellIface/IFrame.h>
 #include <WireCellIface/IDepoSet.h>
 #include <WireCellIface/ITrackSegmentSet.h>
+#include <WireCellIface/IBlobSet.h>
 #include <WireCellUtil/NamedFactory.h>
 
 // --- Frame boundary nodes ---------------------------------------------------
@@ -71,4 +73,15 @@ WIRECELL_FACTORY(TrackSegmentSetBoundarySource,
 WIRECELL_FACTORY(TrackSegmentSetBoundarySink,
                  wcphlex::BoundarySink<WireCell::ISinkNode<WireCell::ITrackSegmentSet>>,
                  WireCell::ISinkNode<WireCell::ITrackSegmentSet>,
+                 WireCell::IConfigurable)
+
+// --- BlobSet boundary node --------------------------------------------------
+//
+// Only the sink is registered: the 3D-imaging island (CollectExecutor) consumes
+// an IFrame and COLLECTS the WCT imaging sub-graph's stream of IBlobSet through
+// this sink; no island currently drives a BlobSet boundary SOURCE.
+
+WIRECELL_FACTORY(BlobSetBoundarySink,
+                 wcphlex::BoundarySink<WireCell::ISinkNode<WireCell::IBlobSet>>,
+                 WireCell::ISinkNode<WireCell::IBlobSet>,
                  WireCell::IConfigurable)

@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <WireCellIface/IBlobSet.h>
 #include <WireCellIface/IDepo.h>
 #include <WireCellIface/IDepoSet.h>
 #include <WireCellIface/IFrame.h>
@@ -38,6 +39,8 @@
 #include <WireCellIface/ITensorSet.h>
 #include <WireCellIface/ITrackSegmentSet.h>
 #include <WireCellUtil/WireSchema.h>
+
+#include <vector>
 
 namespace wcphlex {
 
@@ -58,6 +61,22 @@ namespace wcphlex {
     using Tensor = Data<WireCell::ITensor>;          // a single named tensor
     using TensorSet = Data<WireCell::ITensorSet>;    // a set of named tensors
     using TrackSegmentSet = Data<WireCell::ITrackSegmentSet>;  // energy-deposit segments
+    using BlobSet = Data<WireCell::IBlobSet>;        // one set of blobs (one time slice)
+
+    // Aggregate wrapper carrying a VECTOR of WCT immutable data pointers, for
+    // products that are naturally a collection with no single WCT IData type.
+    // Like Data<IType>, each instantiation is a distinct C++ aggregate so PHLEX
+    // distinguishes products by typeid.  The "collect" shape executor
+    // (CollectExecutor<In,Item>) produces one of these: it runs a WCT sub-graph
+    // that emits a STREAM of Item and packs the whole stream into one product.
+    template <class IType>
+    struct DataVector {
+        std::vector<typename IType::pointer> items;
+    };
+
+    // The 3D-imaging island (IFrame -> stream of IBlobSet, one per time slice)
+    // collects its whole output stream into this single product.
+    using BlobSets = DataVector<WireCell::IBlobSet>;
 
     // Wire geometry schema loaded from a WCT wire file at the job layer.  Kept a
     // distinct struct (not a Data<IType>): it carries a WireSchema::Store, not an

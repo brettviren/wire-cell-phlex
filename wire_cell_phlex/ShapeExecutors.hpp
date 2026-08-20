@@ -52,6 +52,7 @@
 #include <WireCellIface/IFrame.h>
 #include <WireCellIface/IDepoSet.h>
 #include <WireCellIface/ITrackSegmentSet.h>
+#include <WireCellIface/IBlobSet.h>
 
 #include <boost/json.hpp>
 
@@ -101,6 +102,15 @@ struct port_traits<WireCell::ITrackSegmentSet> {
     static constexpr const char* src_class = "TrackSegmentSetBoundarySource";
     static constexpr const char* snk_class = "TrackSegmentSetBoundarySink";
     static constexpr const char* stem = "tracksegmentset"; // ITrackSegmentSet -> tracksegmentset
+};
+
+template <>
+struct port_traits<WireCell::IBlobSet> {
+    using source_iface = WireCell::ISourceNode<WireCell::IBlobSet>;
+    using sink_iface = WireCell::ISinkNode<WireCell::IBlobSet>;
+    static constexpr const char* src_class = "BlobSetBoundarySource";
+    static constexpr const char* snk_class = "BlobSetBoundarySink";
+    static constexpr const char* stem = "blobset"; // <type>: IBlobSet -> blobset
 };
 
 // The naming-convention <type> token for a WCT IData type (the "I" removed,
@@ -406,6 +416,54 @@ public:
 
 private:
     std::atomic<bool> m_ran{false};
+};
+
+// 1 -> collect : a transform whose WCT sub-graph emits a STREAM of Item (one per
+// input sub-unit — e.g. one IBlobSet per time slice), collected into a single
+// Phlex product DataVector<Item>.  Unlike FunctionExecutor (1 output drained per
+// input) this drains the WHOLE boundary-sink queue after one graph run.  Derives
+// directly from Executor (like the fans): one In boundary source, one Item
+// boundary sink.  Used by the 3D-imaging island (IFrame -> vector<IBlobSet>).
+template <class In, class Item>
+class CollectExecutor : public Executor {
+public:
+    explicit CollectExecutor(ExecutorConfig const& config)
+        : Executor(config)
+    {
+        std::vector<std::pair<std::string, std::string>> sources{
+            {port_traits<In>::src_class, port_source_name(m_scope, 0)}};
+        std::vector<std::pair<std::string, std::string>> sinks{
+            {port_traits<Item>::snk_class, port_sink_name(m_scope, 0)}};
+        inject_boundary_tlas(m_wcmain, sources, sinks);
+        initialize_now();
+    }
+
+    // Fill the input source, run the WCT graph once, then drain every Item the
+    // sub-graph produced (drain() returns nullptr when the queue is exhausted).
+    DataVector<Item> operator()(Data<In> const& in)
+    {
+        m_source->fill(in.ptr);
+        run_graph();
+        DataVector<Item> out;
+        while (auto item = m_sink->drain()) {
+            out.items.push_back(item);
+        }
+        return out;
+    }
+
+private:
+    void initialize_ports() override
+    {
+        m_source = find_boundary<typename port_traits<In>::source_iface,
+                                 BoundarySource<typename port_traits<In>::source_iface>>(
+            port_traits<In>::src_class, port_source_name(m_scope, 0));
+        m_sink = find_boundary<typename port_traits<Item>::sink_iface,
+                               BoundarySink<typename port_traits<Item>::sink_iface>>(
+            port_traits<Item>::snk_class, port_sink_name(m_scope, 0));
+    }
+
+    std::shared_ptr<BoundarySource<typename port_traits<In>::source_iface>> m_source;
+    std::shared_ptr<BoundarySink<typename port_traits<Item>::sink_iface>> m_sink;
 };
 
 } // namespace wcphlex

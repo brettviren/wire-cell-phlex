@@ -150,6 +150,30 @@ void register_function(Proxy& m, phlex::configuration const& config)
         .output_product_suffixes(transform_output_suffix(outputs[0], type_stem<Out>()));
 }
 
+// Register a 1->collect node (CollectExecutor<In,Item>).  The WCT sub-graph
+// emits a STREAM of Item (e.g. one IBlobSet per time slice); the whole stream is
+// collected into one DataVector<Item> product.  Node name
+// "wcph_<in>_to_<item>s" (item pluralised, since the product is a collection).
+// Reads one "inputs" selector and one "outputs" element; the output suffix
+// defaults to "<item>s" (e.g. "blobsets") but a config may override it (the
+// SPDIR imaging taps set suffix "blobs" to match the wc.blobs convert type).
+template <class In, class Item, class Proxy>
+void register_collect(Proxy& m, phlex::configuration const& config)
+{
+    const std::string node = "wcph_" + type_stem<In>() + "_to_" + type_stem<Item>() + "s";
+    auto inputs = read_ports(config, "inputs");
+    auto outputs = read_ports(config, "outputs");
+    check_arity(node, inputs.size(), 1, outputs.size(), 1);
+
+    auto exec = std::make_shared<CollectExecutor<In, Item>>(executor_config_from(config));
+
+    m.transform(node,
+                [exec](Data<In> const& in) -> DataVector<Item> { return (*exec)(in); },
+                phlex::concurrency::serial)
+        .input_family(input_selector(inputs[0], type_stem<In>()))
+        .output_product_suffixes(transform_output_suffix(outputs[0], type_stem<Item>() + "s"));
+}
+
 // Register a 1->0 sink node (SinkExecutor<In>).  Consumes a Data<In> and drives
 // a WCT sub-graph that terminates in a real WCT sink (e.g. a file writer); no
 // Phlex product is produced.  Node name "wcph_<in>_sink"; one "inputs" selector,
