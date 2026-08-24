@@ -123,12 +123,25 @@ local make_anode(a) =
 
         // OmnibusSigProc tuning.
         // PDVD uses ctoffset=4us and multi-plane protection; otherwise similar to PDHD.
+        //
+        // troi_col_th_factor lowered 5.0 -> 2.5 (xerosere ddm-tv6): the PDVD CRP
+        // collection electrode (strips on stacked PCBs with thru-hole "loop-back"
+        // collection) has a physically BROAD field response -- ~2-8x wider than a
+        // PDHD/PDSP collection (see tests/fr-path-sums.py), so the deconvolved
+        // collection is low-amplitude.  At the production 5.0 sigma the collection
+        // tight-ROI finder produced NO collection output at all (W plane empty ->
+        // 3-view tiling found 0 blobs).  A threshold scan (norminal FR, single
+        // ideal line) recovers the collection: 5.0->0, 3.0->270, 2.5->416,
+        // 2.0->819 W-plane ROI traces/event; 2.5 recovers the plane at the best
+        // imaging (27 img_sp blobs) with less added noise than 2.0.  Production
+        // dunereco keeps 5.0 because it uses DNNROI, not this bare-OSP ROI finder.
+        // PROVISIONAL pending FR/response review with the detector experts.
         sigproc: {
             ctoffset:    4.0 * wc.us,
             ftoffset:    0.0,
             postgain:    1.0,
             fft_flag:    0,
-            troi_col_th_factor: 5.0,
+            troi_col_th_factor: 2.5,
             troi_ind_th_factor: 3.0,
             lroi_rebin:         6,
             lroi_th_factor:     3.5,
