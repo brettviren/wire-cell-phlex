@@ -33,9 +33,11 @@ function(
                                  // (depos are ALREADY drifted by a shared upstream
                                  // drift island — skip the internal DepoSetDrifter,
                                  // xerosere SPDIR ddm-179)
+    sp_wiener      = "native",   // PDHD only: "native" (default) or "narrow" (PDSP-
+                                 // tuned Wiener for the bare-OSP path; ddm-3bu.9)
 )
 
-local det = dets[detector]({detname: detector});
+local det = dets[detector]({detname: detector, sp_wiener: sp_wiener});
 local ai  = std.parseInt(anode_index);
 local a   = det.anodes[ai];
 local sp  = a.sigproc;

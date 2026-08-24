@@ -65,6 +65,13 @@ local elec_gain = std.get(params, "elec_gain", 14.0) * wc.mV / wc.fC;
 // ---------------------------------------------------------------------------
 local apa0_asbuilt = std.get(params, "apa0_asbuilt", false);
 
+// SP Wiener-filter set (xerosere ddm-3bu.9).  "native" (default) keeps the
+// production-faithful (broad) PDHD Wiener_tight filters, tuned for the np04hd
+// response + DNNROI.  "narrow" swaps in the PDSP-tuned narrow Wiener for the
+// bare-OmnibusSigProc path, which otherwise floods the U/V induction planes with
+// noise ROIs (generic-response / broad-Wiener mismatch).  See sp-filters-narrow.jsonnet.
+local sp_wiener = std.get(params, "sp_wiener", "native");
+
 // ---------------------------------------------------------------------------
 // Assemble per-anode entries
 // ---------------------------------------------------------------------------
@@ -138,21 +145,26 @@ local make_anode(n) =
         // The as-built APA0 (apa0_asbuilt) differs from the others in:
         // plane2layer and Wiener filter names.
         //
-        // NOTE on r_th_factor / troi_col_th_factor:
-        // dunereco/DUNEWireCell/pdhd/sp.jsonnet (in the dunereco repo) uses
-        //   r_th_factor=2.5 for APA0 and troi_col_th_factor=5.0.
-        // However, wcls-rawdigit-sp.jsonnet imports sp.jsonnet via the absolute
-        // WIRECELL_PATH path 'pgrapher/experiment/pdhd/sp.jsonnet', which
-        // resolves to the toolkit's sp.jsonnet (not dunereco's).
-        // The toolkit sp.jsonnet has r_th_factor=3.0 for all APAs and
-        // troi_col_th_factor=2.5.  We use the toolkit values here because that
-        // is what production LArSoft jobs actually execute.
+        // NOTE on troi_col_th_factor (xerosere ddm-3bu.9):
+        // The toolkit pgrapher/experiment/pdhd/sp.jsonnet uses
+        //   troi_col_th_factor = 5.0  (its comment: "// default 5").
+        // An earlier transcription here used 2.5 (with a comment that
+        // misquoted the toolkit as 2.5).  2.5 sigma tight-ROI finding on the
+        // collection plane floods the W plane with noise ROIs: on a single
+        // ideal line in APA0, W collection gave 32491 gauss ROIs at 2.5 vs
+        // 216 (real signal only) at 5.0.  Use the toolkit value 5.0.
+        //
+        // (Induction troi_ind_th_factor=3.0 already matches the toolkit.  The
+        // toolkit APA0 additionally lowers r_th_factor to 2.5 and enables the
+        // permissive APA0 W ROI-tune / roi_mad_rms / L1SPFilterPD to recover
+        // the anomalous APA0 W signal; those RAISE ROI count and are
+        // intentionally NOT reproduced by this bare-OSP config.)
         sigproc: {
             ctoffset:    1.0 * wc.us,
             ftoffset:    0.0,
             postgain:    1.0,
             fft_flag:    0,
-            troi_col_th_factor: 2.5,
+            troi_col_th_factor: 5.0,
             troi_ind_th_factor: 3.0,
             lroi_rebin:         6,
             lroi_th_factor:     3.5,
@@ -232,7 +244,9 @@ local sim_defaults = {
     anodes: [make_anode(n) for n in std.range(0, 3)],
 
     // SP filter components (detector-tuned; names hard-coded in C++)
-    sp_filters: import "sp-filters.jsonnet",
+    sp_filters: if sp_wiener == "narrow"
+        then import "sp-filters-narrow.jsonnet"
+        else import "sp-filters.jsonnet",
 
     // Optional response systematics (off by default)
     sys_status: false,
