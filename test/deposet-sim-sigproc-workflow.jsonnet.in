@@ -15,6 +15,7 @@
   //   source/sink: WireCellSio
   //   transform:   WireCellPgraph, WireCellGen, WireCellSigProc, WireCellAux
 
+  stage: 'deposet-sim-sigproc',  // the job's stage name (required since Phlex 0.4)
   driver: {
     cpp: 'generate_layers',
     layers: {

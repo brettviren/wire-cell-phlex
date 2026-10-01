@@ -41,5 +41,5 @@ PHLEX_REGISTER_PROVIDERS(m, config)
                       WireCell::IDepo::vector{});
                   return wcphlex::DepoSet{std::move(ds)};
               })
-      .output_product("input", "deposet", experimental::identifier{layer});
+      .output_product("input", "deposet", layer.c_str());  // char const* -> identifier (public)
 }

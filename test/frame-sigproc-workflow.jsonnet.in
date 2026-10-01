@@ -16,6 +16,7 @@
   //   source/sink: WireCellSio
   //   filter:      WireCellGen, WireCellSigProc, WireCellAux
 
+  stage: 'frame-sigproc',  // the job's stage name (required since Phlex 0.4)
   driver: {
     cpp: 'generate_layers',
     layers: {

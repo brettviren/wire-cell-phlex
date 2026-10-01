@@ -11,7 +11,7 @@
 #   wire_cell_phlex::wire_cell_phlex  — the integration shared library
 
 include(CMakeFindDependencyMacro)
-find_dependency(phlex REQUIRED)
+find_dependency(phlex 0.4.1 REQUIRED)
 find_dependency(WireCell REQUIRED)
 find_dependency(Boost REQUIRED COMPONENTS json)
 find_dependency(boost_config REQUIRED)

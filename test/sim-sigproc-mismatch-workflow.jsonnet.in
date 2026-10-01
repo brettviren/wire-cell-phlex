@@ -33,6 +33,7 @@
   //                                    protodune-noise-spectra-v1.json.bz2,
   //                                    wirecell.jsonnet)
 
+  stage: 'sim-sigproc-mismatch',  // the job's stage name (required since Phlex 0.4)
   driver: {
     cpp: 'generate_layers',
     layers: {

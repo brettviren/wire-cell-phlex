@@ -12,6 +12,7 @@
   // (for wirecell.jsonnet used by deposet-drifter.jsonnet).
   // Requires WireCellSio and WireCellGen plugins.
 
+  stage: 'deposet-drifter',  // the job's stage name (required since Phlex 0.4)
   driver: {
     cpp: 'generate_layers',
     layers: {

@@ -15,6 +15,7 @@
   //                                    dune-garfield-1d565.json.bz2, wirecell.jsonnet)
   // Required WCT plugins: WireCellPgraph, WireCellGen, WireCellSigProc, WireCellAux, WireCellSio
 
+  stage: 'deposet-sim',  // the job's stage name (required since Phlex 0.4)
   driver: {
     cpp: 'generate_layers',
     layers: {

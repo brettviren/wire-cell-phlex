@@ -30,6 +30,7 @@ function(
 local ai_str = "%d" % anode_index;  // PHLEX wct_tla requires string values
 
 {
+    stage: 'segments-sim-sigproc',  // the job's stage name (required since Phlex 0.4)
     driver: {
         cpp: "generate_layers",
         layers: {

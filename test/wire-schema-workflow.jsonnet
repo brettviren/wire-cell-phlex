@@ -10,6 +10,7 @@
   //     WireCell::Main instance — only WIRECELL_PATH is required.
   //   - Job-layer observer consuming the same layer product.
 
+  stage: 'wire-schema',  // the job's stage name (required since Phlex 0.4)
   driver: {
     cpp: 'generate_layers',
     layers: {

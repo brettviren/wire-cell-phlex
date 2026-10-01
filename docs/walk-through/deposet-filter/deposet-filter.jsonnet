@@ -42,6 +42,7 @@ phlex.workflow(
   phlex.generate_layers({ event: { parent: 'job', total: 3, starting_number: 1 } }),
   nodes=[filt],
   sources=[src],
+  stage='deposet-filter',  // required since Phlex 0.4
 ) + {
   modules+: {
     deposet_observer: {

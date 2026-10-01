@@ -27,13 +27,17 @@
 // product, and PHLEX uses dynamic_cast for type-safe retrieval.
 
 #include "wire_cell_phlex/Data.hpp"
-#include "phlex/model/type_id.hpp"
+#include "phlex/model/type_id.hpp"  // phlex::experimental::make_type_id
 
 #include <cassert>
 #include <iostream>
 #include <string>
 
-using phlex::detail::make_type_id;
+// This test checks how Phlex's own structural type system sees our wrapper
+// types, so it necessarily names it: make_type_id moved from phlex::detail to
+// the (public, but not yet stable) phlex::experimental namespace in Phlex 0.4.
+// Test-only; the library and plugins never name it.
+using phlex::experimental::make_type_id;
 
 // ---- helpers ----------------------------------------------------------------
 

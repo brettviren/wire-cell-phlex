@@ -8,6 +8,7 @@
   //
   // Requires WIRECELL_PATH to include wire-cell-phlex/cfg/.
 
+  stage: 'deposet-to-frame',  // the job's stage name (required since Phlex 0.4)
   driver: {
     cpp: 'generate_layers',
     layers: {

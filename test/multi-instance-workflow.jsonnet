@@ -12,6 +12,7 @@
   //     its module_label, preventing factory aliasing.
   //   - output_suffix differentiates the two source streams within the same layer.
 
+  stage: 'multi-instance',  // the job's stage name (required since Phlex 0.4)
   driver: {
     cpp: 'generate_layers',
     layers: {

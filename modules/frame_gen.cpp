@@ -44,5 +44,5 @@ PHLEX_REGISTER_PROVIDERS(m, config)
                       static_cast<int>(id.number()));
                   return wcphlex::Frame{std::move(frame)};
               })
-      .output_product("input", experimental::identifier{suffix}, experimental::identifier{layer});
+      .output_product("input", suffix.c_str(), layer.c_str());  // char const* -> identifier (public)
 }

@@ -40,6 +40,7 @@ local with_log = {
 };
 
 {
+    stage: 'sigproc',  // the job's stage name (required since Phlex 0.4)
     driver: {
         cpp: "generate_layers",
         layers: {

@@ -75,7 +75,7 @@ inline ExecutorConfig executor_config_from(phlex::configuration const& config)
 // must equal the shape's port arity.
 //
 // A transform's output creator is fixed to the node's own (module) label and
-// its output layer to the input's layer (Phlex 0.3.2 declared_transform.hpp),
+// its output layer to the input's layer (Phlex declared_transform.hpp),
 // so a transform "outputs" element may set only "suffix"; setting "creator" or
 // "layer" there is a configuration error (option A).  A source (provider)
 // output honors all three fields.
@@ -109,9 +109,12 @@ inline phlex::product_selector input_selector(phlex::configuration const& e,
     if (auto c = e.get_if_present<std::string>("creator"); c && !c->empty()) {
         sel.creator = *c;
     }
-    sel.suffix = phlex::experimental::identifier{e.get<std::string>("suffix", std::string{default_suffix})};
+    // The selector's suffix/stage are phlex identifiers, built from char const*
+    // through phlex's implicit (public) conversion -- no experimental spelling.
+    auto const suffix = e.get<std::string>("suffix", std::string{default_suffix});
+    sel.suffix = suffix.c_str();
     if (auto st = e.get_if_present<std::string>("stage")) {
-        sel.stage = phlex::experimental::identifier{*st};
+        sel.stage = st->c_str();
     }
     return sel;
 }
@@ -261,14 +264,13 @@ void register_source(Proxy& m, phlex::configuration const& config)
 
     m.provide(node,
               [exec](phlex::data_cell_index const&) -> Data<Out> { return (*exec)(); })
-        .output_product(creator, phlex::experimental::identifier{suffix},
-                        phlex::experimental::identifier{layer});
+        .output_product(creator, suffix.c_str(), layer.c_str());  // char const* -> identifier
 }
 
 // ---------------------------------------------------------------------------
 // Fans.
 //
-// Phlex 0.3.2 retrieves exactly one product per input parameter
+// Phlex (0.3.2 .. 0.4.1) retrieves exactly one product per input parameter
 // (phlex/core/input_arguments.hpp), so a node's port count is its compile-time
 // function arity — a product family cannot be gathered into one std::vector
 // argument.  A fan's multiplicity is therefore a template constant N on the

@@ -11,6 +11,7 @@
   // Run with PHLEX_PLUGIN_PATH pointing to the build directory:
   //   WIRECELL_PATH=<src>/cfg PHLEX_PLUGIN_PATH=<build> phlex -c frame-filter-workflow.jsonnet
 
+  stage: 'frame-filter',  // the job's stage name (required since Phlex 0.4)
   driver: {
     cpp: 'generate_layers',
     layers: {

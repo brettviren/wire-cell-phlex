@@ -41,7 +41,7 @@ link_directories(BEFORE "${_stdc_dir}")
 string(APPEND CMAKE_EXE_LINKER_FLAGS " -Wl,-rpath,${_stdc_dir}")
 
 find_package(TBB REQUIRED)
-find_package(phlex REQUIRED)
+find_package(phlex 0.4.1 REQUIRED)
 find_package(WireCell REQUIRED)
 find_package(Boost REQUIRED COMPONENTS json)
 # Header-only config-schema helpers (Documented<T>, boost::json (de)serialization,
