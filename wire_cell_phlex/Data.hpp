@@ -41,6 +41,10 @@
 #include <WireCellIface/ITrackSegmentSet.h>
 #include <WireCellUtil/WireSchema.h>
 
+#include "wire_cell_phlex/GdmlWires.hpp"
+
+#include <memory>
+
 #include <vector>
 
 namespace wcphlex {
@@ -86,6 +90,12 @@ namespace wcphlex {
     // cheap; a default-constructed store is null, a loaded one has non-empty wires().
     struct WireSchema {
         WireCell::WireSchema::Store store;
+    };
+
+    // Drift geometry per face (collection plane, cathode, drift sign), made at
+    // the job layer from GDML (gdmlwires::drift_faces).  Shared and immutable.
+    struct DriftFaces {
+        std::shared_ptr<const gdmlwires::DriftFaces> faces;
     };
 
 } // namespace wcphlex

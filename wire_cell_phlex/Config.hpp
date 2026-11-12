@@ -60,6 +60,10 @@ struct ExecutorConfig {
         "", "WCT log destination: 'stdout', 'stderr', or a file path. Empty = none."};
     Documented<std::string> wct_log_level{
         "", "WCT log level ('warn', 'info', 'debug', ...). Only used with wct_log_sink."};
+    Documented<std::string> geometry_key{
+        "", "If set, the node takes job-layer geometry products (wire schema, drift faces), "
+            "registers them under this key for the FacadeWireSchema/FacadeDriftPlanes WCT "
+            "components, and configures WCT on its first call instead of at construction."};
 };
 
 } // namespace wcphlex

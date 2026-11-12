@@ -68,12 +68,10 @@ add_library(wire_cell_phlex SHARED
   wire_cell_phlex/BoundaryNodes.cpp
   wire_cell_phlex/TrivialDepoFramer.cpp
   wire_cell_phlex/GdmlWires.cpp
-  # FacadeWireSchema is DISABLED: it side-channels a WireSchema into WCT's
-  # configure-time IWireSchema service, which requires deferred (first-event)
-  # initialization.  We now initialize WCT graphs at construction time (see
-  # Executor.hpp), which is incompatible with that path.  Retained on disk for a
-  # future split-initialize()/main-thread-hook design (ddm-4or.4); not built.
-  # wire_cell_phlex/FacadeWireSchema.cpp
+  # WCT IWireSchema/IDriftPlanes components fed from Phlex geometry products;
+  # used by executors with a geometry_key (WCT configured on the first call,
+  # WireCell::Main::init_configure).
+  wire_cell_phlex/FacadeWireSchema.cpp
 )
 
 target_include_directories(wire_cell_phlex
@@ -140,6 +138,10 @@ target_link_libraries(wcph_two_frame_observer PRIVATE
 target_compile_options(wcph_two_frame_observer PRIVATE -UNDEBUG)
 
 # Step 8: job-layer wire geometry source and observer.
+add_library(wcph_gdml_geometry MODULE modules/gdml_geometry.cpp)
+target_include_directories(wcph_gdml_geometry PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(wcph_gdml_geometry PRIVATE wire_cell_phlex phlex::module ${WIRECELL_RUNTIME_LIBS})
+
 add_library(wcph_wire_schema_source MODULE modules/wire_schema_source.cpp)
 target_link_libraries(wcph_wire_schema_source PRIVATE
   wire_cell_phlex
@@ -737,6 +739,7 @@ foreach(_mod IN ITEMS
     wcph_frame_fanin_sink
     wcph_wire_schema_source
     wcph_wire_schema_observer
+    wcph_gdml_geometry
 )
   install(TARGETS ${_mod}
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"

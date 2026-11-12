@@ -35,6 +35,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -61,6 +62,9 @@ inline ExecutorConfig executor_config_from(phlex::configuration const& config)
         if (std::string(ec.module_label).empty()) {
             ec.module_label = *ml;
         }
+    }
+    if (auto const geo = config.get_if_present<phlex::configuration>("geometry")) {
+        ec.geometry_key = geo->get<std::string>("key", "geometry");
     }
     return ec;
 }
@@ -133,6 +137,27 @@ inline std::string transform_output_suffix(phlex::configuration const& e,
     return e.get<std::string>("suffix", std::string{default_suffix});
 }
 
+// Optional "geometry" config of a shape node:
+//
+//   geometry: { key: "geometry",
+//               wire_schema: { creator, layer: "job", suffix: "wire_schema" },
+//               drift_faces: { creator, layer: "job", suffix: "drift_faces" } }
+//
+// With it the node also takes the two job-layer products (made e.g. by the
+// wcph_gdml_geometry transforms), gives them to WCT through the GeoRegistry
+// and configures WCT on its first call.  Only register_function supports it
+// so far.
+inline std::optional<std::pair<phlex::product_selector, phlex::product_selector>>
+geometry_selectors(phlex::configuration const& config)
+{
+    auto geo = config.get_if_present<phlex::configuration>("geometry");
+    if (!geo) {
+        return std::nullopt;
+    }
+    return std::make_pair(input_selector(geo->get<phlex::configuration>("wire_schema"), "wire_schema"),
+                          input_selector(geo->get<phlex::configuration>("drift_faces"), "drift_faces"));
+}
+
 // Register a 1->1 function node (FunctionExecutor<In,Out>).  Node name
 // "wcph_<in>_to_<out>".  Reads one "inputs" selector and one "outputs" element
 // (suffixes default to the port type <stem>s).
@@ -145,6 +170,19 @@ void register_function(Proxy& m, phlex::configuration const& config)
     check_arity(node, inputs.size(), 1, outputs.size(), 1);
 
     auto exec = std::make_shared<FunctionExecutor<In, Out>>(executor_config_from(config));
+
+    // Optional job-layer geometry inputs (see geometry_selectors()).
+    if (auto geo = geometry_selectors(config)) {
+        m.transform(node,
+                    [exec](WireSchema const& ws, DriftFaces const& df, Data<In> const& in) -> Data<Out> {
+                        exec->provide_geometry(ws, df);
+                        return (*exec)(in);
+                    },
+                    phlex::concurrency::serial)
+            .input_family(geo->first, geo->second, input_selector(inputs[0], type_stem<In>()))
+            .output_product_suffixes(transform_output_suffix(outputs[0], type_stem<Out>()));
+        return;
+    }
 
     m.transform(node,
                 [exec](Data<In> const& in) -> Data<Out> { return (*exec)(in); },

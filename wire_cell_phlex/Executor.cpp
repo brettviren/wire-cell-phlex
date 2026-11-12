@@ -35,6 +35,7 @@
 #include "wire_cell_phlex/Data.hpp"
 #include "wire_cell_phlex/BoundarySource.hpp"
 #include "wire_cell_phlex/BoundarySink.hpp"
+#include "wire_cell_phlex/FacadeWireSchema.hpp"
 
 #include <WireCellUtil/NamedFactory.h>
 
@@ -117,6 +118,8 @@ Executor::Executor(ExecutorConfig const& config)
     m_log_sink = config.wct_log_sink;
     m_log_level = config.wct_log_level;
 
+    m_geometry_key = config.geometry_key;
+
     // Compute app instance name and register it.  All subclasses use the same
     // pattern: m_scope + "_pgrapher".  Subclass constructors only need to add
     // their boundary-node TLAs (source_name, sink_name, etc.).
@@ -143,8 +146,36 @@ void Executor::initialize_now()
     // WireCell::Main::initialize() calls to race over WCT's non-thread-safe
     // global factory.
     setup_debug_logging();
+    if (!m_geometry_key.empty()) {
+        // Everything but configuring components: the Jsonnet evaluation
+        // (go-jsonnet) and plugin loading happen here, on the main thread.
+        // init_configure() follows on the first provide_geometry().
+        m_wcmain.init_preconfig();
+        return;
+    }
     m_wcmain.initialize();
     initialize_ports();   // virtual: each subclass finds its boundary nodes here
+    m_configured = true;
+}
+
+void Executor::provide_geometry(WireSchema const& ws, DriftFaces const& df)
+{
+    if (m_geometry_key.empty()) {
+        throw std::runtime_error("Executor: provide_geometry() on a node without geometry_key");
+    }
+    const void* id = ws.store.db().get();
+    if (m_configured) {
+        if (id != m_geometry_id) {
+            throw std::runtime_error("Executor " + m_scope +
+                                     ": geometry products changed after WCT was configured");
+        }
+        return;
+    }
+    GeoRegistry::put(m_geometry_key, ws, df);
+    m_wcmain.init_configure();  // serialized across all Mains by WCT
+    initialize_ports();
+    m_geometry_id = id;
+    m_configured = true;
 }
 
 void Executor::initialize_ports()

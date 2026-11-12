@@ -113,6 +113,13 @@ public:
     Executor(Executor const&)            = delete;
     Executor& operator=(Executor const&) = delete;
 
+    // For a node with geometry inputs (geometry_key set): call before each
+    // operator() with the job-layer geometry products.  The first call
+    // registers them (GeoRegistry) and configures WCT
+    // (Main::init_configure) on the calling thread; later calls check that
+    // the geometry is the same objects and throw otherwise.
+    void provide_geometry(WireSchema const& ws, DriftFaces const& df);
+
 protected:
     WireCell::Main m_wcmain;
     std::string    m_app_type{"Pgrapher"}; // from wct_app; used to build add_app() name
@@ -135,6 +142,13 @@ protected:
 
     // Log level string (e.g. "warn", "info", "debug").  Empty = no level set.
     std::string m_log_level;
+
+    // Geometry key (ExecutorConfig::geometry_key).  Non-empty: WCT is only
+    // pre-configured at construction (Main::init_preconfig) and configured on
+    // the first provide_geometry().
+    std::string m_geometry_key;
+    bool m_configured{false};
+    const void* m_geometry_id{nullptr};
 
     // Build and configure the WCT graph, then bind boundary ports.  Called once,
     // as the final step of each concrete executor's constructor (main thread,
