@@ -24,13 +24,17 @@ function(
 
 local src = sources[0];
 
+// The sink's name follows the (per-module) app name: WCT components are
+// process-wide by type:name, so two sink modules must not share one.
+local sink_name = app_name + "_file_sink";
+
 [
     src { data: {} },
 
     // WCT file sink: writes depo sets to disk.  finalize() closes the stream.
     {
         type: "DepoFileSink",
-        name: "file_sink",
+        name: sink_name,
         data: {
             outname: outname,
         },
@@ -42,7 +46,7 @@ local src = sources[0];
         data: { edges: [
             {
                 tail: { node: src.type + ":" + src.name, port: 0 },
-                head: { node: "DepoFileSink:file_sink",  port: 0 },
+                head: { node: "DepoFileSink:" + sink_name, port: 0 },
             },
         ]},
     },
