@@ -43,6 +43,8 @@ string(APPEND CMAKE_EXE_LINKER_FLAGS " -Wl,-rpath,${_stdc_dir}")
 find_package(TBB REQUIRED)
 find_package(phlex 0.4.1 REQUIRED)
 find_package(WireCell REQUIRED)
+# GDML model for the GDML -> WireSchema / DriftPlanes transforms.
+find_package(gdml_objects 0.1 REQUIRED)
 find_package(Boost REQUIRED COMPONENTS json)
 # Header-only config-schema helpers (Documented<T>, boost::json (de)serialization,
 # Jsonnet factory).  Public: wire_cell_phlex/Config.hpp is included by the public
@@ -65,6 +67,7 @@ add_library(wire_cell_phlex SHARED
   wire_cell_phlex/Executor.cpp
   wire_cell_phlex/BoundaryNodes.cpp
   wire_cell_phlex/TrivialDepoFramer.cpp
+  wire_cell_phlex/GdmlWires.cpp
   # FacadeWireSchema is DISABLED: it side-channels a WireSchema into WCT's
   # configure-time IWireSchema service, which requires deferred (first-event)
   # initialization.  We now initialize WCT graphs at construction time (see
@@ -89,6 +92,7 @@ target_link_libraries(wire_cell_phlex
     Boost::json
     boost_config::boost_config
     phlex_config::phlex_config
+    gdml_objects::gdml_objects
 )
 
 # ---------------------------------------------------------------------------
@@ -311,6 +315,11 @@ target_compile_options(wcph_frame_fanin_sink PRIVATE -UNDEBUG)
 # Tests
 # ---------------------------------------------------------------------------
 enable_testing()
+
+# GDML -> WireSchema check tool.  With a reference wires file it compares
+# wire by wire (see test/gdml_wires_check.cpp); run by hand on large files.
+add_executable(gdml_wires_check test/gdml_wires_check.cpp)
+target_link_libraries(gdml_wires_check PRIVATE wire_cell_phlex)
 add_subdirectory(test)
 
 # Step 5: PHLEX integration test — frame source → WCT passthrough → done.
