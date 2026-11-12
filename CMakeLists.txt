@@ -353,15 +353,36 @@ foreach(_prefix IN LISTS CMAKE_PREFIX_PATH)
   endif()
 endforeach()
 
+# WCT's own Jsonnet library (wirecell.jsonnet, pgraph.jsonnet ...) is
+# installed in WCT's prefix, which need not hold the data files: a WCT built
+# from source installs only the Jsonnet, while the data come from
+# wire-cell-data (e.g. in the Spack view).  So find it from the WireCell
+# package that was found, and put it on WIRECELL_PATH ahead of the data dir.
+set(_wct_cfg_dir "")
+get_filename_component(_wct_prefix "${WireCell_INCLUDE_DIR}/.." ABSOLUTE)
+if(EXISTS "${_wct_prefix}/share/wirecell/wirecell.jsonnet")
+  set(_wct_cfg_dir "${_wct_prefix}/share/wirecell")
+endif()
+message(STATUS "wire-cell-phlex tests: WCT jsonnet in '${_wct_cfg_dir}', WCT data in '${_wct_data_dir}'")
+
+set(_wct_path "${CMAKE_CURRENT_SOURCE_DIR}/cfg")
+if(_wct_cfg_dir)
+  string(APPEND _wct_path ":${_wct_cfg_dir}")
+endif()
+set(_wct_path_with_data "${_wct_path}")
+if(_wct_data_dir AND NOT _wct_data_dir STREQUAL _wct_cfg_dir)
+  string(APPEND _wct_path_with_data ":${_wct_data_dir}")
+endif()
+
 set(_phlex_env
   "PHLEX_PLUGIN_PATH=${CMAKE_CURRENT_BINARY_DIR}:${_phlex_lib_dir}"
-  "WIRECELL_PATH=${CMAKE_CURRENT_SOURCE_DIR}/cfg"
+  "WIRECELL_PATH=${_wct_path}"
 )
 
 # Env for tests that need WCT shared data (wire geometry files).
 set(_phlex_env_with_data
   "PHLEX_PLUGIN_PATH=${CMAKE_CURRENT_BINARY_DIR}:${_phlex_lib_dir}"
-  "WIRECELL_PATH=${CMAKE_CURRENT_SOURCE_DIR}/cfg:${_wct_data_dir}"
+  "WIRECELL_PATH=${_wct_path_with_data}"
 )
 
 add_test(NAME phlex_frame_filter
