@@ -12,6 +12,7 @@
 //   sinks    — array (empty: the terminal is the real FrameFileSink, not a boundary)
 //   app_name — instance name for the Pgrapher application
 //   outname  — output file path (passed via wct_tla from the module config)
+//   tags     — trace tags to write ("*" default; see below)
 //
 // Required WCT plugins: WireCellPgraph, WireCellSio
 
@@ -20,7 +21,14 @@ function(
     sinks    = [],
     app_name = "wcphlex_pgrapher",
     outname  = "frames-out.npz",
+    // Trace tags to write, comma separated (a Phlex TLA is a string) or an
+    // array.  "*" writes all traces of a frame as one array, summing traces
+    // of different tags on the same channel: give the tags of a frame that
+    // carries several (e.g. "gauss,wiener" for signal processing output).
+    tags     = "*",
 )
+
+local tag_list = if std.isArray(tags) then tags else std.split(tags, ",");
 
 local src = sources[0];
 
@@ -38,7 +46,7 @@ local sink_name = app_name + "_file_sink";
         name: sink_name,
         data: {
             outname: outname,
-            tags: ["*"],       // write all trace tags
+            tags: tag_list,
             digitize: false,   // float output (not int16)
         },
     },
