@@ -141,7 +141,7 @@ inline std::string transform_output_suffix(phlex::configuration const& e,
 //
 //   geometry: { key: "geometry",
 //               wire_schema: { creator, layer: "job", suffix: "wire_schema" },
-//               drift_faces: { creator, layer: "job", suffix: "drift_faces" } }
+//               drift_planes: { creator, layer: "job", suffix: "drift_planes" } }
 //
 // With it the node also takes the two job-layer products (made e.g. by the
 // wcph_gdml_geometry transforms), gives them to WCT through the GeoRegistry
@@ -155,7 +155,7 @@ geometry_selectors(phlex::configuration const& config)
         return std::nullopt;
     }
     return std::make_pair(input_selector(geo->get<phlex::configuration>("wire_schema"), "wire_schema"),
-                          input_selector(geo->get<phlex::configuration>("drift_faces"), "drift_faces"));
+                          input_selector(geo->get<phlex::configuration>("drift_planes"), "drift_planes"));
 }
 
 // Register a 1->1 function node (FunctionExecutor<In,Out>).  Node name
@@ -174,7 +174,7 @@ void register_function(Proxy& m, phlex::configuration const& config)
     // Optional job-layer geometry inputs (see geometry_selectors()).
     if (auto geo = geometry_selectors(config)) {
         m.transform(node,
-                    [exec](WireSchema const& ws, DriftFaces const& df, Data<In> const& in) -> Data<Out> {
+                    [exec](WireSchema const& ws, DriftPlanes const& df, Data<In> const& in) -> Data<Out> {
                         exec->provide_geometry(ws, df);
                         return (*exec)(in);
                     },

@@ -61,7 +61,7 @@ struct ExecutorConfig {
     Documented<std::string> wct_log_level{
         "", "WCT log level ('warn', 'info', 'debug', ...). Only used with wct_log_sink."};
     Documented<std::string> geometry_key{
-        "", "If set, the node takes job-layer geometry products (wire schema, drift faces), "
+        "", "If set, the node takes job-layer geometry products (wire schema, drift planes), "
             "registers them under this key for the FacadeWireSchema/FacadeDriftPlanes WCT "
             "components, and configures WCT on its first call instead of at construction."};
 };

@@ -47,13 +47,13 @@ namespace wcphlex {
        public:
         struct Entry {
             WireCell::WireSchema::Store store;
-            std::shared_ptr<const gdmlwires::DriftFaces> drift;
+            std::shared_ptr<const gdmlwires::DriftPlanes> drift;
         };
 
         /// Register products under key.  Registering again with the same
         /// objects is a no-op; with different ones it throws (WCT cannot
         /// follow a geometry change).
-        static void put(const std::string& key, const WireSchema& ws, const DriftFaces& df);
+        static void put(const std::string& key, const WireSchema& ws, const DriftPlanes& df);
 
         /// The entry for key; throws if absent.
         static Entry get(const std::string& key);

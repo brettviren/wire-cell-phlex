@@ -93,9 +93,9 @@ namespace wcphlex {
     };
 
     // Drift geometry per face (collection plane, cathode, drift sign), made at
-    // the job layer from GDML (gdmlwires::drift_faces).  Shared and immutable.
-    struct DriftFaces {
-        std::shared_ptr<const gdmlwires::DriftFaces> faces;
+    // the job layer from GDML (gdmlwires::drift_planes).  Shared and immutable.
+    struct DriftPlanes {
+        std::shared_ptr<const gdmlwires::DriftPlanes> planes;
     };
 
 } // namespace wcphlex

@@ -158,7 +158,7 @@ void Executor::initialize_now()
     m_configured = true;
 }
 
-void Executor::provide_geometry(WireSchema const& ws, DriftFaces const& df)
+void Executor::provide_geometry(WireSchema const& ws, DriftPlanes const& df)
 {
     if (m_geometry_key.empty()) {
         throw std::runtime_error("Executor: provide_geometry() on a node without geometry_key");

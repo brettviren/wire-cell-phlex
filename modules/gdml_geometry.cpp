@@ -12,7 +12,7 @@
 // made by phlex-gdml's pgd_provider at the job layer) to what WCT needs:
 //
 //   wcph_gdml_wire_schema : gdml -> wcphlex::WireSchema  (suffix "wire_schema")
-//   wcph_gdml_drift_faces : gdml -> wcphlex::DriftFaces  (suffix "drift_faces")
+//   wcph_gdml_drift_planes : gdml -> wcphlex::DriftPlanes  (suffix "drift_planes")
 //
 // Both outputs are at the input's layer (normally "job") with the module label
 // as creator.  Config:
@@ -50,12 +50,12 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
         .output_product_suffixes("wire_schema");
 
     m.transform(
-         "wcph_gdml_drift_faces",
-         [opt](gdml::DocumentPtr const& doc) -> wcphlex::DriftFaces {
-             return wcphlex::DriftFaces{
-                 std::make_shared<const wcphlex::gdmlwires::DriftFaces>(wcphlex::gdmlwires::drift_faces(*doc, opt))};
+         "wcph_gdml_drift_planes",
+         [opt](gdml::DocumentPtr const& doc) -> wcphlex::DriftPlanes {
+             return wcphlex::DriftPlanes{
+                 std::make_shared<const wcphlex::gdmlwires::DriftPlanes>(wcphlex::gdmlwires::drift_planes(*doc, opt))};
          },
          phlex::concurrency::unlimited)
         .input_family(wcphlex::input_selector(in, "gdml"))
-        .output_product_suffixes("drift_faces");
+        .output_product_suffixes("drift_planes");
 }

@@ -118,7 +118,7 @@ public:
     // registers them (GeoRegistry) and configures WCT
     // (Main::init_configure) on the calling thread; later calls check that
     // the geometry is the same objects and throw otherwise.
-    void provide_geometry(WireSchema const& ws, DriftFaces const& df);
+    void provide_geometry(WireSchema const& ws, DriftPlanes const& df);
 
 protected:
     WireCell::Main m_wcmain;

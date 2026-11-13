@@ -366,14 +366,14 @@ namespace wcphlex::gdmlwires {
         return WireSchema::Store(db);
     }
 
-    DriftFaces drift_faces(const gdml::Document& doc, const Options& opt)
+    DriftPlanes drift_planes(const gdml::Document& doc, const Options& opt)
     {
         check_options(opt);
         const auto tpcs = extract_tpcs(doc);
-        DriftFaces ret;
+        DriftPlanes ret;
         for (size_t t = 0; t < tpcs.size(); ++t) {
             const auto& tpc = tpcs[t];
-            FaceDrift fd;
+            DriftPlane fd;
             std::tie(fd.anode, fd.face) = pair_tpc((int) t);
             fd.collection = tpc.planes.back().box_center.x;  // the collection (last) plane
             fd.cathode = tpc.active_center.x - tpc.drift_sign * tpc.active_halfx;
@@ -381,7 +381,7 @@ namespace wcphlex::gdmlwires {
             ret.push_back(fd);
         }
         std::sort(ret.begin(), ret.end(),
-                  [](const FaceDrift& a, const FaceDrift& b) { return std::tie(a.anode, a.face) < std::tie(b.anode, b.face); });
+                  [](const DriftPlane& a, const DriftPlane& b) { return std::tie(a.anode, a.face) < std::tie(b.anode, b.face); });
         return ret;
     }
 

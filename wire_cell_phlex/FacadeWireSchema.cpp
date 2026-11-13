@@ -25,18 +25,18 @@ namespace wcphlex {
     std::mutex GeoRegistry::s_mutex;
     std::map<std::string, GeoRegistry::Entry> GeoRegistry::s_entries;
 
-    void GeoRegistry::put(const std::string& key, const WireSchema& ws, const DriftFaces& df)
+    void GeoRegistry::put(const std::string& key, const WireSchema& ws, const DriftPlanes& df)
     {
-        if (!ws.store.db() || !df.faces) {
+        if (!ws.store.db() || !df.planes) {
             raise<ValueError>("GeoRegistry: null geometry product for key \"%s\"", key);
         }
         std::lock_guard<std::mutex> lock(s_mutex);
         auto it = s_entries.find(key);
         if (it == s_entries.end()) {
-            s_entries[key] = Entry{ws.store, df.faces};
+            s_entries[key] = Entry{ws.store, df.planes};
             return;
         }
-        if (it->second.store.db() != ws.store.db() || it->second.drift != df.faces) {
+        if (it->second.store.db() != ws.store.db() || it->second.drift != df.planes) {
             raise<ValueError>("GeoRegistry: key \"%s\" already holds different geometry; "
                               "WCT can not follow a geometry change",
                               key);
@@ -101,7 +101,7 @@ namespace wcphlex {
         const double tolerance = get<double>(cfg, "tolerance", 0.1 * units::mm);
 
         const auto entry = GeoRegistry::get(key);
-        std::map<std::pair<int, int>, gdmlwires::FaceDrift> by_ident;
+        std::map<std::pair<int, int>, gdmlwires::DriftPlane> by_ident;
         for (const auto& fd : *entry.drift) {
             by_ident[{fd.anode, fd.face}] = fd;
         }
@@ -114,7 +114,7 @@ namespace wcphlex {
             for (const auto& face : entry.store.faces(anode)) {
                 auto it = by_ident.find({anode.ident, face.ident});
                 if (it == by_ident.end()) {
-                    raise<KeyError>("FacadeDriftPlanes: no drift face for anode %d face %d", anode.ident,
+                    raise<KeyError>("FacadeDriftPlanes: no drift planes for anode %d face %d", anode.ident,
                                     face.ident);
                 }
                 const auto& fd = it->second;

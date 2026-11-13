@@ -29,8 +29,8 @@
 // - store: one wire per (channel, segment) in channel order, segment = the
 //   wire's position in the channel's ROP plane list, then
 //   WireSchema::correct() to the requested level.
-// - drift faces: per TPC the collection-plane X, cathode X (active-volume face
-//   opposite the planes) and drift sign (larwirecell build_drift_faces).
+// - drift planes: per TPC the collection-plane X, cathode X (active-volume face
+//   opposite the planes) and drift sign (larwirecell build_drift_planes).
 //
 // Only drift along X and one cryostat are supported, as in
 // CRPWireReadoutGeom.
@@ -56,19 +56,19 @@ namespace wcphlex::gdmlwires {
     };
 
     /// Drift geometry of one face (one LArSoft TPC), WCT units (mm).
-    struct FaceDrift {
+    struct DriftPlane {
         int anode{0}, face{0};   // WCT idents
         double collection{0};    // collection-plane X
         double cathode{0};       // cathode X
         int drift_sign{0};       // +1: electrons drift toward +X
     };
-    using DriftFaces = std::vector<FaceDrift>;  // one per TPC, sorted by (anode, face)
+    using DriftPlanes = std::vector<DriftPlane>;  // one per TPC, sorted by (anode, face)
 
     /// Build the corrected wire store.  Throws WireCell::ValueError on
     /// geometry it cannot interpret.
     WireCell::WireSchema::Store wire_schema(const gdml::Document& doc, const Options& opt = {});
 
-    /// Build the drift faces.
-    DriftFaces drift_faces(const gdml::Document& doc, const Options& opt = {});
+    /// Build the drift planes.
+    DriftPlanes drift_planes(const gdml::Document& doc, const Options& opt = {});
 
 }  // namespace wcphlex::gdmlwires

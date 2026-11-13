@@ -3,7 +3,7 @@
  *
  * gdml_wires_check GDML [REFERENCE_WIRES]
  *
- * Build the WCT wire store and drift faces from LArSoft-convention GDML
+ * Build the WCT wire store and drift planes from LArSoft-convention GDML
  * (wire_cell_phlex/GdmlWires) and, given a reference wires file (e.g. one
  * written by larwirecell's WireSchemaFileWriter from the same GDML through
  * LArSoft), compare: anode/face/plane idents, and per plane, wire by wire in
@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
     auto t1 = std::chrono::steady_clock::now();
     auto store = wcphlex::gdmlwires::wire_schema(doc);
     auto t2 = std::chrono::steady_clock::now();
-    auto drift = wcphlex::gdmlwires::drift_faces(doc);
+    auto drift = wcphlex::gdmlwires::drift_planes(doc);
     auto ms = [](auto a, auto b) { return std::chrono::duration<double, std::milli>(b - a).count(); };
     std::set<int> chans;
     for (const auto& w : store.wires()) chans.insert(w.channel);
