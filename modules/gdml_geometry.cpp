@@ -19,6 +19,7 @@
 //
 //   input:      { creator, layer, suffix }  the GDML product (suffix default "gdml")
 //   readout:    "crp"       (wire_cell_phlex/GdmlWires.hpp)
+//   sorter:     "cru60d" | "cru60d-pdvd"
 //   grouping:   "pair-tpc"
 //   correction: 4           WireSchema correction level
 
@@ -35,6 +36,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
 {
     wcphlex::gdmlwires::Options opt;
     opt.readout = config.get<std::string>("readout", std::string{opt.readout});
+    opt.sorter = config.get<std::string>("sorter", std::string{opt.sorter});
     opt.grouping = config.get<std::string>("grouping", std::string{opt.grouping});
     opt.correction = config.get<int>("correction", int{opt.correction});
 

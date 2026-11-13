@@ -322,6 +322,29 @@ enable_testing()
 # wire by wire (see test/gdml_wires_check.cpp); run by hand on large files.
 add_executable(gdml_wires_check test/gdml_wires_check.cpp)
 target_link_libraries(gdml_wires_check PRIVATE wire_cell_phlex)
+
+# The GDML ports against the WCT wires files LArSoft made from the same GDML
+# (channel, segment and wire numbering identical, endpoints within 0.05 mm).
+# GDML from GDML_PATH (dunecore Geometry/gdml), references from WIRECELL_PATH
+# (wire-cell-data); skipped when not found.
+# FacadeDriftPlanes short_drift on the ProtoDUNE-HD outer faces.
+add_executable(drift_planes_check test/drift_planes_check.cpp)
+target_link_libraries(drift_planes_check PRIVATE wire_cell_phlex)
+add_test(NAME drift_planes_pdhd
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/test/gdml-wires-ref.sh $<TARGET_FILE:drift_planes_check>
+          protodunehd_v8_refactored.gdml -)
+set_tests_properties(drift_planes_pdhd PROPERTIES SKIP_RETURN_CODE 77)
+
+foreach(_case
+    "pdhd\;protodunehd_v8_refactored.gdml\;protodunehd-wires-larsoft-v1.json.bz2\;readout=apa\;sorter=apa"
+    "pdvd\;protodunevd_v4_refactored.gdml\;protodunevd-wires-larsoft-v3.json.bz2\;sorter=cru60d-pdvd"
+    "pdvd_v5\;protodunevd_v5_ggd.gdml\;protodunevd-wires-larsoft-v4.json.bz2\;sorter=cru60d-pdvd")
+  set(_args ${_case})
+  list(POP_FRONT _args _name)
+  add_test(NAME gdml_wires_${_name}
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/test/gdml-wires-ref.sh $<TARGET_FILE:gdml_wires_check> ${_args})
+  set_tests_properties(gdml_wires_${_name} PROPERTIES SKIP_RETURN_CODE 77)
+endforeach()
 add_subdirectory(test)
 
 # Step 5: PHLEX integration test — frame source → WCT passthrough → done.

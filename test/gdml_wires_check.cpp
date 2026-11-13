@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <map>
 #include <set>
+#include <string>
 
 using namespace WireCell;
 
@@ -32,15 +33,28 @@ namespace {
 int main(int argc, char* argv[])
 {
     if (argc < 2) {
-        std::printf("usage: gdml_wires_check GDML [REFERENCE_WIRES]\n");
+        std::printf("usage: gdml_wires_check GDML [REFERENCE_WIRES|-] [readout=R] [sorter=S] [grouping=G]\n");
         return 2;
+    }
+    wcphlex::gdmlwires::Options opt;
+    for (int i = 3; i < argc; ++i) {
+        const std::string kv = argv[i];
+        const auto eq = kv.find('=');
+        const auto key = kv.substr(0, eq), val = eq == std::string::npos ? "" : kv.substr(eq + 1);
+        if (key == "readout") opt.readout = val;
+        else if (key == "sorter") opt.sorter = val;
+        else if (key == "grouping") opt.grouping = val;
+        else {
+            std::printf("unknown option %s\n", argv[i]);
+            return 2;
+        }
     }
     auto t0 = std::chrono::steady_clock::now();
     auto doc = gdml::read(argv[1]);
     auto t1 = std::chrono::steady_clock::now();
-    auto store = wcphlex::gdmlwires::wire_schema(doc);
+    auto store = wcphlex::gdmlwires::wire_schema(doc, opt);
     auto t2 = std::chrono::steady_clock::now();
-    auto drift = wcphlex::gdmlwires::drift_planes(doc);
+    auto drift = wcphlex::gdmlwires::drift_planes(doc, opt);
     auto ms = [](auto a, auto b) { return std::chrono::duration<double, std::milli>(b - a).count(); };
     std::set<int> chans;
     for (const auto& w : store.wires()) chans.insert(w.channel);
@@ -55,7 +69,7 @@ int main(int argc, char* argv[])
         std::printf("drift: collection %.2f mm cathode %.2f mm sign %+d : %d faces\n", std::get<0>(k),
                     std::get<1>(k), std::get<2>(k), n);
     }
-    if (argc < 3) return 0;
+    if (argc < 3 || std::string(argv[2]) == "-") return 0;
 
     auto ref = WireSchema::load(argv[2], WireSchema::Correction::pitch);
     int nbad = 0;

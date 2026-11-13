@@ -21,7 +21,7 @@
 //
 //   FacadeWireSchema  (IWireSchema)  {key}: the wire store.
 //   FacadeDriftPlanes (IDriftPlanes) {key, response_distance, anode_offset,
-//                                     tolerance}: per anode, per face (in the
+//                                     tolerance, short_drift}: per anode, per face (in the
 //                     store's face order) the anode/response/cathode X, as
 //                     larwirecell's DriftPlanesSource computes them.
 //

@@ -15,6 +15,7 @@
 #include "WireCellUtil/Logging.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <memory>
 #include <unordered_map>
@@ -84,6 +85,18 @@ namespace wcphlex::gdmlwires {
             return c1.z > c2.z;
         }
 
+        // dunecore WireReadoutSorterAPA::compareWires, on wire centers (as
+        // written there, including exact comparisons).
+        bool compare_wire_apa(const WireG& w1, const WireG& w2)
+        {
+            const auto& a = w1.center;
+            const auto& b = w2.center;
+            if (a.y > 0 && a.y > b.y) return true;
+            if (a.y < 0 && a.y < b.y) return true;
+            if (a.y == b.y && a.z < b.z) return true;
+            return false;
+        }
+
         struct PlaneG {
             Vec3 box_center;          // world
             std::vector<WireG> wires; // sorted
@@ -119,6 +132,29 @@ namespace wcphlex::gdmlwires {
             return a.y < b.y;
         }
 
+        // GeoObjectSorterCRU60D with SortTPCPDVD (ProtoDUNE-VD), X drift:
+        // drift volume, then the sign of Y, then Z, then Y.
+        bool compare_tpc_pdvd(const TpcG& t1, const TpcG& t2)
+        {
+            const auto& a = t1.center;
+            const auto& b = t2.center;
+            if (std::abs(a.x - b.x) > k_tpc_tol) return a.x < b.x;
+            if (a.y * b.y < 0) return a.y < b.y;
+            if (std::abs(a.z - b.z) > k_tpc_tol) return a.z < b.z;
+            return a.y < b.y;
+        }
+
+        // dunecore GeoObjectSorterAPA: compareIncreasingZYX of TPC centers
+        // (so TPCs 2a and 2a+1 make APA a).
+        bool compare_tpc_apa(const TpcG& t1, const TpcG& t2)
+        {
+            const auto& a = t1.center;
+            const auto& b = t2.center;
+            if (a.z != b.z) return a.z < b.z;
+            if (a.y != b.y) return a.y < b.y;
+            return a.x < b.x;
+        }
+
         bool is_tpc_name(const std::string& n)
         {
             return n.starts_with("volTPC") && !n.starts_with("volTPCActive") && !n.starts_with("volTPCPlane") &&
@@ -148,7 +184,7 @@ namespace wcphlex::gdmlwires {
             return ret;
         }
 
-        std::vector<TpcG> extract_tpcs(const gdml::Document& doc)
+        std::vector<TpcG> extract_tpcs(const gdml::Document& doc, const Options& opt)
         {
             std::vector<TpcG> tpcs;
             for (auto tpc_lv : gdml::find_volumes(doc, "volTPC")) {
@@ -230,7 +266,12 @@ namespace wcphlex::gdmlwires {
                     });
                     for (auto& p : t.planes) {
                         if (p.wires.size() < 2) fail("plane with fewer than 2 wires");
-                        std::sort(p.wires.begin(), p.wires.end(), compare_wire_dx);
+                        if (opt.readout == "apa") {
+                            std::sort(p.wires.begin(), p.wires.end(), compare_wire_apa);
+                        }
+                        else {
+                            std::sort(p.wires.begin(), p.wires.end(), compare_wire_dx);
+                        }
                         // NearestWireID support: pitch and increasing direction.
                         const auto& w0 = p.wires[0];
                         const auto& w1 = p.wires[1];
@@ -245,7 +286,15 @@ namespace wcphlex::gdmlwires {
                 }
             }
             if (tpcs.empty()) fail("no volTPC volumes placed in the world");
-            std::stable_sort(tpcs.begin(), tpcs.end(), compare_tpc);
+            if (opt.sorter == "cru60d-pdvd") {
+                std::stable_sort(tpcs.begin(), tpcs.end(), compare_tpc_pdvd);
+            }
+            else if (opt.sorter == "apa") {
+                std::stable_sort(tpcs.begin(), tpcs.end(), compare_tpc_apa);
+            }
+            else {
+                std::stable_sort(tpcs.begin(), tpcs.end(), compare_tpc);
+            }
             return tpcs;
         }
 
@@ -280,7 +329,12 @@ namespace wcphlex::gdmlwires {
 
         void check_options(const Options& opt)
         {
-            if (opt.readout != "crp") fail("unsupported readout '" + opt.readout + "' (want crp)");
+            if (opt.readout != "crp" && opt.readout != "apa") {
+                fail("unsupported readout '" + opt.readout + "' (want crp or apa)");
+            }
+            if (opt.sorter != "cru60d" && opt.sorter != "cru60d-pdvd" && opt.sorter != "apa") {
+                fail("unsupported sorter '" + opt.sorter + "' (want cru60d, cru60d-pdvd or apa)");
+            }
             if (opt.grouping != "pair-tpc") fail("unsupported grouping '" + opt.grouping + "' (want pair-tpc)");
         }
 
@@ -288,11 +342,112 @@ namespace wcphlex::gdmlwires {
 
     }  // namespace
 
+    namespace {
+
+        // One (TPC, plane) contributing to an APA readout plane.
+        struct TpcPlane {
+            int tpc{0}, plane{0};
+        };
+
+        // dunecore DuneApaWireReadoutGeom: APA a = TPCs 2a and 2a+1; readout
+        // planes per APA: U of both TPCs (wrapped), V of both (wrapped), Z of
+        // TPC 2a, Z of TPC 2a+1.  A plane contributes its "anchored" wires to
+        // the channel count: all for Z, and for U/V the wires before the first
+        // pair of consecutive wires with equal center Z.  A channel's wires
+        // alternate between the two TPCs, the wire index advancing by the
+        // anchored count (ChannelToWire).
+        void apa_channels(const std::vector<TpcG>& tpcs, WireSchema::StoreDB& db, int& nchannels, size_t& nwires)
+        {
+            const int ntpc = (int) tpcs.size();
+            if (ntpc % 2) fail("APA readout needs an even number of TPCs");
+            for (const auto& t : tpcs) {
+                if (t.planes.size() != 3) fail("APA readout needs 3 planes per TPC");
+            }
+            std::vector<std::array<int, 3>> anchored(ntpc);
+            for (int t = 0; t < ntpc; ++t) {
+                for (int p = 0; p < 3; ++p) {
+                    const auto& wires = tpcs[t].planes[p].wires;
+                    const int nw = (int) wires.size();
+                    int na = 0;
+                    if (p == 2) {
+                        na = nw;
+                    }
+                    else {
+                        for (int i = 0; i + 1 < nw; ++i) {
+                            if (std::abs(wires[i].center.z - wires[i + 1].center.z) < 1e-6) {
+                                na = i;
+                                break;
+                            }
+                        }
+                        if (na == 0 && nw > 310 && nw < 320) na = 200;  // as dunecore
+                    }
+                    if (na == 0) fail("plane with no anchored wires");
+                    anchored[t][p] = na;
+                }
+            }
+            int icha = 0;
+            nwires = 0;
+            for (int a = 0; a < ntpc / 2; ++a) {
+                const int t1 = 2 * a, t2 = 2 * a + 1;
+                const std::vector<std::vector<TpcPlane>> rops{
+                    {{t1, 0}, {t2, 0}}, {{t1, 1}, {t2, 1}}, {{t1, 2}}, {{t2, 2}}};
+                for (const auto& rop : rops) {
+                    const int first = icha;
+                    for (const auto& tp : rop) icha += anchored[tp.tpc][tp.plane];
+                    const int pl = rop[0].plane;
+                    const int ta = rop[0].tpc;
+                    const int tb = rop.back().tpc;
+                    const bool wrapped = rop.size() == 2;
+                    if (wrapped && anchored[ta][pl] != anchored[tb][pl]) {
+                        fail("wrapped planes have different anchored wire counts");
+                    }
+                    for (int ch = first; ch < icha; ++ch) {
+                        int t = ta;
+                        int iw = ch - first;
+                        if (wrapped && iw >= anchored[ta][pl]) {
+                            t = tb;
+                            iw -= anchored[ta][pl];
+                        }
+                        int segment = 0;
+                        while (iw < (int) tpcs[t].planes[pl].wires.size()) {
+                            const auto& wg = tpcs[t].planes[pl].wires[iw];
+                            const auto [aid, fid] = pair_tpc(t);
+                            WireSchema::Wire w;
+                            w.ident = iw;
+                            w.channel = ch;
+                            w.segment = segment++;
+                            w.tail = to_point(wg.start);
+                            w.head = to_point(wg.end);
+                            auto& plane = WireSchema::get_append(db, pl, fid, aid, 0);
+                            db.wires.push_back(w);
+                            plane.wires.push_back(db.wires.size() - 1);
+                            ++nwires;
+                            iw += anchored[t][pl];
+                            t = (t == ta) ? tb : ta;
+                        }
+                    }
+                }
+            }
+            nchannels = icha;
+        }
+
+    }  // namespace
+
     WireSchema::Store wire_schema(const gdml::Document& doc, const Options& opt)
     {
         check_options(opt);
         auto log = Log::logger("gdmlwires");
-        const auto tpcs = extract_tpcs(doc);
+        const auto tpcs = extract_tpcs(doc, opt);
+        if (opt.readout == "apa") {
+            auto db = std::make_shared<WireSchema::StoreDB>();
+            int nchannels = 0;
+            size_t nwires = 0;
+            apa_channels(tpcs, *db, nchannels, nwires);
+            log->info("gdmlwires: {} TPCs, {} APAs, {} channels, {} wires", tpcs.size(), tpcs.size() / 2,
+                      nchannels, nwires);
+            WireSchema::correct(*db, static_cast<WireSchema::Correction>(opt.correction));
+            return WireSchema::Store(db);
+        }
         const auto sets = group_sets(tpcs);
         const int nplanes = (int) tpcs.front().planes.size();
         for (const auto& t : tpcs) {
@@ -369,7 +524,7 @@ namespace wcphlex::gdmlwires {
     DriftPlanes drift_planes(const gdml::Document& doc, const Options& opt)
     {
         check_options(opt);
-        const auto tpcs = extract_tpcs(doc);
+        const auto tpcs = extract_tpcs(doc, opt);
         DriftPlanes ret;
         for (size_t t = 0; t < tpcs.size(); ++t) {
             const auto& tpc = tpcs[t];
