@@ -8,17 +8,18 @@
 
 // drift_planes_check PDHD_GDML
 //
-// FacadeDriftPlanes on ProtoDUNE-HD GDML (readout/sorter "apa"): the outer
-// (cryostat wall side) TPCs end ~2.5 cm from their collection planes, inside
-// the 10 cm response distance.  short_drift "error" refuses them; "mirror"
-// gives each the drift length of its APA's inner face.  Exit 0 if both hold.
+// Insensitive faces from GDML: in ProtoDUNE-HD GDML (readout/sorter "apa")
+// the outer (cryostat wall side) TPC of each APA is ~2.5 cm deep against the
+// inner TPCs' ~3.5 m, so gdmlwires marks it insensitive and FacadeDriftPlanes
+// gives a null face for it (as WCT's AnodePlane takes it) and no xregion,
+// while each inner face has anode/response/cathode with the cathode ~3.5 m
+// away.  Exit 0 if so.
 
 #include "wire_cell_phlex/FacadeWireSchema.hpp"
 #include "wire_cell_phlex/GdmlWires.hpp"
 
 #include "gdml/objects.hpp"
 
-#include "WireCellUtil/Exceptions.h"
 #include "WireCellUtil/Units.h"
 
 #include <cmath>
@@ -36,56 +37,45 @@ int main(int argc, char* argv[])
     wcphlex::gdmlwires::Options opt;
     opt.readout = "apa";
     opt.sorter = "apa";
+    const auto planes = wcphlex::gdmlwires::drift_planes(doc, opt);
+    int nbad = 0, ninsensitive = 0;
+    for (const auto& dp : planes) {
+        ninsensitive += !dp.sensitive;
+    }
+    std::printf("%zu faces, %d insensitive\n", planes.size(), ninsensitive);
+    nbad += ninsensitive != 4;
+
     wcphlex::WireSchema ws{wcphlex::gdmlwires::wire_schema(doc, opt)};
-    wcphlex::DriftPlanes dp{
-        std::make_shared<const wcphlex::gdmlwires::DriftPlanes>(wcphlex::gdmlwires::drift_planes(doc, opt))};
+    wcphlex::DriftPlanes dp{std::make_shared<const wcphlex::gdmlwires::DriftPlanes>(planes)};
     wcphlex::GeoRegistry::put("pdhd", ws, dp);
 
     Configuration cfg;
     cfg["key"] = "pdhd";
     cfg["response_distance"] = 10 * units::cm;
     cfg["anode_offset"] = 9.52 * units::mm;
-
-    int nbad = 0;
-    {
-        wcphlex::FacadeDriftPlanes fdp;
-        cfg["short_drift"] = "error";
-        bool threw = false;
-        try {
-            fdp.configure(cfg);
-        }
-        catch (const ValueError&) {
-            threw = true;
-        }
-        std::printf("short_drift error: %s\n", threw ? "refused (ok)" : "accepted (BAD)");
-        nbad += !threw;
-    }
-    {
-        wcphlex::FacadeDriftPlanes fdp;
-        cfg["short_drift"] = "mirror";
-        fdp.configure(cfg);
-        for (int anode = 0; anode < 4; ++anode) {
-            const auto faces = fdp.faces(anode);
-            if (faces.size() != 2) {
-                std::printf("anode %d: %d faces (BAD)\n", anode, (int) faces.size());
-                ++nbad;
+    wcphlex::FacadeDriftPlanes fdp;
+    fdp.configure(cfg);
+    for (int anode = 0; anode < 4; ++anode) {
+        const auto faces = fdp.faces(anode);
+        int nnull = 0, nfull = 0;
+        for (const auto& jf : faces) {
+            if (jf.isNull()) {
+                ++nnull;
+                std::printf("anode %d: null face\n", anode);
                 continue;
             }
-            double len[2];
-            for (int f = 0; f < 2; ++f) {
-                const double a = faces[f]["anode"].asDouble(), r = faces[f]["response"].asDouble(),
-                             c = faces[f]["cathode"].asDouble();
-                len[f] = std::abs(a - c);
-                std::printf("anode %d face %d: anode %.2f response %.2f cathode %.2f mm\n", anode, f, a, r, c);
-                // response between anode and cathode, 10 cm - anode_offset from the anode bound
-                if (!((a - r) * (r - c) > 0) || std::abs(std::abs(a - r) - (100 - 9.52)) > 0.01) ++nbad;
-            }
-            if (std::abs(len[0] - len[1]) > 0.01 || len[0] < 3000) {
-                std::printf("anode %d: face drift lengths %.2f, %.2f mm (BAD)\n", anode, len[0], len[1]);
-                ++nbad;
-            }
+            const double a = jf["anode"].asDouble(), r = jf["response"].asDouble(), c = jf["cathode"].asDouble();
+            std::printf("anode %d: anode %.2f response %.2f cathode %.2f mm\n", anode, a, r, c);
+            if ((a - r) * (r - c) > 0 && std::abs(a - c) > 3000) ++nfull;
+        }
+        if (faces.size() != 2 || nnull != 1 || nfull != 1) {
+            std::printf("anode %d: want one null and one full face (BAD)\n", anode);
+            ++nbad;
         }
     }
+    const auto xr = fdp.xregions();
+    std::printf("%d xregions\n", (int) xr.size());
+    nbad += xr.size() != 2;  // the inner faces at -x and +x (APAs 0,2 and 1,3 coincide)
     std::printf("%s\n", nbad ? "FAIL" : "PASS");
     return nbad ? 1 : 0;
 }

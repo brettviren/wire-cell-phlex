@@ -535,6 +535,12 @@ namespace wcphlex::gdmlwires {
             fd.drift_sign = tpc.drift_sign;
             ret.push_back(fd);
         }
+        // Faces without a real drift volume are insensitive.
+        double longest = 0;
+        for (const auto& fd : ret) longest = std::max(longest, fd.drift_sign * (fd.collection - fd.cathode));
+        for (auto& fd : ret) {
+            fd.sensitive = fd.drift_sign * (fd.collection - fd.cathode) >= opt.min_drift_fraction * longest;
+        }
         std::sort(ret.begin(), ret.end(),
                   [](const DriftPlane& a, const DriftPlane& b) { return std::tie(a.anode, a.face) < std::tie(b.anode, b.face); });
         return ret;

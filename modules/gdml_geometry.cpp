@@ -21,6 +21,7 @@
 //   readout:    "crp"       (wire_cell_phlex/GdmlWires.hpp)
 //   sorter:     "cru60d" | "cru60d-pdvd"
 //   grouping:   "pair-tpc"
+//   min_drift_fraction: 0.1  (shorter drift volumes are insensitive faces)
 //   correction: 4           WireSchema correction level
 
 #include "modules/register_shapes.hpp"  // input_selector
@@ -38,6 +39,7 @@ PHLEX_REGISTER_ALGORITHMS(m, config)
     opt.readout = config.get<std::string>("readout", std::string{opt.readout});
     opt.sorter = config.get<std::string>("sorter", std::string{opt.sorter});
     opt.grouping = config.get<std::string>("grouping", std::string{opt.grouping});
+    opt.min_drift_fraction = config.get<double>("min_drift_fraction", double{opt.min_drift_fraction});
     opt.correction = config.get<int>("correction", int{opt.correction});
 
     auto const in = config.get<phlex::configuration>("input");

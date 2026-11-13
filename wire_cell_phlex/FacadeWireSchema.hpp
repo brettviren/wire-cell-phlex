@@ -21,9 +21,10 @@
 //
 //   FacadeWireSchema  (IWireSchema)  {key}: the wire store.
 //   FacadeDriftPlanes (IDriftPlanes) {key, response_distance, anode_offset,
-//                                     tolerance, short_drift}: per anode, per face (in the
+//                                     tolerance}: per anode, per face (in the
 //                     store's face order) the anode/response/cathode X, as
-//                     larwirecell's DriftPlanesSource computes them.
+//                     larwirecell's DriftPlanesSource computes them, or null
+//                     for an insensitive face (DriftPlane::sensitive false).
 //
 // All executors in a job register the same products under the same key, so
 // the components' configurations are identical and WCT shares one instance

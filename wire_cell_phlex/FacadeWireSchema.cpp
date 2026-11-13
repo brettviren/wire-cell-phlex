@@ -92,13 +92,6 @@ namespace wcphlex {
         cfg["anode_offset"] = 0.0;
         // Faces whose planes agree within this make one xregion.
         cfg["tolerance"] = 0.1 * units::mm;
-        // A face whose drift volume ends before its response plane (eg the
-        // few cm between a ProtoDUNE-HD APA and the cryostat wall):
-        //   "error":  refuse the geometry;
-        //   "mirror": give it the drift length of the other face of its
-        //             anode (both faces active and symmetric, the usual
-        //             simulation geometry of an APA detector).
-        cfg["short_drift"] = "error";
         return cfg;
     }
 
@@ -108,11 +101,6 @@ namespace wcphlex {
         const double response_distance = get<double>(cfg, "response_distance", 10 * units::cm);
         const double anode_offset = get<double>(cfg, "anode_offset", 0.0);
         const double tolerance = get<double>(cfg, "tolerance", 0.1 * units::mm);
-        const auto short_drift = get<std::string>(cfg, "short_drift", "error");
-        if (short_drift != "error" && short_drift != "mirror") {
-            raise<ValueError>("FacadeDriftPlanes: short_drift must be \"error\" or \"mirror\", got \"%s\"",
-                              short_drift);
-        }
 
         const auto entry = GeoRegistry::get(key);
         std::map<std::pair<int, int>, gdmlwires::DriftPlane> by_ident;
@@ -123,8 +111,6 @@ namespace wcphlex {
         m_faces.clear();
         m_xregions = Json::arrayValue;
         std::vector<Configuration> distinct;
-        // Drift length from the collection plane to the cathode.
-        auto drift_length = [](const gdmlwires::DriftPlane& fd) { return fd.drift_sign * (fd.collection - fd.cathode); };
         for (const auto& anode : entry.store.anodes()) {
             Configuration jfaces = Json::arrayValue;
             for (const auto& face : entry.store.faces(anode)) {
@@ -133,21 +119,12 @@ namespace wcphlex {
                     raise<KeyError>("FacadeDriftPlanes: no drift planes for anode %d face %d", anode.ident,
                                     face.ident);
                 }
-                auto fd = it->second;
-                if (short_drift == "mirror" && drift_length(fd) <= response_distance) {
-                    // The longest drift among the anode's other faces.
-                    double length = 0;
-                    for (const auto& other : entry.store.faces(anode)) {
-                        if (other.ident == face.ident) continue;
-                        auto ot = by_ident.find({anode.ident, other.ident});
-                        if (ot != by_ident.end()) length = std::max(length, drift_length(ot->second));
-                    }
-                    if (length <= response_distance) {
-                        raise<ValueError>("anode %d face %d: drift volume ends before the response plane and "
-                                          "no other face of the anode has a longer one",
-                                          anode.ident, face.ident);
-                    }
-                    fd.cathode = fd.collection - fd.drift_sign * length;
+                const auto& fd = it->second;
+                if (!fd.sensitive) {
+                    // No drift volume (eg ProtoDUNE-HD's wall side of an APA):
+                    // a null face, as WCT's AnodePlane takes it, and no xregion.
+                    jfaces.append(Json::nullValue);
+                    continue;
                 }
                 const double xanode = fd.collection - fd.drift_sign * anode_offset;
                 const double response = fd.collection - fd.drift_sign * response_distance;

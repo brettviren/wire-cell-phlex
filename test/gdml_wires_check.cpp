@@ -61,13 +61,14 @@ int main(int argc, char* argv[])
     std::printf("read %.0f ms, build %.0f ms: %zu anodes %zu faces %zu planes %zu wires %zu channels\n",
                 ms(t0, t1), ms(t1, t2), store.anodes().size(), store.faces().size(), store.planes().size(),
                 store.wires().size(), chans.size());
-    std::map<std::tuple<double, double, int>, int> dvals;
+    std::map<std::tuple<double, double, int, bool>, int> dvals;
     for (const auto& fd : drift) {
-        ++dvals[{std::round(fd.collection * 100) / 100, std::round(fd.cathode * 100) / 100, fd.drift_sign}];
+        ++dvals[{std::round(fd.collection * 100) / 100, std::round(fd.cathode * 100) / 100, fd.drift_sign,
+                 fd.sensitive}];
     }
     for (const auto& [k, n] : dvals) {
-        std::printf("drift: collection %.2f mm cathode %.2f mm sign %+d : %d faces\n", std::get<0>(k),
-                    std::get<1>(k), std::get<2>(k), n);
+        std::printf("drift: collection %.2f mm cathode %.2f mm sign %+d %s : %d faces\n", std::get<0>(k),
+                    std::get<1>(k), std::get<2>(k), std::get<3>(k) ? "sensitive" : "INSENSITIVE", n);
     }
     if (argc < 3 || std::string(argv[2]) == "-") return 0;
 

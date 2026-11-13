@@ -60,6 +60,11 @@ namespace wcphlex::gdmlwires {
         // WireSchema correction level applied to the store (4 = pitch, as
         // wcwires and larwirecell's WireSchemaFileWriter use).
         int correction{4};
+        // A TPC whose drift length (collection plane to cathode) is less
+        // than this fraction of the longest one in the detector is an
+        // insensitive face: eg the ~2.5 cm between a ProtoDUNE-HD APA and
+        // the cryostat wall (3.5 m drifts).
+        double min_drift_fraction{0.1};
     };
 
     /// Drift geometry of one face (one LArSoft TPC), WCT units (mm).
@@ -68,6 +73,9 @@ namespace wcphlex::gdmlwires {
         double collection{0};    // collection-plane X
         double cathode{0};       // cathode X
         int drift_sign{0};       // +1: electrons drift toward +X
+        // False for a face with no real drift volume (Options
+        // min_drift_fraction): WCT gives it a null face, no sensitive volume.
+        bool sensitive{true};
     };
     using DriftPlanes = std::vector<DriftPlane>;  // one per TPC, sorted by (anode, face)
 

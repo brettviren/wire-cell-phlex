@@ -327,7 +327,7 @@ target_link_libraries(gdml_wires_check PRIVATE wire_cell_phlex)
 # (channel, segment and wire numbering identical, endpoints within 0.05 mm).
 # GDML from GDML_PATH (dunecore Geometry/gdml), references from WIRECELL_PATH
 # (wire-cell-data); skipped when not found.
-# FacadeDriftPlanes short_drift on the ProtoDUNE-HD outer faces.
+# Insensitive (null) faces: the ProtoDUNE-HD outer TPCs from GDML.
 add_executable(drift_planes_check test/drift_planes_check.cpp)
 target_link_libraries(drift_planes_check PRIVATE wire_cell_phlex)
 add_test(NAME drift_planes_pdhd
@@ -376,8 +376,23 @@ get_filename_component(_phlex_lib_dir "${_phlex_bin_dir}/../lib" ABSOLUTE)
 # (e.g. our install tree) ship the latter, while the Spack view's share/wirecell
 # carries the real data files.  Picking the first existing dir unconditionally
 # would select the data-less install tree and break every _with_data test.
+# Directories on WIRECELL_PATH at configure time come first (eg a
+# wire-cell-data checkout that replaces the view's copy), then the prefixes.
 set(_wct_data_dir "")
+if(DEFINED ENV{WIRECELL_PATH})
+  string(REPLACE ":" ";" _wct_env_path "$ENV{WIRECELL_PATH}")
+  foreach(_dir IN LISTS _wct_env_path)
+    file(GLOB _wct_data_files "${_dir}/*.json.bz2")
+    if(_wct_data_files)
+      set(_wct_data_dir "${_dir}")
+      break()
+    endif()
+  endforeach()
+endif()
 foreach(_prefix IN LISTS CMAKE_PREFIX_PATH)
+  if(_wct_data_dir)
+    break()
+  endif()
   if(EXISTS "${_prefix}/share/wirecell")
     file(GLOB _wct_data_files "${_prefix}/share/wirecell/*.json.bz2")
     if(_wct_data_files)
