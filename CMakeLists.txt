@@ -330,6 +330,10 @@ target_link_libraries(gdml_wires_check PRIVATE wire_cell_phlex)
 # Insensitive (null) faces: the ProtoDUNE-HD outer TPCs from GDML.
 add_executable(drift_planes_check test/drift_planes_check.cpp)
 target_link_libraries(drift_planes_check PRIVATE wire_cell_phlex)
+add_test(NAME drift_planes_fdhd
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/test/gdml-wires-ref.sh $<TARGET_FILE:drift_planes_check>
+          dune10kt_v6_refactored.gdml - 150 100 4)
+set_tests_properties(drift_planes_fdhd PROPERTIES SKIP_RETURN_CODE 77)
 add_test(NAME drift_planes_pdhd
   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/test/gdml-wires-ref.sh $<TARGET_FILE:drift_planes_check>
           protodunehd_v8_refactored.gdml -)
@@ -338,7 +342,9 @@ set_tests_properties(drift_planes_pdhd PROPERTIES SKIP_RETURN_CODE 77)
 foreach(_case
     "pdhd\;protodunehd_v8_refactored.gdml\;protodunehd-wires-larsoft-v1.json.bz2\;readout=apa\;sorter=apa"
     "pdvd\;protodunevd_v4_refactored.gdml\;protodunevd-wires-larsoft-v3.json.bz2\;sorter=cru60d-pdvd"
-    "pdvd_v5\;protodunevd_v5_ggd.gdml\;protodunevd-wires-larsoft-v4.json.bz2\;sorter=cru60d-pdvd")
+    "pdvd_v5\;protodunevd_v5_ggd.gdml\;protodunevd-wires-larsoft-v4.json.bz2\;sorter=cru60d-pdvd"
+    "fdhd_1x2x6\;dune10kt_v6_refactored_1x2x6.gdml\;dune10kt-1x2x6-wires-larsoft-v1.json.bz2\;readout=apa\;sorter=apa"
+    "fdhd\;dune10kt_v6_refactored.gdml\;dune10kt_v7_refactored.json.bz2\;readout=apa\;sorter=apa")
   set(_args ${_case})
   list(POP_FRONT _args _name)
   add_test(NAME gdml_wires_${_name}

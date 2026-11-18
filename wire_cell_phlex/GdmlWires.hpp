@@ -49,12 +49,12 @@ namespace wcphlex::gdmlwires {
 
     struct Options {
         // Channel map: "crp" (dunecore CRPWireReadoutGeom: FD-VD, ProtoDUNE-VD)
-        // or "apa" (dunecore DuneApaWireReadoutGeom with WireReadoutSorterAPA,
-        // as ProtoDUNEWireReadoutGeom: ProtoDUNE-HD).
+        // or "apa" (dunecore DuneApaWireReadoutGeom with WireReadoutSorterAPA:
+        // ProtoDUNE-HD via ProtoDUNEWireReadoutGeom, and FD-HD "dune10kt*").
         std::string readout{"crp"};
         // TPC sorter: "cru60d" (GeoObjectSorterCRU60D, FD-VD), "cru60d-pdvd"
         // (the same with SortTPCPDVD: true, ProtoDUNE-VD) or "apa"
-        // (GeoObjectSorterAPA, ProtoDUNE-HD).
+        // (GeoObjectSorterAPA, ProtoDUNE-HD and FD-HD).
         std::string sorter{"cru60d"};
         std::string grouping{"pair-tpc"};  // only "pair-tpc" for now
         // WireSchema correction level applied to the store (4 = pitch, as

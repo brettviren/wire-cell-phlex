@@ -24,15 +24,20 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 
 using namespace WireCell;
 
 int main(int argc, char* argv[])
 {
     if (argc < 2) {
-        std::printf("usage: drift_planes_check PDHD_GDML\n");
+        std::printf("usage: drift_planes_check APA_GDML [NANODES NINSENSITIVE NXREGIONS]\n"
+                    "  defaults: ProtoDUNE-HD, 4 APAs, 4 insensitive faces, 2 xregions\n");
         return 2;
     }
+    const int want_anodes = argc > 2 ? std::atoi(argv[2]) : 4;
+    const int want_insensitive = argc > 3 ? std::atoi(argv[3]) : 4;
+    const int want_xregions = argc > 4 ? std::atoi(argv[4]) : 2;
     auto doc = gdml::read(argv[1]);
     wcphlex::gdmlwires::Options opt;
     opt.readout = "apa";
@@ -43,39 +48,46 @@ int main(int argc, char* argv[])
         ninsensitive += !dp.sensitive;
     }
     std::printf("%zu faces, %d insensitive\n", planes.size(), ninsensitive);
-    nbad += ninsensitive != 4;
+    nbad += ninsensitive != want_insensitive;
 
     wcphlex::WireSchema ws{wcphlex::gdmlwires::wire_schema(doc, opt)};
     wcphlex::DriftPlanes dp{std::make_shared<const wcphlex::gdmlwires::DriftPlanes>(planes)};
-    wcphlex::GeoRegistry::put("pdhd", ws, dp);
+    wcphlex::GeoRegistry::put("apa", ws, dp);
 
     Configuration cfg;
-    cfg["key"] = "pdhd";
+    cfg["key"] = "apa";
     cfg["response_distance"] = 10 * units::cm;
     cfg["anode_offset"] = 9.52 * units::mm;
     wcphlex::FacadeDriftPlanes fdp;
     fdp.configure(cfg);
-    for (int anode = 0; anode < 4; ++anode) {
+    int nnull_total = 0;
+    for (int anode = 0; anode < want_anodes; ++anode) {
         const auto faces = fdp.faces(anode);
         int nnull = 0, nfull = 0;
         for (const auto& jf : faces) {
             if (jf.isNull()) {
                 ++nnull;
-                std::printf("anode %d: null face\n", anode);
+                if (want_anodes <= 4) std::printf("anode %d: null face\n", anode);
                 continue;
             }
             const double a = jf["anode"].asDouble(), r = jf["response"].asDouble(), c = jf["cathode"].asDouble();
-            std::printf("anode %d: anode %.2f response %.2f cathode %.2f mm\n", anode, a, r, c);
+            if (want_anodes <= 4) std::printf("anode %d: anode %.2f response %.2f cathode %.2f mm\n", anode, a, r, c);
             if ((a - r) * (r - c) > 0 && std::abs(a - c) > 3000) ++nfull;
         }
-        if (faces.size() != 2 || nnull != 1 || nfull != 1) {
-            std::printf("anode %d: want one null and one full face (BAD)\n", anode);
+        nnull_total += nnull;
+        // Every face is either null (insensitive) or a full drift.
+        if (faces.size() != 2 || nnull + nfull != 2) {
+            std::printf("anode %d: want two faces, each null or a full drift (BAD)\n", anode);
             ++nbad;
         }
     }
+    std::printf("%d null faces\n", nnull_total);
+    nbad += nnull_total != want_insensitive;
     const auto xr = fdp.xregions();
     std::printf("%d xregions\n", (int) xr.size());
-    nbad += xr.size() != 2;  // the inner faces at -x and +x (APAs 0,2 and 1,3 coincide)
+    // Distinct sensitive drift regions: PDHD the inner faces at -x and +x
+    // (APAs 0,2 and 1,3 coincide); full FD-HD the four between its CPAs.
+    nbad += (int) xr.size() != want_xregions;
     std::printf("%s\n", nbad ? "FAIL" : "PASS");
     return nbad ? 1 : 0;
 }
