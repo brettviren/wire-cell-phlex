@@ -784,6 +784,9 @@ foreach(_mod IN ITEMS
     wcph_wire_schema_source
     wcph_wire_schema_observer
     wcph_gdml_geometry
+    wcph_frame_to_blobsets
+    wcph_frame_to_cluster
+    wcph_frame_deposet_to_cluster
 )
   install(TARGETS ${_mod}
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"

@@ -16,6 +16,7 @@ find_dependency(WireCell REQUIRED)
 find_dependency(Boost REQUIRED COMPONENTS json)
 find_dependency(boost_config REQUIRED)
 find_dependency(phlex_config REQUIRED)
+find_dependency(gdml_objects 0.1 REQUIRED)
 
 include("${CMAKE_CURRENT_LIST_DIR}/wire_cell_phlexTargets.cmake")
 
